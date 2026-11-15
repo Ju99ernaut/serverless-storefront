@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import styles from '../styles/Hamburger.module.css';
-import { CATEGORY_MENUS, CategoryMenuItem } from '../data/products';
+import { CATEGORY_MENUS, CategoryMenuItem } from '../data/utils';
 
 const ITEMS_DELAY_INTERVAL = 60;
 const ANIMATION_DURATION = 600;

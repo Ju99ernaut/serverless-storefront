@@ -9,18 +9,18 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import {
-  PRODUCTS,
-  HOME_BANNERS,
+import { PRODUCTS, HOME_BANNERS } from '../data/products';
+import type {
   Product,
   BannerSlide,
   CartLineItem,
-} from '../data/products';
+  StoreUserRecord,
+  StoreOrderRecord,
+} from '../data/utils';
 import {
   fetchStorefrontCatalog,
   syncUserAccountViaSdk,
 } from '../lib/payload-sdk';
-import type { StoreUserRecord, StoreOrderRecord } from '../lib/storefront-db';
 import { neonAuthClient } from '../lib/auth-client';
 
 const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1';
@@ -67,10 +67,14 @@ interface StoreContextValue {
   signInWithGoogle: () => Promise<StoreUserRecord>;
   signOut: () => void;
   updateProfile: (params: {
-    name: string;
-    phone: string;
-    shippingAddress: string;
-  }) => Promise<void>;
+    name?: string;
+    newEmail?: string;
+    phone?: string;
+    shippingAddress?: string;
+    avatarUrl?: string | null;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<StoreUserRecord | undefined>;
   refreshUserOrders: () => Promise<void>;
 }
 
@@ -315,6 +319,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const synced = await syncUserAccountViaSdk({
         action: params.isRegister ? 'register' : 'login',
         email: params.email,
+        password: params.password,
         name: params.name,
         cartItems,
       });
@@ -429,25 +434,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (params: {
-      name: string;
-      phone: string;
-      shippingAddress: string;
+      name?: string;
+      newEmail?: string;
+      phone?: string;
+      shippingAddress?: string;
+      avatarUrl?: string | null;
+      currentPassword?: string;
+      newPassword?: string;
     }) => {
-      if (!user) return;
+      if (!user) return undefined;
       const res = await syncUserAccountViaSdk({
         action: 'update_profile',
         email: user.email,
         name: params.name,
+        newEmail: params.newEmail,
         phone: params.phone,
         shippingAddress: params.shippingAddress,
+        avatarUrl: params.avatarUrl,
+        currentPassword: params.currentPassword,
+        newPassword: params.newPassword,
       });
       setUser(res.user);
+      setOrders(res.orders || []);
       try {
         localStorage.setItem(
           USER_SESSION_STORAGE_KEY,
           JSON.stringify(res.user)
         );
       } catch {}
+      return res.user;
     },
     [user]
   );

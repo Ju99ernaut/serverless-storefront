@@ -6,7 +6,7 @@ import { OptimizedImage } from './ui/optimized-image';
 import {
   getProductTotalAvailableStock,
   type Product,
-} from '../data/products';
+} from '../data/utils';
 
 interface CompareWrapperProps {
   compareItems: Product[];
@@ -32,7 +32,7 @@ const CompareWrapper = ({
         return (
           <div key={product.id} className="compare__item">
             <div className="compare__effect">
-              <div className="w-40 h-40 flex items-center justify-center rounded-xl bg-[var(--surface-elevated)] p-3 border border-[var(--border-color)]">
+              <div className="w-40 h-40 flex items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3 border border-[var(--border-color)]">
                 <OptimizedImage
                   src={product.images[0] || '/images/shirt.png'}
                   alt={product.title}

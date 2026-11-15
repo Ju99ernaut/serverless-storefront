@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET as getCatalog } from '@/app/(frontend)/api/storefront/catalog/route';
 import { POST as postCheckout } from '@/app/(frontend)/api/checkout/route';
@@ -15,9 +15,63 @@ import {
   reserveVariantStockAtomic,
   releaseVariantStockAtomic,
 } from '@/lib/storefront-db';
-import { getProductLowestAvailableVariantStock } from '@/data/products';
+import { getProductLowestAvailableVariantStock } from '@/data/utils';
 
 describe('Storefront End-to-End API & Workflow Integration Suite', () => {
+  beforeAll(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        const parsed =
+          typeof init?.body === 'string'
+            ? (JSON.parse(init.body) as {
+                formats?: string[];
+                data?: { orderId?: string; documentType?: string };
+              })
+            : {};
+        const orderId = parsed.data?.orderId || 'ORD-TEST';
+        const docType =
+          parsed.data?.documentType === 'RECEIPT' ? 'receipt' : 'invoice';
+        const wantsPdf = !parsed.formats || parsed.formats.includes('pdf');
+        const wantsHtml = !parsed.formats || parsed.formats.includes('html');
+        const htmlDocument = `<!DOCTYPE html><html><body><h1>Order ${orderId}</h1></body></html>`;
+
+        return new Response(
+          JSON.stringify({
+            ...(wantsPdf
+              ? {
+                  pdf: {
+                    url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=${docType}`,
+                    sizeBytes: 28450,
+                    mimeType: 'application/pdf',
+                    checksum: `sha256_${orderId.toLowerCase()}_${docType}`,
+                  },
+                }
+              : {}),
+            ...(wantsHtml
+              ? {
+                  html: {
+                    htmlDocument,
+                    checksum: `sha256_${orderId.toLowerCase()}_html`,
+                    mimeType: 'text/html',
+                    url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=html`,
+                    sizeBytes: htmlDocument.length,
+                  },
+                }
+              : {}),
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      })
+    );
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
   it('supports catalog listing, search, sorting, category filtering, and low-stock detection', async () => {
     const req = new NextRequest(
       'http://localhost:3000/api/storefront/catalog?q=oxford&filter=shirts&sort=price-asc'
@@ -378,5 +432,133 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
     const patchData = await patchRes.json();
     expect(patchData.order.orderStatus).toBe('COMPLETED');
     expect(patchData.emailDispatched).toBe(true);
+  });
+
+  it('supports updating user name, email, password, and avatar with validation guards', async () => {
+    // 1. Register user with initial password
+    const initReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register',
+          email: 'profile.tester@example.com',
+          name: 'Profile Tester',
+          password: 'initialPassword123',
+        }),
+      }
+    );
+    const initRes = await postAccount(initReq);
+    expect(initRes.status).toBe(200);
+
+    // 2. Reject incorrect current password
+    const badPwReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          email: 'profile.tester@example.com',
+          currentPassword: 'wrongPassword',
+          newPassword: 'updatedPassword456',
+        }),
+      }
+    );
+    const badPwRes = await postAccount(badPwReq);
+    expect(badPwRes.status).toBe(401);
+
+    // 3. Reject email conflict with existing demo account
+    const conflictReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          email: 'profile.tester@example.com',
+          newEmail: 'alex.rivera@example.com',
+        }),
+      }
+    );
+    const conflictRes = await postAccount(conflictReq);
+    expect(conflictRes.status).toBe(409);
+
+    // 4. Reject too-short new password
+    const shortPwReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          email: 'profile.tester@example.com',
+          currentPassword: 'initialPassword123',
+          newPassword: '123',
+        }),
+      }
+    );
+    const shortPwRes = await postAccount(shortPwReq);
+    expect(shortPwRes.status).toBe(400);
+
+    // 5. Successfully update name, email, avatarUrl, and password
+    const updateReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          email: 'profile.tester@example.com',
+          newEmail: 'updated.tester@example.com',
+          name: 'Updated Tester Name',
+          avatarUrl: 'https://example.com/avatar-updated.png',
+          currentPassword: 'initialPassword123',
+          newPassword: 'updatedPassword456',
+        }),
+      }
+    );
+    const updateRes = await postAccount(updateReq);
+    expect(updateRes.status).toBe(200);
+    const updateData = await updateRes.json();
+    expect(updateData.user.name).toBe('Updated Tester Name');
+    expect(updateData.user.email).toBe('updated.tester@example.com');
+    expect(updateData.user.avatarUrl).toBe(
+      'https://example.com/avatar-updated.png'
+    );
+
+    // 6. Verify login works with updated email & new password, and fails with old password
+    const wrongLoginReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login',
+          email: 'updated.tester@example.com',
+          password: 'initialPassword123',
+        }),
+      }
+    );
+    const wrongLoginRes = await postAccount(wrongLoginReq);
+    expect(wrongLoginRes.status).toBe(401);
+
+    const goodLoginReq = new NextRequest(
+      'http://localhost:3000/api/storefront/account',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login',
+          email: 'updated.tester@example.com',
+          password: 'updatedPassword456',
+        }),
+      }
+    );
+    const goodLoginRes = await postAccount(goodLoginReq);
+    expect(goodLoginRes.status).toBe(200);
+    const goodLoginData = await goodLoginRes.json();
+    expect(goodLoginData.user.name).toBe('Updated Tester Name');
   });
 });

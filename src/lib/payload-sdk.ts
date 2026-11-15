@@ -5,8 +5,9 @@ import type {
   BannerSlide,
   ProductReviewItem,
   CartLineItem,
-} from '../data/products';
-import type { StoreOrderRecord, StoreUserRecord } from './storefront-db';
+  StoreOrderRecord,
+  StoreUserRecord,
+} from '../data/utils';
 
 const getBaseApiUrl = () => {
   if (typeof window !== 'undefined') {
@@ -100,9 +101,13 @@ export async function syncUserAccountViaSdk(payload: {
     | 'toggle_wishlist'
     | 'update_profile';
   email?: string;
+  newEmail?: string;
   password?: string;
+  currentPassword?: string;
+  newPassword?: string;
   name?: string;
   phone?: string;
+  avatarUrl?: string | null;
   shippingAddress?: string;
   productSlug?: string;
   cartItems?: CartLineItem[];

@@ -1,16 +1,20 @@
 'use client';
 
-import { Suspense, useEffect, useState, FormEvent } from 'react';
+import { Suspense, useEffect, useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowLeft,
+  Camera,
   CheckCircle2,
   Clock,
   ExternalLink,
+  Eye,
+  EyeOff,
   FileText,
   Heart,
-  LogOut,
+  KeyRound,
   Mail,
   Package,
   ShieldCheck,
@@ -19,12 +23,15 @@ import {
   Sparkles,
   Trash2,
   Truck,
+  Upload,
   User as UserIcon,
+  X,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk';
-import type { StoreOrderRecord } from '../../../lib/storefront-db';
+import type { StoreOrderRecord } from '../../../data/utils';
 import { OptimizedImage } from '../../../components/ui/optimized-image';
+import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avatar';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { Alert } from '../../../components/ui/alert';
@@ -38,6 +45,7 @@ import {
   TabsTrigger,
 } from '../../../components/ui/tabs';
 import Cart from '../../../components/Cart';
+import UserMenu, { getUserInitials } from '../../../components/UserMenu';
 
 const STATUS_BADGE_MAP: Record<
   StoreOrderRecord['orderStatus'],
@@ -71,7 +79,6 @@ function AccountPortalContent() {
     removeCartItem,
     clearCart,
     openAuthModal,
-    signOut,
     updateProfile,
     refreshUserOrders,
   } = useStore();
@@ -83,20 +90,32 @@ function AccountPortalContent() {
   );
 
   const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
   const [profilePhone, setProfilePhone] = useState(user?.phone || '');
   const [profileAddress, setProfileAddress] = useState(
     user?.shippingAddresses?.[0]?.streetAddress || ''
   );
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(
+    user?.avatarUrl || ''
+  );
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSavedMsg, setProfileSavedMsg] = useState('');
+  const [profileErrorMsg, setProfileErrorMsg] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [orderNotice, setOrderNotice] = useState('');
 
   useEffect(() => {
     if (user) {
       setProfileName(user.name || '');
+      setProfileEmail(user.email || '');
       setProfilePhone(user.phone || '');
       setProfileAddress(user.shippingAddresses?.[0]?.streetAddress || '');
+      setProfileAvatarUrl(user.avatarUrl || '');
     }
   }, [user]);
 
@@ -113,17 +132,67 @@ function AccountPortalContent() {
 
   const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug));
 
+  const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      setProfileErrorMsg('Please select an image smaller than 1.5 MB.');
+      return;
+    }
+    setProfileErrorMsg('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setProfileAvatarUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveProfile = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSavingProfile(true);
     setProfileSavedMsg('');
+    setProfileErrorMsg('');
+
+    if (!profileName.trim() || !profileEmail.trim()) {
+      setProfileErrorMsg('Full name and email address are required.');
+      return;
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        setProfileErrorMsg('New password must be at least 6 characters long.');
+        return;
+      }
+      if (newPassword !== confirmNewPassword) {
+        setProfileErrorMsg('New password and confirmation do not match.');
+        return;
+      }
+    }
+
+    setSavingProfile(true);
     try {
       await updateProfile({
         name: profileName.trim(),
+        newEmail: profileEmail.trim(),
         phone: profilePhone.trim(),
         shippingAddress: profileAddress.trim(),
+        avatarUrl: profileAvatarUrl.trim() ? profileAvatarUrl.trim() : null,
+        currentPassword: currentPassword || undefined,
+        newPassword: newPassword || undefined,
       });
-      setProfileSavedMsg('Account profile & delivery address saved to Payload CMS.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setProfileSavedMsg(
+        'Profile details, email, password, and avatar updated successfully.'
+      );
+    } catch (err: unknown) {
+      setProfileErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'Unable to save profile updates.'
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -158,7 +227,7 @@ function AccountPortalContent() {
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen overflow-anchor-parent pb-16">
       <Cart
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -168,9 +237,9 @@ function AccountPortalContent() {
         onClearCart={clearCart}
       />
 
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-30 border-b border-[var(--border-color)] bg-[var(--surface-drawer)]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+      {/* Sticky Top Navigation */}
+      <header className="sticky-topbar-container">
+        <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Button asChild variant="ghost" size="sm" className="gap-1.5">
               <Link href="/">
@@ -178,24 +247,13 @@ function AccountPortalContent() {
                 <span>Back to Store</span>
               </Link>
             </Button>
-            <span className="text-sm font-bold text-[var(--fg-heading)]">
+            <span className="hidden sm:inline text-sm font-bold text-[var(--fg-heading)]">
               My Account Portal
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            {user && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={signOut}
-                className="gap-1.5"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span>Sign Out</span>
-              </Button>
-            )}
+            <UserMenu />
             <Button
               type="button"
               size="sm"
@@ -213,7 +271,7 @@ function AccountPortalContent() {
         {!user ? (
           <Card className="mx-auto max-w-lg text-center">
             <CardHeader>
-              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#5C5EDC]/15 text-[#797BED]">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-none bg-[#5C5EDC]/15 text-[#797BED]">
                 <ShieldCheck className="h-6 w-6" aria-hidden="true" />
               </div>
               <CardTitle className="text-xl">
@@ -252,11 +310,16 @@ function AccountPortalContent() {
         ) : (
           <>
             {/* User Header & KPIs */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-card)] p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#5C5EDC] text-white text-xl font-bold">
-                  {user.name.slice(0, 1).toUpperCase()}
-                </div>
+                <Avatar className="h-14 w-14 border border-[#5C5EDC]/40">
+                  {user.avatarUrl ? (
+                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  ) : null}
+                  <AvatarFallback className="text-lg">
+                    {getUserInitials(user.name, user.email)}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-bold text-[var(--fg-heading)]">
@@ -271,7 +334,7 @@ function AccountPortalContent() {
               </div>
 
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
+                <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
                   <div className="text-lg font-bold text-[var(--fg-heading)]">
                     {orders.length}
                   </div>
@@ -279,7 +342,7 @@ function AccountPortalContent() {
                     Orders
                   </div>
                 </div>
-                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
+                <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
                   <div className="text-lg font-bold text-[var(--fg-heading)]">
                     {wishlistSlugs.length}
                   </div>
@@ -287,7 +350,7 @@ function AccountPortalContent() {
                     Loved
                   </div>
                 </div>
-                <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
+                <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
                   <div className="text-lg font-bold text-[var(--fg-heading)]">
                     {totalCartCount}
                   </div>
@@ -418,10 +481,10 @@ function AccountPortalContent() {
                             {order.items.map((item, idx) => (
                               <div
                                 key={`${order.orderId}-item-${idx}`}
-                                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--surface-elevated)] p-2.5 text-xs"
+                                className="flex items-center justify-between gap-3 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] p-2.5 text-xs"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="h-12 w-12 rounded-md bg-[var(--surface-card)] p-1 flex items-center justify-center border border-[var(--border-color)]">
+                                  <div className="h-12 w-12 rounded-none bg-[var(--surface-card)] p-1 flex items-center justify-center border border-[var(--border-color)]">
                                     <OptimizedImage
                                       src={item.imageUrl || '/images/shirt.png'}
                                       alt={item.title}
@@ -469,7 +532,7 @@ function AccountPortalContent() {
                           </div>
 
                           {/* Status Timeline */}
-                          <div className="space-y-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-drawer)] p-4">
+                          <div className="space-y-2 rounded-none border border-[var(--border-color)] bg-[var(--surface-drawer)] p-4">
                             <div className="text-xs font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                               Live Tracking &amp; Email Updates
                             </div>
@@ -619,7 +682,7 @@ function AccountPortalContent() {
                         <CardContent className="p-4 flex flex-col gap-3">
                           <Link
                             href={`/products/${item.slug}`}
-                            className="flex h-40 items-center justify-center rounded-lg bg-[var(--surface-elevated)] p-3"
+                            className="flex h-40 items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3"
                           >
                             <OptimizedImage
                               src={item.images[0] || '/images/shirt.png'}
@@ -689,7 +752,7 @@ function AccountPortalContent() {
                           {cartItems.map((ci) => (
                             <div
                               key={ci.cartItemId}
-                              className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--surface-elevated)] p-3 text-sm"
+                              className="flex items-center justify-between gap-3 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] p-3 text-sm"
                             >
                               <div className="flex items-center gap-3">
                                 <OptimizedImage
@@ -697,7 +760,7 @@ function AccountPortalContent() {
                                   alt={ci.title}
                                   width={52}
                                   height={52}
-                                  className="h-12 w-12 object-contain rounded bg-[var(--surface-card)] p-1"
+                                  className="h-12 w-12 object-contain rounded-none bg-[var(--surface-card)] p-1"
                                 />
                                 <div>
                                   <Link
@@ -743,17 +806,29 @@ function AccountPortalContent() {
                 </Card>
               </TabsContent>
 
-              {/* Tab 4: Profile & Address */}
+              {/* Tab 4: Profile, Picture & Credentials */}
               <TabsContent value="profile">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Profile &amp; Saved Delivery Address</CardTitle>
+                    <CardTitle>
+                      Profile Picture, Identity, Password &amp; Address
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form
                       onSubmit={handleSaveProfile}
-                      className="space-y-4 max-w-lg"
+                      className="space-y-5 max-w-xl"
                     >
+                      {profileErrorMsg && (
+                        <Alert variant="destructive">
+                          <AlertCircle
+                            className="h-4 w-4 shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          <span className="text-xs">{profileErrorMsg}</span>
+                        </Alert>
+                      )}
+
                       {profileSavedMsg && (
                         <Alert variant="success">
                           <CheckCircle2
@@ -764,19 +839,118 @@ function AccountPortalContent() {
                         </Alert>
                       )}
 
-                      <div className="space-y-1">
-                        <label
-                          htmlFor="profile-name"
-                          className="text-xs font-semibold text-[var(--fg-heading)]"
-                        >
-                          Full Name
-                        </label>
-                        <Input
-                          id="profile-name"
-                          value={profileName}
-                          onChange={(e) => setProfileName(e.target.value)}
-                          required
-                        />
+                      {/* Profile Picture Upload & URL */}
+                      <div className="border border-[var(--border-color)] bg-[var(--surface-elevated)] p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--fg-heading)]">
+                          <Camera className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+                          <span>Profile Picture</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <Avatar className="h-16 w-16 border border-[#5C5EDC]/40">
+                            {profileAvatarUrl ? (
+                              <AvatarImage
+                                src={profileAvatarUrl}
+                                alt={profileName || 'Profile preview'}
+                              />
+                            ) : null}
+                            <AvatarFallback className="text-base">
+                              {getUserInitials(profileName, profileEmail)}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="flex-1 min-w-[200px] space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label
+                                htmlFor="profile-avatar-file"
+                                className="inline-flex h-9 items-center gap-1.5 border border-[var(--border-color)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
+                              >
+                                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span>Upload Photo</span>
+                                <input
+                                  id="profile-avatar-file"
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleAvatarFileChange}
+                                  className="sr-only"
+                                />
+                              </label>
+                              {profileAvatarUrl && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setProfileAvatarUrl('')}
+                                  className="gap-1.5"
+                                >
+                                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span>Remove Photo</span>
+                                </Button>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <label
+                                htmlFor="profile-avatar-url"
+                                className="text-[11px] font-semibold text-[var(--fg-muted)]"
+                              >
+                                Or paste image URL
+                              </label>
+                              <Input
+                                id="profile-avatar-url"
+                                type="url"
+                                value={
+                                  profileAvatarUrl.startsWith('data:')
+                                    ? ''
+                                    : profileAvatarUrl
+                                }
+                                onChange={(e) =>
+                                  setProfileAvatarUrl(e.target.value)
+                                }
+                                placeholder="https://example.com/avatar.jpg"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label
+                            htmlFor="profile-name"
+                            className="text-xs font-semibold text-[var(--fg-heading)]"
+                          >
+                            Full Name
+                          </label>
+                          <Input
+                            id="profile-name"
+                            name="name"
+                            type="text"
+                            autoComplete="name"
+                            value={profileName}
+                            onChange={(e) => setProfileName(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label
+                            htmlFor="profile-email"
+                            className="text-xs font-semibold text-[var(--fg-heading)]"
+                          >
+                            Email Address
+                          </label>
+                          <Input
+                            id="profile-email"
+                            name="username"
+                            type="email"
+                            autoComplete="username"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            value={profileEmail}
+                            onChange={(e) => setProfileEmail(e.target.value)}
+                            required
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-1">
@@ -788,6 +962,9 @@ function AccountPortalContent() {
                         </label>
                         <Input
                           id="profile-phone"
+                          name="phone"
+                          type="tel"
+                          autoComplete="tel"
                           value={profilePhone}
                           onChange={(e) => setProfilePhone(e.target.value)}
                           placeholder="+1 (415) 555-0192"
@@ -803,10 +980,131 @@ function AccountPortalContent() {
                         </label>
                         <Textarea
                           id="profile-address"
+                          name="street-address"
+                          autoComplete="street-address"
                           value={profileAddress}
                           onChange={(e) => setProfileAddress(e.target.value)}
                           placeholder="Street address, suite, city, postal code"
                         />
+                      </div>
+
+                      {/* Password Update Section */}
+                      <div className="border border-[var(--border-color)] bg-[var(--surface-elevated)] p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--fg-heading)]">
+                          <KeyRound
+                            className="h-4 w-4 text-[#797BED]"
+                            aria-hidden="true"
+                          />
+                          <span>Change Password (Optional)</span>
+                        </div>
+                        <div className="space-y-1">
+                          <label
+                            htmlFor="current-password"
+                            className="text-xs font-semibold text-[var(--fg-heading)]"
+                          >
+                            Current Password
+                          </label>
+                          <div className="relative">
+                            <Input
+                              id="current-password"
+                              name="current-password"
+                              type={showCurrentPassword ? 'text' : 'password'}
+                              autoComplete="current-password"
+                              value={currentPassword}
+                              onChange={(e) =>
+                                setCurrentPassword(e.target.value)
+                              }
+                              placeholder="Required only if modifying an existing password"
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowCurrentPassword((prev) => !prev)
+                              }
+                              aria-label={
+                                showCurrentPassword
+                                  ? 'Hide current password'
+                                  : 'Show current password'
+                              }
+                              aria-pressed={showCurrentPassword}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                            >
+                              {showCurrentPassword ? (
+                                <EyeOff className="h-4 w-4" aria-hidden="true" />
+                              ) : (
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label
+                              htmlFor="new-password"
+                              className="text-xs font-semibold text-[var(--fg-heading)]"
+                            >
+                              New Password
+                            </label>
+                            <div className="relative">
+                              <Input
+                                id="new-password"
+                                name="new-password"
+                                type={showNewPassword ? 'text' : 'password'}
+                                minLength={6}
+                                autoComplete="new-password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="At least 6 characters"
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowNewPassword((prev) => !prev)
+                                }
+                                aria-label={
+                                  showNewPassword
+                                    ? 'Hide new password'
+                                    : 'Show new password'
+                                }
+                                aria-pressed={showNewPassword}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                              >
+                                {showNewPassword ? (
+                                  <EyeOff
+                                    className="h-4 w-4"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <Eye className="h-4 w-4" aria-hidden="true" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label
+                              htmlFor="confirm-new-password"
+                              className="text-xs font-semibold text-[var(--fg-heading)]"
+                            >
+                              Confirm New Password
+                            </label>
+                            <Input
+                              id="confirm-new-password"
+                              name="confirm-new-password"
+                              type={showNewPassword ? 'text' : 'password'}
+                              minLength={6}
+                              autoComplete="new-password"
+                              value={confirmNewPassword}
+                              onChange={(e) =>
+                                setConfirmNewPassword(e.target.value)
+                              }
+                              placeholder="Re-enter new password"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <Button type="submit" disabled={savingProfile}>

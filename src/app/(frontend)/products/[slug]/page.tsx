@@ -17,7 +17,6 @@ import {
   Sparkles,
   Star,
   Truck,
-  User,
 } from 'lucide-react';
 import { useStore } from '@/context/StoreContext';
 import {
@@ -28,7 +27,7 @@ import type {
   Product,
   ProductReviewItem,
   ProductVariant,
-} from '@/data/products';
+} from '@/data/utils';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Cart from '@/components/Cart';
+import UserMenu from '@/components/UserMenu';
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -265,7 +265,7 @@ export default function ProductDetailPage() {
   const displayPrice = activeVariant?.priceOverride ?? product.price;
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen overflow-anchor-parent pb-16">
       <Cart
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -275,9 +275,9 @@ export default function ProductDetailPage() {
         onClearCart={clearCart}
       />
 
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-30 border-b border-[var(--border-color)] bg-[var(--surface-drawer)]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+      {/* Sticky Top Navigation */}
+      <header className="sticky-topbar-container">
+        <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Button asChild variant="ghost" size="sm" className="gap-1.5">
               <Link href="/">
@@ -291,23 +291,7 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {user ? (
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href="/account">
-                  <User className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
-                  <span>{user.name}</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openAuthModal('account')}
-              >
-                Sign In
-              </Button>
-            )}
+            <UserMenu />
             <Button
               type="button"
               size="sm"
@@ -326,7 +310,7 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left: Multi-Image Gallery */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--surface-card)] p-8 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
+            <div className="relative overflow-hidden rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-8 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
               {isOutOfStock ? (
                 <Badge
                   variant="destructive"
@@ -371,7 +355,7 @@ export default function ProductDetailPage() {
                     role="tab"
                     aria-selected={activeImageIndex === idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`rounded-xl border p-2.5 bg-[var(--surface-card)] flex items-center justify-center h-20 transition-all cursor-pointer ${
+                    className={`rounded-none border p-2.5 bg-[var(--surface-card)] flex items-center justify-center h-20 transition-all cursor-pointer ${
                       activeImageIndex === idx
                         ? 'border-[#5C5EDC] ring-2 ring-[#5C5EDC]/40'
                         : 'border-[var(--border-color)] hover:border-[#5C5EDC]/60'
@@ -451,14 +435,14 @@ export default function ProductDetailPage() {
                         type="button"
                         onClick={() => setSelectedColor(c.color)}
                         aria-pressed={isSelected}
-                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                        className={`inline-flex items-center gap-2 rounded-none border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                           isSelected
                             ? 'border-[#5C5EDC] bg-[#5C5EDC]/12 text-[var(--fg-heading)] ring-1 ring-[#5C5EDC]'
                             : 'border-[var(--border-color)] bg-[var(--surface-card)] text-[var(--fg-primary)] hover:border-[#5C5EDC]/60'
                         }`}
                       >
                         <span
-                          className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-xs"
+                          className="h-3.5 w-3.5 rounded-none border border-white/40 shadow-xs"
                           style={{ backgroundColor: c.colorHex }}
                           aria-hidden="true"
                         />
@@ -500,7 +484,7 @@ export default function ProductDetailPage() {
                         type="button"
                         onClick={() => setSelectedSize(sz)}
                         aria-pressed={isSelected}
-                        className={`min-w-[48px] rounded-lg border px-3 py-2 text-xs font-bold transition-all cursor-pointer ${
+                        className={`min-w-[48px] rounded-none border px-3 py-2 text-xs font-bold transition-all cursor-pointer ${
                           isSelected
                             ? 'border-[#5C5EDC] bg-[#5C5EDC] text-white'
                             : avail <= 0
@@ -557,8 +541,8 @@ export default function ProductDetailPage() {
             )}
 
             {/* Quantity + Actions */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <div className="inline-flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--surface-card)]">
+            <div className="flex flex-wrap items-center gap-3 pt-4">
+              <div className="inline-flex items-center rounded-none border border-[var(--border-color)] bg-[var(--surface-card)]">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -627,7 +611,7 @@ export default function ProductDetailPage() {
             </div>
 
             {addedFeedback && (
-              <div className="flex items-center justify-between rounded-lg border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-4 py-2.5 text-xs">
+              <div className="flex items-center justify-between rounded-none border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-4 py-2.5 text-xs">
                 <span>Variant added to your shopping bag.</span>
                 <button
                   type="button"
@@ -641,7 +625,7 @@ export default function ProductDetailPage() {
 
             {/* Garment Specifications */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Material
                 </span>
@@ -649,7 +633,7 @@ export default function ProductDetailPage() {
                   {product.material}
                 </span>
               </div>
-              <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Tailored Fit
                 </span>
@@ -657,7 +641,7 @@ export default function ProductDetailPage() {
                   {product.fit}
                 </span>
               </div>
-              <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Garment Care
                 </span>
@@ -906,9 +890,9 @@ export default function ProductDetailPage() {
                 <Link
                   key={rel.id}
                   href={`/products/${rel.slug}`}
-                  className="group rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-4 transition-colors hover:border-[#5C5EDC]"
+                  className="group rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-4 transition-colors hover:border-[#5C5EDC]"
                 >
-                  <div className="flex h-36 items-center justify-center rounded-lg bg-[var(--surface-elevated)] p-3">
+                  <div className="flex h-36 items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3">
                     <OptimizedImage
                       src={rel.images[0] || '/images/shirt.png'}
                       alt={rel.title}

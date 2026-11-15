@@ -18,19 +18,14 @@ import { StockReservations } from './collections/StockReservations'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-const r2Endpoint =
-  process.env.R2_ENDPOINT ||
-  (process.env.R2_ACCOUNT_ID
-    ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    : undefined)
-
+const r2Endpoint = process.env.R2_ENDPOINT
 const r2PublicUrl = process.env.R2_PUBLIC_URL
 
 const isR2Enabled = Boolean(
   process.env.R2_BUCKET &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    r2Endpoint,
+  process.env.R2_ACCESS_KEY_ID &&
+  process.env.R2_SECRET_ACCESS_KEY &&
+  r2Endpoint,
 )
 
 export default buildConfig({
@@ -40,16 +35,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [
-    Users,
-    Media,
-    Categories,
-    Banners,
-    Products,
-    Reviews,
-    Orders,
-    StockReservations,
-  ],
+  collections: [Users, Media, Categories, Banners, Products, Reviews, Orders, StockReservations],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || 'default-storefront-payload-secret-key',
   typescript: {
@@ -57,8 +43,7 @@ export default buildConfig({
   },
   db: vercelPostgresAdapter({
     pool: {
-      connectionString:
-        process.env.POSTGRES_URL || process.env.DATABASE_URL || '',
+      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL || '',
     },
   }),
   sharp,

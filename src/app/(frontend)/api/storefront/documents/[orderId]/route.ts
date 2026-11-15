@@ -33,9 +33,9 @@ export async function GET(
   <title>${label} ${docNum} — Storefront</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1c1d22; color: #e4e4e7; padding: 32px; margin: 0; }
-    .sheet { max-width: 720px; margin: 0 auto; background: #24252a; border: 1px solid #34363d; border-radius: 12px; padding: 36px; }
+    .sheet { max-width: 720px; margin: 0 auto; background: #24252a; border: 1px solid #34363d; border-radius: 0; padding: 36px; }
     .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #34363d; }
-    .btn { background: #5C5EDC; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn { background: #5C5EDC; color: #fff; border: none; padding: 8px 16px; border-radius: 0; font-weight: 600; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     th, td { padding: 10px 8px; border-bottom: 1px solid #2e3038; text-align: left; font-size: 14px; }
     @media print { body { background: #fff; color: #111; } .sheet { border: none; background: #fff; color: #111; } .toolbar { display: none; } }

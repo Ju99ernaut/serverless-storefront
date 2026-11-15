@@ -10,9 +10,12 @@ import {
   reserveVariantStockAtomic,
   releaseVariantStockAtomic,
   commitVariantStockAtomic,
-  StoreOrderRecord,
 } from '../lib/storefront-db';
-import { PAYMENT_OPTIONS, PaymentOptionType } from '../data/products';
+import {
+  PAYMENT_OPTIONS,
+  PaymentOptionType,
+  StoreOrderRecord,
+} from '../data/utils';
 
 export interface CheckoutWorkflowInput {
   idempotencyKey?: string;
@@ -324,6 +327,7 @@ async function commitOrderAndDocumentsStep(input: {
     cardLast4: input.paymentResult.cardLast4,
     paidAt: input.paymentResult.paidAt,
     issuedAt: input.timestamp,
+    createdAt: input.timestamp,
     items: lineItems,
     totals: sharedTemplateData.totals,
     documents: {

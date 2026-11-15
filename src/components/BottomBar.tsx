@@ -13,7 +13,7 @@ import {
   BOTTOM_BAR_FILTERS,
   BottomBarFilter,
   getMainCategoryForFilter,
-} from '../data/products';
+} from '../data/utils';
 
 interface BottomBarProps {
   activeFilter: string;

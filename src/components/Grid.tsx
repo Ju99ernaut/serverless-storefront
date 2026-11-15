@@ -1,57 +1,39 @@
-'use client';
+'use client'
 
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  CSSProperties,
-} from 'react';
-import Link from 'next/link';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, EffectCoverflow, Zoom } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/pagination';
-import 'swiper/css/effect-coverflow';
-import 'swiper/css/zoom';
-import {
-  AlertTriangle,
-  Check,
-  Eye,
-  Heart,
-  Loader2,
-  Plus,
-  ShoppingCart,
-  Star,
-} from 'lucide-react';
-import { OptimizedImage } from './ui/optimized-image';
-import { Badge } from './ui/badge';
-import { useStore } from '../context/StoreContext';
-import {
-  getProductLowestAvailableVariantStock,
-  type Product,
-} from '../data/products';
+import { useState, useEffect, useRef, useCallback, CSSProperties } from 'react'
+import Link from 'next/link'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Pagination, EffectCoverflow, Zoom } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/pagination'
+import 'swiper/css/effect-coverflow'
+import 'swiper/css/zoom'
+import { AlertTriangle, Check, Eye, Heart, Loader2, Plus, ShoppingCart, Star } from 'lucide-react'
+import { OptimizedImage } from './ui/optimized-image'
+import { Badge } from './ui/badge'
+import { useStore } from '../context/StoreContext'
+import { getProductLowestAvailableVariantStock, type Product } from '../data/utils'
 
 interface ItemPosition {
-  visible: boolean;
-  x: number;
-  y: number;
-  width: number;
+  visible: boolean
+  x: number
+  y: number
+  width: number
 }
 
 interface GridLayoutState {
-  height: number;
-  items: Record<string, ItemPosition>;
+  height: number
+  items: Record<string, ItemPosition>
 }
 
 interface GridProps {
-  products: Product[];
-  activeFilter: string;
-  searchQuery?: string;
-  compareIds: string[];
-  maxCompareReached: boolean;
-  onToggleCompare: (product: Product) => void;
-  onAddToCart: (product: Product) => void;
+  products: Product[]
+  activeFilter: string
+  searchQuery?: string
+  compareIds: string[]
+  maxCompareReached: boolean
+  onToggleCompare: (product: Product) => void
+  onAddToCart: (product: Product) => void
 }
 
 const Grid = ({
@@ -63,16 +45,16 @@ const Grid = ({
   onToggleCompare,
   onAddToCart,
 }: GridProps) => {
-  const { isWishlisted, toggleWishlist } = useStore();
-  const gridRef = useRef<HTMLElement | null>(null);
-  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { isWishlisted, toggleWishlist } = useStore()
+  const gridRef = useRef<HTMLElement | null>(null)
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [isLoaded, setIsLoaded] = useState(false)
   const [layout, setLayout] = useState<GridLayoutState>({
     height: 800,
     items: {},
-  });
+  })
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const isProductVisible = useCallback(
     (product: Product) => {
@@ -80,11 +62,11 @@ const Grid = ({
         !activeFilter ||
         activeFilter === 'all' ||
         product.category === activeFilter ||
-        (Array.isArray(product.tags) && product.tags.includes(activeFilter));
+        (Array.isArray(product.tags) && product.tags.includes(activeFilter))
 
-      if (!matchesCategory) return false;
+      if (!matchesCategory) return false
 
-      if (!normalizedQuery) return true;
+      if (!normalizedQuery) return true
 
       const haystack = [
         product.title,
@@ -96,71 +78,70 @@ const Grid = ({
         ...(product.tags || []),
       ]
         .join(' ')
-        .toLowerCase();
+        .toLowerCase()
 
-      return haystack.includes(normalizedQuery);
+      return haystack.includes(normalizedQuery)
     },
-    [activeFilter, normalizedQuery]
-  );
+    [activeFilter, normalizedQuery],
+  )
 
   const computeShuffleLayout = useCallback(() => {
-    const gridEl = gridRef.current;
-    if (!gridEl) return;
+    const gridEl = gridRef.current
+    if (!gridEl) return
 
-    const containerWidth = gridEl.clientWidth;
-    if (!containerWidth) return;
+    const containerWidth = gridEl.clientWidth
+    if (!containerWidth) return
 
-    const vw =
-      typeof window !== 'undefined' ? window.innerWidth : containerWidth;
-    let numCols = 5;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : containerWidth
+    let numCols = 5
     if (vw <= 400) {
-      numCols = 1;
+      numCols = 1
     } else if (vw <= 800) {
-      numCols = 2;
+      numCols = 2
     } else if (vw <= 1040) {
-      numCols = 3;
+      numCols = 3
     }
 
-    const colWidth = containerWidth / numCols;
-    const colHeights = new Array<number>(numCols).fill(24);
-    const nextItems: Record<string, ItemPosition> = {};
+    const colWidth = containerWidth / numCols
+    const colHeights = new Array<number>(numCols).fill(24)
+    const nextItems: Record<string, ItemPosition> = {}
 
     products.forEach((product) => {
-      const el = itemRefs.current[product.id];
-      const visible = isProductVisible(product);
-      const span = numCols === 5 && product.size === 'large' ? 2 : 1;
-      const itemWidth = colWidth * span;
-      const itemHeight = el ? el.offsetHeight || 380 : 380;
+      const el = itemRefs.current[product.id]
+      const visible = isProductVisible(product)
+      const span = numCols === 5 && product.size === 'large' ? 2 : 1
+      const itemWidth = colWidth * span
+      const itemHeight = el ? el.offsetHeight || 380 : 380
 
       if (!visible) {
-        const prev = layout.items[product.id];
+        const prev = layout.items[product.id]
         nextItems[product.id] = {
           visible: false,
           x: prev ? prev.x : 0,
           y: prev ? prev.y : 0,
           width: itemWidth,
-        };
-        return;
+        }
+        return
       }
 
-      let bestCol = 0;
-      let minMaxY = Infinity;
+      let bestCol = 0
+      let minMaxY = Infinity
       for (let c = 0; c <= numCols - span; c++) {
-        let regionMaxY = 0;
+        let regionMaxY = 0
         for (let s = 0; s < span; s++) {
-          regionMaxY = Math.max(regionMaxY, colHeights[c + s]);
+          regionMaxY = Math.max(regionMaxY, colHeights[c + s])
         }
         if (regionMaxY < minMaxY) {
-          minMaxY = regionMaxY;
-          bestCol = c;
+          minMaxY = regionMaxY
+          bestCol = c
         }
       }
 
-      const x = Math.round(bestCol * colWidth);
-      const y = Math.round(minMaxY);
+      const x = Math.round(bestCol * colWidth)
+      const y = Math.round(minMaxY)
 
       for (let s = 0; s < span; s++) {
-        colHeights[bestCol + s] = y + itemHeight;
+        colHeights[bestCol + s] = y + itemHeight
       }
 
       nextItems[product.id] = {
@@ -168,50 +149,50 @@ const Grid = ({
         x,
         y,
         width: itemWidth,
-      };
-    });
+      }
+    })
 
-    const maxHeight = Math.max(320, ...colHeights) + 120;
-    setLayout({ height: maxHeight, items: nextItems });
-  }, [products, isProductVisible]);
+    const maxHeight = Math.max(320, ...colHeights) + 120
+    setLayout({ height: maxHeight, items: nextItems })
+  }, [products, isProductVisible])
 
   useEffect(() => {
-    setIsLoaded(true);
+    setIsLoaded(true)
     const timer = setTimeout(() => {
-      computeShuffleLayout();
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [computeShuffleLayout]);
+      computeShuffleLayout()
+    }, 60)
+    return () => clearTimeout(timer)
+  }, [computeShuffleLayout])
 
   useEffect(() => {
-    const gridEl = gridRef.current;
-    if (!gridEl) return;
+    const gridEl = gridRef.current
+    if (!gridEl) return
 
     const handleResize = () => {
-      computeShuffleLayout();
-    };
+      computeShuffleLayout()
+    }
 
-    window.addEventListener('resize', handleResize);
-    let observer: ResizeObserver | undefined;
+    window.addEventListener('resize', handleResize)
+    let observer: ResizeObserver | undefined
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(() => {
-        computeShuffleLayout();
-      });
-      observer.observe(gridEl);
+        computeShuffleLayout()
+      })
+      observer.observe(gridEl)
     }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      if (observer) observer.disconnect();
-    };
-  }, [computeShuffleLayout]);
+      window.removeEventListener('resize', handleResize)
+      if (observer) observer.disconnect()
+    }
+  }, [computeShuffleLayout])
 
-  const anyVisible = products.some((p) => isProductVisible(p));
+  const anyVisible = products.some((p) => isProductVisible(p))
 
   return (
     <section
       ref={gridRef}
-      className={`grid${!isLoaded ? ' grid--loading' : ''}`}
+      className={`product-grid${!isLoaded ? ' grid--loading' : ''}`}
       style={{
         height: isLoaded ? `${layout.height}px` : undefined,
         transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1)',
@@ -223,7 +204,7 @@ const Grid = ({
       <div className="grid__sizer"></div>
 
       {!anyVisible && isLoaded && (
-        <div className="mx-auto my-12 max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-8 text-center">
+        <div className="mx-auto my-12 max-w-md rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-8 text-center">
           <p className="text-base font-bold text-[var(--fg-heading)]">
             No matching clothing items found
           </p>
@@ -234,21 +215,19 @@ const Grid = ({
       )}
 
       {products.map((product, prodIdx) => {
-        const isCompared = compareIds.includes(product.id);
-        const wishlisted = isWishlisted(product.slug);
-        const stockStatus = getProductLowestAvailableVariantStock(product);
-        const itemLayout = layout.items[product.id];
-        const visible = itemLayout
-          ? itemLayout.visible
-          : isProductVisible(product);
+        const isCompared = compareIds.includes(product.id)
+        const wishlisted = isWishlisted(product.slug)
+        const stockStatus = getProductLowestAvailableVariantStock(product)
+        const itemLayout = layout.items[product.id]
+        const visible = itemLayout ? itemLayout.visible : isProductVisible(product)
 
         // Unique color swatches for quick display
-        const colorSwatches: Array<{ color: string; colorHex: string }> = [];
+        const colorSwatches: Array<{ color: string; colorHex: string }> = []
         for (const v of product.variants || []) {
           if (!colorSwatches.some((c) => c.color === v.color)) {
-            colorSwatches.push({ color: v.color, colorHex: v.colorHex });
+            colorSwatches.push({ color: v.color, colorHex: v.colorHex })
           }
-          if (colorSwatches.length >= 4) break;
+          if (colorSwatches.length >= 4) break
         }
 
         const itemStyle: CSSProperties | undefined =
@@ -267,15 +246,15 @@ const Grid = ({
                 transition:
                   'transform 600ms cubic-bezier(0.4, 0, 0.2, 1), opacity 600ms cubic-bezier(0.4, 0, 0.2, 1), visibility 600ms',
               }
-            : undefined;
+            : undefined
 
-        const isPriorityCard = prodIdx < 4;
+        const isPriorityCard = prodIdx < 4
 
         return (
           <div
             key={product.id}
             ref={(el) => {
-              itemRefs.current[product.id] = el;
+              itemRefs.current[product.id] = el
             }}
             className={`grid__item${
               product.size === 'large' ? ' grid__item--size-a' : ''
@@ -303,9 +282,7 @@ const Grid = ({
               ) : null}
 
               <Swiper
-                className={`swiper-container slider${
-                  isCompared ? ' product--selected' : ''
-                }`}
+                className={`swiper-container slider${isCompared ? ' product--selected' : ''}`}
                 modules={[Pagination, EffectCoverflow, Zoom]}
                 effect="coverflow"
                 grabCursor={true}
@@ -315,12 +292,9 @@ const Grid = ({
                 onAfterInit={() => computeShuffleLayout()}
               >
                 {product.images.map((imgSrc, imgIdx) => {
-                  const isLcpCandidate = isPriorityCard && imgIdx === 0;
+                  const isLcpCandidate = isPriorityCard && imgIdx === 0
                   return (
-                    <SwiperSlide
-                      key={`${product.id}-slide-${imgIdx}`}
-                      className="slider__item"
-                    >
+                    <SwiperSlide key={`${product.id}-slide-${imgIdx}`} className="slider__item">
                       <div className="swiper-zoom-container">
                         <OptimizedImage
                           src={imgSrc}
@@ -334,16 +308,13 @@ const Grid = ({
                         />
                       </div>
                     </SwiperSlide>
-                  );
+                  )
                 })}
               </Swiper>
             </div>
 
             <div className="meta">
-              <Link
-                href={`/products/${product.slug}`}
-                className="group inline-block pr-2"
-              >
+              <Link href={`/products/${product.slug}`} className="group inline-block pr-2">
                 <h3 className="meta__title group-hover:text-[#5C5EDC] transition-colors">
                   {product.title}
                 </h3>
@@ -365,9 +336,7 @@ const Grid = ({
                     />
                     {product.averageRating.toFixed(1)}
                   </span>
-                  <span className="text-[var(--fg-muted)]">
-                    ({product.reviewCount})
-                  </span>
+                  <span className="text-[var(--fg-muted)]">({product.reviewCount})</span>
 
                   {colorSwatches.length > 0 && (
                     <span
@@ -378,7 +347,7 @@ const Grid = ({
                         <span
                           key={`${product.id}-${swatch.color}`}
                           title={swatch.color}
-                          className="h-2.5 w-2.5 rounded-full border border-white/40 shadow-xs"
+                          className="h-2.5 w-2.5 rounded-none border border-white/40 shadow-xs"
                           style={{ backgroundColor: swatch.colorHex }}
                         />
                       ))}
@@ -403,11 +372,7 @@ const Grid = ({
               onClick={() => onAddToCart(product)}
               disabled={stockStatus.isCompletelyOutOfStock}
               aria-label={`Add ${product.title} to cart`}
-              title={
-                stockStatus.isCompletelyOutOfStock
-                  ? 'Out of stock'
-                  : 'Quick add to bag'
-              }
+              title={stockStatus.isCompletelyOutOfStock ? 'Out of stock' : 'Quick add to bag'}
             >
               <ShoppingCart className="h-4 w-4" aria-hidden="true" />
               <span className="text-hidden">Add to cart</span>
@@ -420,17 +385,13 @@ const Grid = ({
               data-active={wishlisted ? 'true' : 'false'}
               onClick={() => void toggleWishlist(product)}
               aria-label={
-                wishlisted
-                  ? `Remove ${product.title} from loved items`
-                  : `Love ${product.title}`
+                wishlisted ? `Remove ${product.title} from loved items` : `Love ${product.title}`
               }
               aria-pressed={wishlisted}
               title={wishlisted ? 'Remove from loved items' : 'Love item'}
             >
               <Heart
-                className={`h-4 w-4 ${
-                  wishlisted ? 'fill-rose-500 text-rose-500' : ''
-                }`}
+                className={`h-4 w-4 ${wishlisted ? 'fill-rose-500 text-rose-500' : ''}`}
                 aria-hidden="true"
               />
             </button>
@@ -458,15 +419,13 @@ const Grid = ({
               ) : (
                 <Plus className="h-4 w-4" aria-hidden="true" />
               )}
-              <span className="action__text action__text--invisible">
-                Add to compare
-              </span>
+              <span className="action__text action__text--invisible">Add to compare</span>
             </label>
           </div>
-        );
+        )
       })}
     </section>
-  );
-};
+  )
+}
 
-export default Grid;
+export default Grid

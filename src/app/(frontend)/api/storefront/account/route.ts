@@ -1,9 +1,16 @@
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getRuntimeStore,
-  StoreUserRecord,
-} from '@/lib/storefront-db';
-import type { CartLineItem } from '@/data/products';
+import { getRuntimeStore } from '@/lib/storefront-db';
+import type { CartLineItem, StoreUserRecord } from '@/data/utils';
+
+function hashPassword(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex');
+}
+
+function sanitizeUserForClient(user: StoreUserRecord): StoreUserRecord {
+  const { passwordHash: _omitted, ...safeUser } = user;
+  return safeUser as StoreUserRecord;
+}
 
 function mergeCartLists(
   existing: CartLineItem[],
@@ -38,8 +45,13 @@ export async function POST(request: NextRequest) {
     const {
       action,
       email,
+      newEmail,
+      password,
+      currentPassword,
+      newPassword,
       name,
       phone,
+      avatarUrl,
       shippingAddress,
       productSlug,
       cartItems,
@@ -78,6 +90,8 @@ export async function POST(request: NextRequest) {
           role: 'customer',
           neonAuthUserId: `neon_ba_${Date.now()}`,
           authProvider: action === 'oauth_google' ? 'google' : 'neon',
+          avatarUrl: avatarUrl ? String(avatarUrl).trim() : null,
+          passwordHash: password ? hashPassword(String(password)) : undefined,
           shippingAddresses: shippingAddress
             ? [
                 {
@@ -104,6 +118,20 @@ export async function POST(request: NextRequest) {
         };
         store.users.push(user);
       } else {
+        if (
+          action === 'login' &&
+          user.passwordHash &&
+          password !== undefined &&
+          hashPassword(String(password)) !== user.passwordHash
+        ) {
+          return NextResponse.json(
+            { error: 'Invalid email or password.' },
+            { status: 401 }
+          );
+        }
+        if (action === 'register' && !user.passwordHash && password) {
+          user.passwordHash = hashPassword(String(password));
+        }
         if (name) user.name = String(name).trim();
         if (action === 'oauth_google') user.authProvider = 'google';
         if (Array.isArray(cartItems) && cartItems.length > 0) {
@@ -131,11 +159,69 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'update_profile') {
-      if (name) user.name = String(name).trim();
-      if (phone !== undefined) user.phone = String(phone).trim();
+      if (name !== undefined && String(name).trim()) {
+        user.name = String(name).trim();
+      }
+      if (phone !== undefined) {
+        user.phone = String(phone).trim();
+      }
+      if (avatarUrl !== undefined) {
+        user.avatarUrl = avatarUrl ? String(avatarUrl).trim() : null;
+      }
+      if (newEmail !== undefined) {
+        const cleanNewEmail = String(newEmail).trim().toLowerCase();
+        if (!cleanNewEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanNewEmail)) {
+          return NextResponse.json(
+            { error: 'Please provide a valid email address.' },
+            { status: 400 }
+          );
+        }
+        const prevEmail = user.email.toLowerCase();
+        if (cleanNewEmail !== prevEmail) {
+          const duplicate = store.users.find(
+            (u) => u.id !== user!.id && u.email.toLowerCase() === cleanNewEmail
+          );
+          if (duplicate) {
+            return NextResponse.json(
+              { error: 'An account with this email address already exists.' },
+              { status: 409 }
+            );
+          }
+          user.email = cleanNewEmail;
+          for (const ord of store.orders) {
+            if (
+              ord.customerEmail.toLowerCase() === prevEmail ||
+              ord.userId === user.id
+            ) {
+              ord.customerEmail = cleanNewEmail;
+              if (!ord.userId) ord.userId = user.id;
+            }
+          }
+        }
+      }
+      if (newPassword !== undefined && String(newPassword).length > 0) {
+        const nextPw = String(newPassword);
+        if (nextPw.length < 6) {
+          return NextResponse.json(
+            { error: 'New password must be at least 6 characters long.' },
+            { status: 400 }
+          );
+        }
+        if (
+          user.passwordHash &&
+          hashPassword(String(currentPassword || '')) !== user.passwordHash
+        ) {
+          return NextResponse.json(
+            { error: 'Current password is incorrect.' },
+            { status: 401 }
+          );
+        }
+        user.passwordHash = hashPassword(nextPw);
+      }
       if (shippingAddress !== undefined) {
         if (user.shippingAddresses.length > 0) {
-          user.shippingAddresses[0].streetAddress = String(shippingAddress).trim();
+          user.shippingAddresses[0].streetAddress =
+            String(shippingAddress).trim();
           user.shippingAddresses[0].fullName = user.name;
         } else {
           user.shippingAddresses.push({
@@ -150,11 +236,13 @@ export async function POST(request: NextRequest) {
     }
 
     const userOrders = store.orders.filter(
-      (o) => o.customerEmail.toLowerCase() === user.email.toLowerCase()
+      (o) =>
+        o.customerEmail.toLowerCase() === user.email.toLowerCase() ||
+        o.userId === user.id
     );
 
     return NextResponse.json({
-      user: user as StoreUserRecord,
+      user: sanitizeUserForClient(user),
       orders: userOrders,
     });
   } catch (err: unknown) {

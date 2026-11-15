@@ -34,7 +34,14 @@ import {
   PAYMENT_OPTIONS,
   PaymentOptionType,
   type CartLineItem,
-} from '../../data/products';
+} from '../../data/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 interface CheckoutSuccessResponse {
   success: boolean;
@@ -640,7 +647,7 @@ const CartSidebar = ({
 
           <h2 className={s.cartHeader}>Payment, Stock Lock &amp; Receipt</h2>
 
-          <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+          <div className="mb-3 flex items-center gap-2 rounded-none border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
             <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
               Durable workflow locks variant inventory during authorization and
@@ -685,7 +692,7 @@ const CartSidebar = ({
                   return (
                     <label
                       key={option.id}
-                      className={`flex items-start gap-2.5 rounded-lg border p-2.5 cursor-pointer transition-colors ${
+                      className={`flex items-start gap-2.5 rounded-none border p-2.5 cursor-pointer transition-colors ${
                         selected
                           ? 'border-[#5C5EDC] bg-[#5C5EDC]/12'
                           : 'border-[var(--border-color)] hover:border-[#5C5EDC]/50'
@@ -705,7 +712,7 @@ const CartSidebar = ({
                             {getPaymentOptionIcon(option.id)}
                             <span>{option.label}</span>
                           </span>
-                          <span className="rounded-full bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-semibold text-[#797BED]">
+                          <span className="rounded-none bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-semibold text-[#797BED]">
                             {option.badge}
                           </span>
                         </div>
@@ -815,18 +822,24 @@ const CartSidebar = ({
                   <label htmlFor={addressId} className={s.label}>
                     Select Store Collection Boutique
                   </label>
-                  <select
-                    id={addressId}
+                  <Select
                     value={collectionLocation}
-                    onChange={(e) => setCollectionLocation(e.target.value)}
-                    className={s.input}
+                    onValueChange={setCollectionLocation}
                   >
-                    {COLLECTION_LOCATIONS.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id={addressId}
+                      className="h-10 w-full rounded-none border-[var(--border-color)] bg-[var(--surface-drawer)] text-sm text-[var(--fg-heading)] cursor-pointer"
+                    >
+                      <SelectValue placeholder="Select Store Collection Boutique" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLECTION_LOCATIONS.map((loc) => (
+                        <SelectItem key={loc} value={loc}>
+                          {loc}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </fieldset>
@@ -931,7 +944,7 @@ const CartSidebar = ({
                   </div>
                 </div>
 
-                <label className="mt-2 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-500 cursor-pointer">
+                <label className="mt-2 flex items-start gap-2 rounded-none border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-500 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={simulatePaymentFailure}
@@ -1019,14 +1032,14 @@ const CartSidebar = ({
           <div className={s.totalsContainer}>
             {/* Guest vs Signed-In Notice */}
             {user ? (
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+              <div className="mb-3 flex items-center gap-2 rounded-none border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
                 <UserCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">
                   Signed in as <strong>{user.name}</strong> ({user.email})
                 </span>
               </div>
             ) : (
-              <div className="mb-3 flex items-start gap-2 rounded-lg border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-3 py-2 text-xs text-[var(--fg-primary)]">
+              <div className="mb-3 flex items-start gap-2 rounded-none border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-3 py-2 text-xs text-[var(--fg-primary)]">
                 <Lock
                   className="h-4 w-4 shrink-0 text-[#797BED] mt-0.5"
                   aria-hidden="true"

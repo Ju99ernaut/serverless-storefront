@@ -2,7 +2,7 @@
 
 import { Check, X } from 'lucide-react';
 import { OptimizedImage } from './ui/optimized-image';
-import type { Product } from '../data/products';
+import type { Product } from '../data/utils';
 
 const MAX_COMPARE_ITEMS = 3;
 

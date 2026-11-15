@@ -3,124 +3,29 @@ import {
   PRODUCTS,
   HOME_BANNERS,
   INITIAL_REVIEWS,
+  DEMO_USERS,
+} from '../data/products';
+import type {
   Product,
   ProductVariant,
   ProductReviewItem,
   BannerSlide,
   CartLineItem,
   PaymentOptionType,
-} from '../data/products';
+  StoreUserAddress,
+  StoreUserRecord,
+  OrderLineItemRecord,
+  StoreOrderRecord,
+  StockReservationRecord,
+} from '../data/utils';
 
-export interface StoreUserRecord {
-  id: string;
-  email: string;
-  name: string;
-  phone?: string;
-  role: 'customer' | 'admin';
-  neonAuthUserId?: string;
-  authProvider: 'neon' | 'google' | 'local';
-  avatarUrl?: string;
-  passwordHash?: string;
-  shippingAddresses: Array<{
-    id: string;
-    label: string;
-    fullName: string;
-    streetAddress: string;
-    city?: string;
-    postalCode?: string;
-    country?: string;
-    phone?: string;
-    isDefault?: boolean;
-  }>;
-  wishlistProductSlugs: string[];
-  savedCart: CartLineItem[];
-  createdAt: string;
-}
-
-export interface StoreOrderRecord {
-  id: string;
-  orderId: string;
-  invoiceNumber: string;
-  receiptNumber: string;
-  userId?: string;
-  customerEmail: string;
-  customerName: string;
-  customerPhone?: string;
-  shippingAddress?: string;
-  collectionLocation?: string;
-  paymentOption: PaymentOptionType;
-  paymentMethodLabel: string;
-  fulfillmentMethod: 'DELIVERY' | 'COLLECTION';
-  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-  orderStatus:
-    | 'PENDING'
-    | 'CONFIRMED'
-    | 'PROCESSING'
-    | 'READY_FOR_COLLECTION'
-    | 'OUT_FOR_DELIVERY'
-    | 'COMPLETED'
-    | 'CANCELLED';
-  cardLast4: string;
-  paidAt?: string;
-  issuedAt: string;
-  items: Array<{
-    productId: string;
-    productSlug: string;
-    variantSku: string;
-    title: string;
-    brand: string;
-    category: string;
-    subcategory: string;
-    size: string;
-    color: string;
-    quantity: number;
-    unitPrice: number;
-    lineTotal: number;
-    imageUrl: string;
-  }>;
-  totals: {
-    subTotal: number;
-    tax: number;
-    shipping: number;
-    grandTotal: number;
-  };
-  documents: {
-    invoiceFilename?: string;
-    invoiceTemplateId?: string;
-    invoicePdfUrl?: string;
-    receiptFilename?: string;
-    receiptTemplateId?: string;
-    receiptPdfUrl?: string;
-    emailStatus?: string;
-    emailMessageId?: string;
-    emailPreviewUrl?: string | null;
-    emailTemplateId?: string;
-    renderedHtml?: string;
-    payloadPreviewJson?: unknown;
-  };
-  statusTimeline: Array<{
-    status: string;
-    label: string;
-    timestamp: string;
-    note?: string;
-    emailSent?: boolean;
-  }>;
-}
-
-export interface StockReservationRecord {
-  id: string;
-  reservationKey: string;
-  orderId?: string;
-  status: 'RESERVED' | 'COMMITTED' | 'RELEASED' | 'EXPIRED';
-  expiresAt: string;
-  createdAt: string;
-  items: Array<{
-    productSlug: string;
-    variantSku: string;
-    quantity: number;
-  }>;
-  failureReason?: string;
-}
+export type {
+  StoreUserAddress,
+  StoreUserRecord,
+  OrderLineItemRecord,
+  StoreOrderRecord,
+  StockReservationRecord,
+};
 
 interface RuntimeStoreState {
   products: Product[];
@@ -142,35 +47,7 @@ function createInitialRuntimeState(): RuntimeStoreState {
     products: structuredClone(PRODUCTS),
     banners: structuredClone(HOME_BANNERS),
     reviews: structuredClone(INITIAL_REVIEWS),
-    users: [
-      {
-        id: 'usr-demo-1',
-        email: 'alex.rivera@example.com',
-        name: 'Alex Rivera',
-        phone: '+1 (415) 555-0192',
-        role: 'customer',
-        authProvider: 'neon',
-        shippingAddresses: [
-          {
-            id: 'addr-1',
-            label: 'Home',
-            fullName: 'Alex Rivera',
-            streetAddress: '742 Evergreen Terrace, Suite 200',
-            city: 'San Francisco, CA',
-            postalCode: '94107',
-            country: 'United States',
-            phone: '+1 (415) 555-0192',
-            isDefault: true,
-          },
-        ],
-        wishlistProductSlugs: [
-          'moto-full-grain-biker-jacket',
-          'silk-charmeuse-evening-gown',
-        ],
-        savedCart: [],
-        createdAt: '2026-10-01T10:00:00.000Z',
-      },
-    ],
+    users: structuredClone(DEMO_USERS),
     orders: [],
     reservations: new Map(),
     activeLocks: new Set(),

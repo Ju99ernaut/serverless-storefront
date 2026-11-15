@@ -1,17 +1,17 @@
 'use client';
 
 import { useState, useRef, useMemo } from 'react';
+import { X } from 'lucide-react';
 import BottomBar from '../../components/BottomBar';
 import NavBar, { type SortOption } from '../../components/NavBar';
 import SideBar from '../../components/SideBar';
 import Cart from '../../components/Cart';
-import Hamburger from '../../components/Hamburger';
 import BannerCarousel from '../../components/BannerCarousel';
 import Grid from '../../components/Grid';
 import CompareBasket from '../../components/CompareBasket';
 import CompareWrapper from '../../components/CompareWrapper';
 import { useStore } from '../../context/StoreContext';
-import type { Product } from '../../data/products';
+import { getFilterDisplayName, type Product } from '../../data/utils';
 
 const MAX_COMPARE_ITEMS = 3;
 
@@ -119,6 +119,9 @@ export default function HomePage() {
     cartBtnRef.current?.focus();
   };
 
+  const hasActiveCriteria =
+    (activeFilter && activeFilter !== 'all') || searchQuery.trim().length > 0;
+
   return (
     <>
       <CompareBasket
@@ -136,8 +139,6 @@ export default function HomePage() {
         isCartAnimating={isCartAnimating}
         onOpenCart={() => setIsCartOpen(true)}
       />
-
-      <Hamburger ref={hamburgerRef} onOpen={() => setIsMenuOpen(true)} />
 
       <SideBar
         isOpen={isMenuOpen}
@@ -157,14 +158,12 @@ export default function HomePage() {
 
       <div className={`view${isCompareOpen ? ' view--compare' : ''}`}>
         <NavBar
-          activeFilter={activeFilter}
-          onResetFilter={() => setActiveFilter('all')}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          totalShowing={visibleProductsCount}
-          totalProducts={products.length}
+          onOpenMenu={() => setIsMenuOpen(true)}
+          hamburgerRef={hamburgerRef}
         />
 
         <BannerCarousel
@@ -173,6 +172,39 @@ export default function HomePage() {
             setActiveFilter(filter || 'all');
           }}
         />
+
+        {hasActiveCriteria && (
+          <div className="mx-auto w-[92%] max-w-[1280px] mb-2 flex justify-center">
+            <div
+              className="active-filter-banner"
+              role="status"
+              aria-live="polite"
+            >
+              <span>
+                Showing{' '}
+                <strong>
+                  {activeFilter !== 'all'
+                    ? getFilterDisplayName(activeFilter)
+                    : 'All Categories'}
+                </strong>
+                {searchQuery.trim()
+                  ? ` matching "${searchQuery.trim()}"`
+                  : ''}{' '}
+                ({visibleProductsCount} of {products.length})
+              </span>
+              <button
+                type="button"
+                className="active-filter-reset"
+                onClick={() => {
+                  setActiveFilter('all');
+                  setSearchQuery('');
+                }}
+              >
+                <X className="h-3 w-3" aria-hidden="true" /> Reset
+              </button>
+            </div>
+          </div>
+        )}
 
         <Grid
           products={sortedProducts}

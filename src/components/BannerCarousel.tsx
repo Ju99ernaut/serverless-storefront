@@ -12,7 +12,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { OptimizedImage } from './ui/optimized-image';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import type { BannerSlide } from '../data/products';
+import type { BannerSlide } from '../data/utils';
 
 interface BannerCarouselProps {
   banners: BannerSlide[];
@@ -30,9 +30,9 @@ export default function BannerCarousel({
   return (
     <section
       aria-label="Featured Storefront Collections"
-      className="mx-auto w-[92%] max-w-[1280px] mb-6 relative"
+      className="mx-auto w-[92%] max-w-[1280px] mt-6 mb-6 relative"
     >
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--surface-card)] shadow-lg">
+      <div className="relative overflow-hidden rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] shadow-lg">
         <Swiper
           modules={[Autoplay, Pagination, Navigation]}
           onSwiper={(swiper) => {
@@ -97,7 +97,7 @@ export default function BannerCarousel({
 
                 {/* Product/Editorial Hero Visual */}
                 <div className="relative z-10 md:col-span-5 flex items-center justify-center">
-                  <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-color)] p-4 flex items-center justify-center shadow-inner">
+                  <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-none bg-[var(--surface-elevated)] border border-[var(--border-color)] p-4 flex items-center justify-center shadow-inner">
                     <OptimizedImage
                       src={slide.imageUrl}
                       alt={slide.title}
@@ -121,7 +121,7 @@ export default function BannerCarousel({
               type="button"
               onClick={() => swiperRef.current?.slidePrev()}
               aria-label="Previous featured banner"
-              className="hidden sm:inline-flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-[var(--surface-drawer)]/85 border border-[var(--border-color)] text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-none bg-[var(--surface-drawer)]/85 border border-[var(--border-color)] text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -129,7 +129,7 @@ export default function BannerCarousel({
               type="button"
               onClick={() => swiperRef.current?.slideNext()}
               aria-label="Next featured banner"
-              className="hidden sm:inline-flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-[var(--surface-drawer)]/85 border border-[var(--border-color)] text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-none bg-[var(--surface-drawer)]/85 border border-[var(--border-color)] text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>

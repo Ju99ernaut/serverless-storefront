@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AlertTriangle, Minus, Plus, Trash2 } from 'lucide-react';
 import { OptimizedImage } from '../ui/optimized-image';
 import s from '../../styles/CartItem.module.css';
-import type { CartLineItem } from '../../data/products';
+import type { CartLineItem } from '../../data/utils';
 
 interface CartItemProps {
   item: CartLineItem;
@@ -61,17 +61,17 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
         <span className={s.variantValue}>{brand}</span>
 
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-          <span className="inline-flex items-center gap-1 rounded border border-[var(--border-color)] bg-[var(--surface-elevated)] px-1.5 py-0.5 font-medium text-[var(--fg-primary)]">
+          <span className="inline-flex items-center gap-1 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-1.5 py-0.5 font-medium text-[var(--fg-primary)]">
             {selectedColorHex && (
               <span
-                className="h-2 w-2 rounded-full border border-white/40"
+                className="h-2 w-2 rounded-none border border-white/40"
                 style={{ backgroundColor: selectedColorHex }}
                 aria-hidden="true"
               />
             )}
             <span>{selectedColor || 'Default'}</span>
           </span>
-          <span className="rounded border border-[var(--border-color)] bg-[var(--surface-elevated)] px-1.5 py-0.5 font-semibold text-[var(--fg-heading)]">
+          <span className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-1.5 py-0.5 font-semibold text-[var(--fg-heading)]">
             Size: {selectedSize || 'M'}
           </span>
         </div>

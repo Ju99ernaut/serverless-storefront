@@ -1,11 +1,12 @@
-import type { ReactNode } from 'react';
-import type { Metadata, Viewport } from 'next';
-import '../../styles/globals.css';
-import '../../styles/sidebar.css';
-import { ThemeProvider } from '../../components/theme-provider';
-import { StoreImageKitProvider } from '../../components/ui/optimized-image';
-import { StoreProvider } from '../../context/StoreContext';
-import AuthModal from '../../components/AuthModal';
+import type { ReactNode } from 'react'
+import type { Metadata, Viewport } from 'next'
+import '../../styles/globals.css'
+import '../../styles/sidebar.css'
+import { ThemeProvider } from '../../components/theme-provider'
+import { StoreImageKitProvider } from '../../components/ui/optimized-image'
+import { StoreProvider } from '../../context/StoreContext'
+import AuthModal from '../../components/AuthModal'
+import ScrollToTopButton from '../../components/ScrollToTopButton'
 
 export const metadata: Metadata = {
   title: 'Storefront Atelier — Curated Clothing & Footwear',
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
     ],
     apple: '/icons/icon-192x192.png',
   },
-};
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-};
+}
 
 const COLOR_SCHEME_INIT_SCRIPT = `
 (function() {
@@ -43,27 +44,26 @@ const COLOR_SCHEME_INIT_SCRIPT = `
     }
   } catch (e) {}
 })();
-`;
+`
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="flexbox no-touch" suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="light dark" />
-        <script
-          dangerouslySetInnerHTML={{ __html: COLOR_SCHEME_INIT_SCRIPT }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: COLOR_SCHEME_INIT_SCRIPT }} />
       </head>
       <body>
         <ThemeProvider>
           <StoreImageKitProvider>
             <StoreProvider>
-              {children}
+              <ScrollToTopButton />
               <AuthModal />
+              {children}
             </StoreProvider>
           </StoreImageKitProvider>
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }
