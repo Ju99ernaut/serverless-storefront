@@ -1,13 +1,10 @@
 'use client'
 
 import { useState, useEffect, type RefObject } from 'react'
-import Link from 'next/link'
 import { useTheme } from 'next-themes'
-import { ArrowUpDown, Heart, Moon, Search, ShoppingCart, Sparkles, Sun, X } from 'lucide-react'
-import { useStore } from '../context/StoreContext'
+import { ArrowUpDown, Moon, Search, Sun, X } from 'lucide-react'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
-import { Badge } from './ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import Hamburger from './Hamburger'
 import UserMenu from './UserMenu'
@@ -31,7 +28,6 @@ const NavBar = ({
   onOpenMenu,
   hamburgerRef,
 }: NavBarProps) => {
-  const { wishlistSlugs, totalCartCount, setIsCartOpen } = useStore()
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -61,18 +57,8 @@ const NavBar = ({
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search jackets, oxford shirts, boots..."
                 aria-label="Search clothing products"
-                className="pl-9 pr-9"
+                className="pl-9"
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => onSearchChange('')}
-                  aria-label="Clear search query"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-none p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              )}
             </div>
 
             <div className="hidden lg:block w-44 shrink-0">
@@ -90,9 +76,9 @@ const NavBar = ({
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="featured">Sort: Featured</SelectItem>
-                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="price-asc">Price Asc</SelectItem>
+                  <SelectItem value="price-desc">Price Desc</SelectItem>
                   <SelectItem value="rating">Highest Rated</SelectItem>
                 </SelectContent>
               </Select>
