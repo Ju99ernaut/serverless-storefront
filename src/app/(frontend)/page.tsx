@@ -1,59 +1,186 @@
-import { headers as getHeaders } from 'next/headers.js'
-import Image from 'next/image'
-import { getPayload } from 'payload'
-import React from 'react'
-import { fileURLToPath } from 'url'
+"use client";
 
-import config from '@/payload.config'
-import './styles.css'
+import { useState, useRef, useMemo } from "react";
+import BottomBar from "../components/BottomBar";
+import NavBar from "../components/NavBar";
+import SideBar from "../components/SideBar";
+import Cart from "../components/Cart";
+import Hamburger from "../components/Hamburger";
+import Grid from "../components/Grid";
+import CompareBasket from "../components/CompareBasket";
+import CompareWrapper from "../components/CompareWrapper";
+import { PRODUCTS, Product, CartLineItem } from "../data/products";
 
-export default async function HomePage() {
-  const headers = await getHeaders()
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const { user } = await payload.auth({ headers })
+const MAX_COMPARE_ITEMS = 3;
 
-  const fileURL = `vscode://file/${fileURLToPath(import.meta.url)}`
+export default function HomePage() {
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [isCartAnimating, setIsCartAnimating] = useState<boolean>(false);
+  const [compareItems, setCompareItems] = useState<Product[]>([]);
+  const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
+
+  const [cartItems, setCartItems] = useState<CartLineItem[]>(() => []);
+
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+  const cartBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  const totalCartCount = useMemo(
+    () => cartItems.reduce((acc, item) => acc + item.quantity, 0),
+    [cartItems],
+  );
+
+  const visibleProductsCount = useMemo(() => {
+    if (!activeFilter || activeFilter === "all") return PRODUCTS.length;
+    return PRODUCTS.filter(
+      (p) =>
+        p.category === activeFilter ||
+        (Array.isArray(p.tags) && p.tags.includes(activeFilter)),
+    ).length;
+  }, [activeFilter]);
+
+  const compareIds = useMemo(
+    () => compareItems.map((item) => item.id),
+    [compareItems],
+  );
+
+  const handleAddToCart = (product: Product) => {
+    setIsCartAnimating(true);
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+    setTimeout(() => {
+      setIsCartAnimating(false);
+    }, 450);
+  };
+
+  const handleUpdateCartQuantity = (productId: string, nextQty: number) => {
+    if (nextQty <= 0) {
+      setCartItems((prev) => prev.filter((item) => item.id !== productId));
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === productId
+          ? { ...item, quantity: Math.min(99, nextQty) }
+          : item,
+      ),
+    );
+  };
+
+  const handleRemoveCartItem = (productId: string) => {
+    setCartItems((prev) => prev.filter((item) => item.id !== productId));
+  };
+
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
+  const handleToggleCompare = (product: Product) => {
+    setCompareItems((prev) => {
+      const exists = prev.some((item) => item.id === product.id);
+      if (exists) {
+        const next = prev.filter((item) => item.id !== product.id);
+        if (next.length === 0) {
+          setIsCompareOpen(false);
+        }
+        return next;
+      }
+      if (prev.length >= MAX_COMPARE_ITEMS) {
+        return prev;
+      }
+      return [...prev, product];
+    });
+  };
+
+  const handleRemoveCompare = (productId: string) => {
+    setCompareItems((prev) => {
+      const next = prev.filter((item) => item.id !== productId);
+      if (next.length === 0) {
+        setIsCompareOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const handleCloseMenu = () => {
+    setIsMenuOpen(false);
+    hamburgerRef.current?.focus();
+  };
+
+  const handleCloseCart = () => {
+    setIsCartOpen(false);
+    cartBtnRef.current?.focus();
+  };
 
   return (
-    <div className="home">
-      <div className="content">
-        <picture>
-          <source srcSet="https://raw.githubusercontent.com/payloadcms/payload/3.x/packages/ui/src/assets/payload-favicon.svg" />
-          <Image
-            alt="Payload Logo"
-            height={65}
-            src="https://raw.githubusercontent.com/payloadcms/payload/3.x/packages/ui/src/assets/payload-favicon.svg"
-            width={65}
-          />
-        </picture>
-        {!user && <h1>Welcome to your new project.</h1>}
-        {user && <h1>Welcome back, {user.email}</h1>}
-        <div className="links">
-          <a
-            className="admin"
-            href={payloadConfig.routes.admin}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Go to admin panel
-          </a>
-          <a
-            className="docs"
-            href="https://payloadcms.com/docs"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <CompareBasket
+        compareItems={compareItems}
+        isCompareOpen={isCompareOpen}
+        onRemoveCompare={handleRemoveCompare}
+        onOpenCompare={() => setIsCompareOpen(true)}
+      />
+
+      <BottomBar
+        ref={cartBtnRef}
+        activeFilter={activeFilter}
+        onSelectFilter={setActiveFilter}
+        cartCount={totalCartCount}
+        isCartAnimating={isCartAnimating}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
+
+      <Hamburger ref={hamburgerRef} onOpen={() => setIsMenuOpen(true)} />
+
+      <SideBar
+        isOpen={isMenuOpen}
+        onClose={handleCloseMenu}
+        activeFilter={activeFilter}
+        onSelectFilter={setActiveFilter}
+      />
+
+      <Cart
+        isOpen={isCartOpen}
+        onClose={handleCloseCart}
+        items={cartItems}
+        onUpdateQuantity={handleUpdateCartQuantity}
+        onRemoveItem={handleRemoveCartItem}
+        onClearCart={handleClearCart}
+      />
+
+      <div className={`view${isCompareOpen ? " view--compare" : ""}`}>
+        <NavBar
+          activeFilter={activeFilter}
+          onResetFilter={() => setActiveFilter("all")}
+          totalShowing={visibleProductsCount}
+          totalProducts={PRODUCTS.length}
+        />
+        <Grid
+          products={PRODUCTS}
+          activeFilter={activeFilter}
+          compareIds={compareIds}
+          maxCompareReached={compareItems.length >= MAX_COMPARE_ITEMS}
+          onToggleCompare={handleToggleCompare}
+          onAddToCart={handleAddToCart}
+        />
       </div>
-      <div className="footer">
-        <p>Update this page by editing</p>
-        <a className="codeLink" href={fileURL}>
-          <code>app/(frontend)/page.tsx</code>
-        </a>
-      </div>
-    </div>
-  )
+
+      <CompareWrapper
+        compareItems={compareItems}
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+        onAddToCart={handleAddToCart}
+      />
+    </>
+  );
 }
