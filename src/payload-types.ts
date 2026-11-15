@@ -69,6 +69,12 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    categories: Category;
+    banners: Banner;
+    products: Product;
+    reviews: Review;
+    orders: Order;
+    'stock-reservations': StockReservation;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,13 +84,19 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    banners: BannersSelect<false> | BannersSelect<true>;
+    products: ProductsSelect<false> | ProductsSelect<true>;
+    reviews: ReviewsSelect<false> | ReviewsSelect<true>;
+    orders: OrdersSelect<false> | OrdersSelect<true>;
+    'stock-reservations': StockReservationsSelect<false> | StockReservationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   fallbackLocale: null;
   globals: {};
@@ -122,7 +134,44 @@ export interface UserAuthOperations {
  * via the `definition` "users".
  */
 export interface User {
-  id: string;
+  id: number;
+  name?: string | null;
+  role: 'customer' | 'admin';
+  phone?: string | null;
+  neonAuthUserId?: string | null;
+  authProvider?: ('neon' | 'google' | 'local') | null;
+  avatarUrl?: string | null;
+  shippingAddresses?:
+    | {
+        label?: string | null;
+        fullName: string;
+        streetAddress: string;
+        city?: string | null;
+        postalCode?: string | null;
+        country?: string | null;
+        phone?: string | null;
+        isDefault?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  wishlistProductSlugs?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  savedCart?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -148,8 +197,13 @@ export interface User {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
+  id: number;
   alt: string;
+  caption?: string | null;
+  /**
+   * Optional ImageKit path or external R2/CDN URL override.
+   */
+  imagekitPath?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -164,10 +218,223 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  menuId: string;
+  parentMenuId?: string | null;
+  submenuTargetId?: string | null;
+  iconName?: string | null;
+  showInBottomBar?: boolean | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "banners".
+ */
+export interface Banner {
+  id: number;
+  title: string;
+  subtitle: string;
+  badgeText?: string | null;
+  imageUrl: string;
+  media?: (number | null) | Media;
+  ctaText: string;
+  ctaFilter?: string | null;
+  ctaProductSlug?: string | null;
+  accentColor?: string | null;
+  active?: boolean | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products".
+ */
+export interface Product {
+  id: number;
+  slug: string;
+  legacyId?: string | null;
+  title: string;
+  brand: string;
+  price: number;
+  compareAtPrice?: number | null;
+  category: 'jackets' | 'shirts' | 'dresses' | 'trousers' | 'shoes';
+  subcategory: string;
+  tags?:
+    | {
+        tag: string;
+        id?: string | null;
+      }[]
+    | null;
+  size?: ('normal' | 'large') | null;
+  description?: string | null;
+  material: string;
+  fit: string;
+  care: string;
+  images?:
+    | {
+        url: string;
+        alt?: string | null;
+        color?: string | null;
+        media?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  variants?:
+    | {
+        sku: string;
+        size: string;
+        color: string;
+        colorHex: string;
+        priceOverride?: number | null;
+        stock: number;
+        reservedStock: number;
+        lowStockThreshold: number;
+        imageUrl?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  averageRating?: number | null;
+  reviewCount?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews".
+ */
+export interface Review {
+  id: number;
+  product?: (number | null) | Product;
+  productSlug: string;
+  user?: (number | null) | User;
+  authorName: string;
+  authorEmail?: string | null;
+  rating: number;
+  title: string;
+  comment: string;
+  variantSize?: string | null;
+  variantColor?: string | null;
+  verifiedPurchase?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders".
+ */
+export interface Order {
+  id: number;
+  orderId: string;
+  invoiceNumber: string;
+  receiptNumber: string;
+  user?: (number | null) | User;
+  customerEmail: string;
+  customerName: string;
+  customerPhone?: string | null;
+  shippingAddress?: string | null;
+  collectionLocation?: string | null;
+  paymentOption: 'pay_and_delivery' | 'pay_then_collect' | 'pay_on_delivery' | 'pay_on_collection';
+  paymentMethodLabel?: string | null;
+  fulfillmentMethod: 'DELIVERY' | 'COLLECTION';
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  orderStatus:
+    'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_FOR_COLLECTION' | 'OUT_FOR_DELIVERY' | 'COMPLETED' | 'CANCELLED';
+  cardLast4?: string | null;
+  paidAt?: string | null;
+  items?:
+    | {
+        productId: string;
+        productSlug?: string | null;
+        variantSku: string;
+        title: string;
+        brand?: string | null;
+        category?: string | null;
+        subcategory?: string | null;
+        size?: string | null;
+        color?: string | null;
+        quantity: number;
+        unitPrice: number;
+        lineTotal: number;
+        imageUrl?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  totals: {
+    subTotal: number;
+    tax: number;
+    shipping: number;
+    grandTotal: number;
+  };
+  documents?: {
+    invoiceFilename?: string | null;
+    invoiceTemplateId?: string | null;
+    invoicePdfUrl?: string | null;
+    receiptFilename?: string | null;
+    receiptTemplateId?: string | null;
+    receiptPdfUrl?: string | null;
+    emailStatus?: string | null;
+    emailMessageId?: string | null;
+    emailPreviewUrl?: string | null;
+    emailTemplateId?: string | null;
+    payloadPreviewJson?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  statusTimeline?:
+    | {
+        status: string;
+        label: string;
+        timestamp: string;
+        note?: string | null;
+        emailSent?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stock-reservations".
+ */
+export interface StockReservation {
+  id: number;
+  reservationKey: string;
+  orderId?: string | null;
+  status: 'RESERVED' | 'COMMITTED' | 'RELEASED' | 'EXPIRED';
+  expiresAt: string;
+  items?:
+    | {
+        productSlug: string;
+        variantSku: string;
+        quantity: number;
+        id?: string | null;
+      }[]
+    | null;
+  failureReason?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: string;
+  id: number;
   key: string;
   data:
     | {
@@ -184,20 +451,44 @@ export interface PayloadKv {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'users';
-        value: string | User;
+        value: number | User;
       } | null)
     | ({
         relationTo: 'media';
-        value: string | Media;
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'categories';
+        value: number | Category;
+      } | null)
+    | ({
+        relationTo: 'banners';
+        value: number | Banner;
+      } | null)
+    | ({
+        relationTo: 'products';
+        value: number | Product;
+      } | null)
+    | ({
+        relationTo: 'reviews';
+        value: number | Review;
+      } | null)
+    | ({
+        relationTo: 'orders';
+        value: number | Order;
+      } | null)
+    | ({
+        relationTo: 'stock-reservations';
+        value: number | StockReservation;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -207,10 +498,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   key?: string | null;
   value?:
@@ -230,7 +521,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -241,6 +532,27 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  role?: T;
+  phone?: T;
+  neonAuthUserId?: T;
+  authProvider?: T;
+  avatarUrl?: T;
+  shippingAddresses?:
+    | T
+    | {
+        label?: T;
+        fullName?: T;
+        streetAddress?: T;
+        city?: T;
+        postalCode?: T;
+        country?: T;
+        phone?: T;
+        isDefault?: T;
+        id?: T;
+      };
+  wishlistProductSlugs?: T;
+  savedCart?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -265,6 +577,8 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  caption?: T;
+  imagekitPath?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -276,6 +590,208 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories_select".
+ */
+export interface CategoriesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  menuId?: T;
+  parentMenuId?: T;
+  submenuTargetId?: T;
+  iconName?: T;
+  showInBottomBar?: T;
+  sortOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "banners_select".
+ */
+export interface BannersSelect<T extends boolean = true> {
+  title?: T;
+  subtitle?: T;
+  badgeText?: T;
+  imageUrl?: T;
+  media?: T;
+  ctaText?: T;
+  ctaFilter?: T;
+  ctaProductSlug?: T;
+  accentColor?: T;
+  active?: T;
+  sortOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products_select".
+ */
+export interface ProductsSelect<T extends boolean = true> {
+  slug?: T;
+  legacyId?: T;
+  title?: T;
+  brand?: T;
+  price?: T;
+  compareAtPrice?: T;
+  category?: T;
+  subcategory?: T;
+  tags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  size?: T;
+  description?: T;
+  material?: T;
+  fit?: T;
+  care?: T;
+  images?:
+    | T
+    | {
+        url?: T;
+        alt?: T;
+        color?: T;
+        media?: T;
+        id?: T;
+      };
+  variants?:
+    | T
+    | {
+        sku?: T;
+        size?: T;
+        color?: T;
+        colorHex?: T;
+        priceOverride?: T;
+        stock?: T;
+        reservedStock?: T;
+        lowStockThreshold?: T;
+        imageUrl?: T;
+        id?: T;
+      };
+  averageRating?: T;
+  reviewCount?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews_select".
+ */
+export interface ReviewsSelect<T extends boolean = true> {
+  product?: T;
+  productSlug?: T;
+  user?: T;
+  authorName?: T;
+  authorEmail?: T;
+  rating?: T;
+  title?: T;
+  comment?: T;
+  variantSize?: T;
+  variantColor?: T;
+  verifiedPurchase?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders_select".
+ */
+export interface OrdersSelect<T extends boolean = true> {
+  orderId?: T;
+  invoiceNumber?: T;
+  receiptNumber?: T;
+  user?: T;
+  customerEmail?: T;
+  customerName?: T;
+  customerPhone?: T;
+  shippingAddress?: T;
+  collectionLocation?: T;
+  paymentOption?: T;
+  paymentMethodLabel?: T;
+  fulfillmentMethod?: T;
+  paymentStatus?: T;
+  orderStatus?: T;
+  cardLast4?: T;
+  paidAt?: T;
+  items?:
+    | T
+    | {
+        productId?: T;
+        productSlug?: T;
+        variantSku?: T;
+        title?: T;
+        brand?: T;
+        category?: T;
+        subcategory?: T;
+        size?: T;
+        color?: T;
+        quantity?: T;
+        unitPrice?: T;
+        lineTotal?: T;
+        imageUrl?: T;
+        id?: T;
+      };
+  totals?:
+    | T
+    | {
+        subTotal?: T;
+        tax?: T;
+        shipping?: T;
+        grandTotal?: T;
+      };
+  documents?:
+    | T
+    | {
+        invoiceFilename?: T;
+        invoiceTemplateId?: T;
+        invoicePdfUrl?: T;
+        receiptFilename?: T;
+        receiptTemplateId?: T;
+        receiptPdfUrl?: T;
+        emailStatus?: T;
+        emailMessageId?: T;
+        emailPreviewUrl?: T;
+        emailTemplateId?: T;
+        payloadPreviewJson?: T;
+      };
+  statusTimeline?:
+    | T
+    | {
+        status?: T;
+        label?: T;
+        timestamp?: T;
+        note?: T;
+        emailSent?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stock-reservations_select".
+ */
+export interface StockReservationsSelect<T extends boolean = true> {
+  reservationKey?: T;
+  orderId?: T;
+  status?: T;
+  expiresAt?: T;
+  items?:
+    | T
+    | {
+        productSlug?: T;
+        variantSku?: T;
+        quantity?: T;
+        id?: T;
+      };
+  failureReason?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

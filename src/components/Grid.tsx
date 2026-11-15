@@ -1,13 +1,36 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, CSSProperties } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  CSSProperties,
+} from 'react';
+import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, EffectCoverflow, Zoom } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/zoom';
-import type { Product } from '../data/products';
+import {
+  AlertTriangle,
+  Check,
+  Eye,
+  Heart,
+  Loader2,
+  Plus,
+  ShoppingCart,
+  Star,
+} from 'lucide-react';
+import { OptimizedImage } from './ui/optimized-image';
+import { Badge } from './ui/badge';
+import { useStore } from '../context/StoreContext';
+import {
+  getProductLowestAvailableVariantStock,
+  type Product,
+} from '../data/products';
 
 interface ItemPosition {
   visible: boolean;
@@ -24,6 +47,7 @@ interface GridLayoutState {
 interface GridProps {
   products: Product[];
   activeFilter: string;
+  searchQuery?: string;
   compareIds: string[];
   maxCompareReached: boolean;
   onToggleCompare: (product: Product) => void;
@@ -33,11 +57,13 @@ interface GridProps {
 const Grid = ({
   products,
   activeFilter,
+  searchQuery = '',
   compareIds,
   maxCompareReached,
   onToggleCompare,
   onAddToCart,
 }: GridProps) => {
+  const { isWishlisted, toggleWishlist } = useStore();
   const gridRef = useRef<HTMLElement | null>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [isLoaded, setIsLoaded] = useState(false);
@@ -46,15 +72,35 @@ const Grid = ({
     items: {},
   });
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const isProductVisible = useCallback(
     (product: Product) => {
-      if (!activeFilter || activeFilter === 'all') return true;
-      return (
+      const matchesCategory =
+        !activeFilter ||
+        activeFilter === 'all' ||
         product.category === activeFilter ||
-        (Array.isArray(product.tags) && product.tags.includes(activeFilter))
-      );
+        (Array.isArray(product.tags) && product.tags.includes(activeFilter));
+
+      if (!matchesCategory) return false;
+
+      if (!normalizedQuery) return true;
+
+      const haystack = [
+        product.title,
+        product.brand,
+        product.category,
+        product.subcategory,
+        product.description,
+        product.material,
+        ...(product.tags || []),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
     },
-    [activeFilter]
+    [activeFilter, normalizedQuery]
   );
 
   const computeShuffleLayout = useCallback(() => {
@@ -84,7 +130,7 @@ const Grid = ({
       const visible = isProductVisible(product);
       const span = numCols === 5 && product.size === 'large' ? 2 : 1;
       const itemWidth = colWidth * span;
-      const itemHeight = el ? el.offsetHeight || 340 : 340;
+      const itemHeight = el ? el.offsetHeight || 380 : 380;
 
       if (!visible) {
         const prev = layout.items[product.id];
@@ -160,6 +206,8 @@ const Grid = ({
     };
   }, [computeShuffleLayout]);
 
+  const anyVisible = products.some((p) => isProductVisible(p));
+
   return (
     <section
       ref={gridRef}
@@ -169,20 +217,39 @@ const Grid = ({
         transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <img
-        className="grid__loader"
-        src="/images/grid.svg"
-        width="60"
-        alt="Loader image"
-      />
+      <div className="grid__loader text-[#5C5EDC]" aria-hidden="true">
+        <Loader2 className="h-10 w-10 animate-spin mx-auto" />
+      </div>
       <div className="grid__sizer"></div>
 
-      {products.map((product) => {
+      {!anyVisible && isLoaded && (
+        <div className="mx-auto my-12 max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--surface-card)] p-8 text-center">
+          <p className="text-base font-bold text-[var(--fg-heading)]">
+            No matching clothing items found
+          </p>
+          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+            Try clearing your search term or selecting another category filter.
+          </p>
+        </div>
+      )}
+
+      {products.map((product, prodIdx) => {
         const isCompared = compareIds.includes(product.id);
+        const wishlisted = isWishlisted(product.slug);
+        const stockStatus = getProductLowestAvailableVariantStock(product);
         const itemLayout = layout.items[product.id];
         const visible = itemLayout
           ? itemLayout.visible
           : isProductVisible(product);
+
+        // Unique color swatches for quick display
+        const colorSwatches: Array<{ color: string; colorHex: string }> = [];
+        for (const v of product.variants || []) {
+          if (!colorSwatches.some((c) => c.color === v.color)) {
+            colorSwatches.push({ color: v.color, colorHex: v.colorHex });
+          }
+          if (colorSwatches.length >= 4) break;
+        }
 
         const itemStyle: CSSProperties | undefined =
           isLoaded && itemLayout
@@ -202,6 +269,8 @@ const Grid = ({
               }
             : undefined;
 
+        const isPriorityCard = prodIdx < 4;
+
         return (
           <div
             key={product.id}
@@ -214,58 +283,168 @@ const Grid = ({
             style={itemStyle}
             aria-hidden={!visible}
           >
-            <Swiper
-              className={`swiper-container slider${
-                isCompared ? ' product--selected' : ''
-              }`}
-              modules={[Pagination, EffectCoverflow, Zoom]}
-              effect="coverflow"
-              grabCursor={true}
-              zoom={true}
-              autoHeight={true}
-              pagination={{ clickable: true }}
-              onAfterInit={() => computeShuffleLayout()}
-            >
-              {product.images.map((imgSrc, idx) => (
-                <SwiperSlide
-                  key={`${product.id}-slide-${idx}`}
-                  className="slider__item"
+            <div className="relative">
+              {/* Stock status badge overlay */}
+              {stockStatus.isCompletelyOutOfStock ? (
+                <Badge
+                  variant="destructive"
+                  className="pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]"
                 >
-                  <div className="swiper-zoom-container">
-                    <img
-                      src={imgSrc}
-                      alt={`${product.title} view ${idx + 1}`}
-                      onLoad={() => computeShuffleLayout()}
-                    />
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
+                  Out of Stock
+                </Badge>
+              ) : stockStatus.hasLowStockVariant ? (
+                <Badge
+                  variant="warning"
+                  className="pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]"
+                >
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                  <span>Only {stockStatus.minAvailable} left</span>
+                </Badge>
+              ) : null}
+
+              <Swiper
+                className={`swiper-container slider${
+                  isCompared ? ' product--selected' : ''
+                }`}
+                modules={[Pagination, EffectCoverflow, Zoom]}
+                effect="coverflow"
+                grabCursor={true}
+                zoom={true}
+                autoHeight={true}
+                pagination={{ clickable: true }}
+                onAfterInit={() => computeShuffleLayout()}
+              >
+                {product.images.map((imgSrc, imgIdx) => {
+                  const isLcpCandidate = isPriorityCard && imgIdx === 0;
+                  return (
+                    <SwiperSlide
+                      key={`${product.id}-slide-${imgIdx}`}
+                      className="slider__item"
+                    >
+                      <div className="swiper-zoom-container">
+                        <OptimizedImage
+                          src={imgSrc}
+                          alt={`${product.title} view ${imgIdx + 1}`}
+                          width={product.size === 'large' ? 540 : 340}
+                          height={product.size === 'large' ? 540 : 340}
+                          priority={isLcpCandidate}
+                          fetchPriority={isLcpCandidate ? 'high' : 'low'}
+                          loading={isLcpCandidate ? 'eager' : 'lazy'}
+                          onLoad={() => computeShuffleLayout()}
+                        />
+                      </div>
+                    </SwiperSlide>
+                  );
+                })}
+              </Swiper>
+            </div>
 
             <div className="meta">
-              <h3 className="meta__title">{product.title}</h3>
+              <Link
+                href={`/products/${product.slug}`}
+                className="group inline-block pr-2"
+              >
+                <h3 className="meta__title group-hover:text-[#5C5EDC] transition-colors">
+                  {product.title}
+                </h3>
+              </Link>
               <span className="meta__brand">
                 {product.brand} &middot; {product.subcategory}
               </span>
               <span className="meta__price">${product.price}</span>
+
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="inline-flex items-center gap-0.5 font-semibold text-amber-500"
+                    title={`${product.averageRating.toFixed(1)} out of 5 stars`}
+                  >
+                    <Star
+                      className="h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                      aria-hidden="true"
+                    />
+                    {product.averageRating.toFixed(1)}
+                  </span>
+                  <span className="text-[var(--fg-muted)]">
+                    ({product.reviewCount})
+                  </span>
+
+                  {colorSwatches.length > 0 && (
+                    <span
+                      className="ml-1 inline-flex items-center gap-1"
+                      aria-label="Available colors"
+                    >
+                      {colorSwatches.map((swatch) => (
+                        <span
+                          key={`${product.id}-${swatch.color}`}
+                          title={swatch.color}
+                          className="h-2.5 w-2.5 rounded-full border border-white/40 shadow-xs"
+                          style={{ backgroundColor: swatch.colorHex }}
+                        />
+                      ))}
+                    </span>
+                  )}
+                </div>
+
+                <Link
+                  href={`/products/${product.slug}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#797BED] hover:underline"
+                >
+                  <Eye className="h-3 w-3" aria-hidden="true" />
+                  <span>Details</span>
+                </Link>
+              </div>
             </div>
 
+            {/* Add to Cart quick action */}
             <button
               type="button"
               className="action action--button action--buy"
               onClick={() => onAddToCart(product)}
+              disabled={stockStatus.isCompletelyOutOfStock}
               aria-label={`Add ${product.title} to cart`}
+              title={
+                stockStatus.isCompletelyOutOfStock
+                  ? 'Out of stock'
+                  : 'Quick add to bag'
+              }
             >
-              <i className="fa fa-shopping-cart" aria-hidden="true"></i>
+              <ShoppingCart className="h-4 w-4" aria-hidden="true" />
               <span className="text-hidden">Add to cart</span>
             </button>
 
+            {/* Love / Wishlist toggle */}
+            <button
+              type="button"
+              className="action action--button action--wishlist-add"
+              data-active={wishlisted ? 'true' : 'false'}
+              onClick={() => void toggleWishlist(product)}
+              aria-label={
+                wishlisted
+                  ? `Remove ${product.title} from loved items`
+                  : `Love ${product.title}`
+              }
+              aria-pressed={wishlisted}
+              title={wishlisted ? 'Remove from loved items' : 'Love item'}
+            >
+              <Heart
+                className={`h-4 w-4 ${
+                  wishlisted ? 'fill-rose-500 text-rose-500' : ''
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {/* Compare toggle */}
             <label
               className="action action--compare-add"
+              data-active={isCompared ? 'true' : 'false'}
               title={
                 !isCompared && maxCompareReached
                   ? 'Maximum 3 products can be compared at once'
-                  : 'Add to compare'
+                  : isCompared
+                    ? 'Remove from comparison'
+                    : 'Add to compare'
               }
             >
               <input
@@ -274,8 +453,11 @@ const Grid = ({
                 checked={isCompared}
                 onChange={() => onToggleCompare(product)}
               />
-              <i className="fa fa-plus" aria-hidden="true"></i>
-              <i className="fa fa-check" aria-hidden="true"></i>
+              {isCompared ? (
+                <Check className="h-4 w-4 text-[#5C5EDC]" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
               <span className="action__text action__text--invisible">
                 Add to compare
               </span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { Menu } from 'lucide-react';
 import styles from '../styles/Hamburger.module.css';
 
 interface HamburgerProps {
@@ -14,10 +15,10 @@ const Hamburger = forwardRef<HTMLButtonElement, HamburgerProps>(
         ref={ref}
         type="button"
         className={`${styles.action} action--open`}
-        aria-label="Open Menu"
+        aria-label="Open Category Menu"
         onClick={onOpen}
       >
-        <span className="fa-icon icon--menu"></span>
+        <Menu className="h-5 w-5" aria-hidden="true" />
       </button>
     );
   }

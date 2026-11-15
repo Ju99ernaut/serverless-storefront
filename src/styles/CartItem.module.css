@@ -1,102 +1,124 @@
 .itemContainer {
-    display: flex;
-    flex-direction: row;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: row;
+  gap: 0.85rem;
+  padding-top: 1.15rem;
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .removing {
-    opacity: 0.75;
-    pointer-events: none;
+  opacity: 0.75;
+  pointer-events: none;
 }
 
 .quantityContainer {
-    display: flex;
-    align-items: center;
-    margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  margin-top: 0.5rem;
 }
 
 .quantity {
-    appearance: textfield;
-    width: 2rem;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    margin-left: 0.75rem;
-    margin-right: 0.75rem;
-    border-radius: 0.25rem;
-    text-align: center;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    background-color: rgba(0, 0, 0, 0.1);
-    color: inherit;
+  appearance: textfield;
+  width: 2.25rem;
+  border: 1px solid var(--border-color);
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.35rem;
+  background-color: var(--surface-card);
+  color: var(--fg-heading);
 }
 
 .quantity::-webkit-outer-spin-button,
 .quantity::-webkit-inner-spin-button {
-    appearance: none;
-    margin: 0;
+  appearance: none;
+  margin: 0;
 }
 
 .priceContainer {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    margin-top: 0.5rem;
-    margin-bottom: 0;
-    font-size: 1rem;
-    line-height: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--fg-heading);
 }
 
 .btn {
-    color: inherit;
-    background: none;
-    border: none;
+  color: var(--fg-heading);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: #5C5EDC;
+  color: #5C5EDC;
 }
 
 .removeButton {
-    display: flex;
-    justify-content: flex-end;
-    outline: none;
-    color: inherit;
-    background: none;
-    border: none;
+  display: flex;
+  justify-content: flex-end;
+  outline: none;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+.removeButton:hover {
+  color: #ef4444;
 }
 
 .productImageContainer {
-    width: 4rem;
-    height: 4rem;
-    background-color: #5C5EDC;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
+  width: 4.25rem;
+  height: 4.25rem;
+  flex-shrink: 0;
+  background-color: rgba(92, 94, 220, 0.15);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .productImage {
-    position: absolute;
-    transform: scale(1.9);
-    width: 100%;
-    height: 100%;
-    left: 30% !important;
-    top: 30% !important;
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
 }
 
 .variantContainer {
-    display: flex;
-    flex: 1 1 0%;
-    flex-direction: column;
-    font-size: 1rem;
-    line-height: 1.5rem;
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  font-size: 0.92rem;
+  line-height: 1.35rem;
 }
 
 .variantName {
-    font-size: 1.125rem;
-    line-height: 1.5rem;
-    font-weight: 700;
-    cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1.3rem;
+  font-weight: 700;
+  color: var(--fg-heading);
 }
 
 .variantValue {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.15rem;
+  font-weight: 500;
+  color: var(--fg-muted);
 }

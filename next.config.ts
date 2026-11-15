@@ -1,4 +1,5 @@
 import { withPayload } from '@payloadcms/next/withPayload'
+import { withWorkflow } from 'workflow/next'
 import type { NextConfig } from 'next'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -7,10 +8,35 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: [
+    'payload',
+    '@payloadcms/db-vercel-postgres',
+    '@payloadcms/storage-s3',
+    'sharp',
+    'file-type',
+    'nodemailer',
+  ],
   images: {
     localPatterns: [
       {
         pathname: '/api/media/file/**',
+      },
+      {
+        pathname: '/images/**',
+      },
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ik.imagekit.io',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.r2.dev',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.r2.cloudflarestorage.com',
       },
     ],
   },
@@ -28,4 +54,6 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withPayload(nextConfig, { devBundleServerPackages: false })
+export default withWorkflow(
+  withPayload(nextConfig, { devBundleServerPackages: false }),
+)

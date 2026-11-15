@@ -1,5 +1,7 @@
 'use client';
 
+import { Check, X } from 'lucide-react';
+import { OptimizedImage } from './ui/optimized-image';
 import type { Product } from '../data/products';
 
 const MAX_COMPARE_ITEMS = 3;
@@ -30,14 +32,20 @@ const CompareBasket = ({
     >
       {compareItems.map((product) => (
         <div key={product.id} className="product-icon" data-idx={product.id}>
-          <img src={product.images[0]} alt={product.title} />
+          <OptimizedImage
+            src={product.images[0] || '/images/shirt.png'}
+            alt={product.title}
+            width={40}
+            height={40}
+            className="h-full w-full object-contain"
+          />
           <button
             type="button"
             className="action action--remove"
             onClick={() => onRemoveCompare(product.id)}
             aria-label={`Remove ${product.title} from comparison`}
           >
-            <i className="fa fa-remove" aria-hidden="true"></i>
+            <X className="h-3 w-3" aria-hidden="true" />
             <span className="action__text action__text--invisible">
               Remove product
             </span>
@@ -64,7 +72,7 @@ const CompareBasket = ({
             : undefined
         }
       >
-        <i className="fa fa-check" aria-hidden="true"></i>
+        <Check className="h-4 w-4" aria-hidden="true" />
         <span className="action__text">
           Compare{compareItems.length > 0 ? ` (${compareItems.length})` : ''}
         </span>

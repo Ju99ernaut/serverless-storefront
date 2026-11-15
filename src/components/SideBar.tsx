@@ -1,6 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef, MouseEvent, TouchEvent } from 'react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Footprints,
+  Layers,
+  Scissors,
+  Shirt,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import styles from '../styles/Hamburger.module.css';
 import { CATEGORY_MENUS, CategoryMenuItem } from '../data/products';
 
@@ -27,6 +37,25 @@ interface SideBarProps {
   onSelectFilter: (filter: string) => void;
 }
 
+function getCategoryMenuIcon(filter: string) {
+  if (filter.startsWith('jackets')) {
+    return <Layers className="h-4 w-4 opacity-75" aria-hidden="true" />;
+  }
+  if (filter.startsWith('shirts')) {
+    return <Shirt className="h-4 w-4 opacity-75" aria-hidden="true" />;
+  }
+  if (filter.startsWith('dresses')) {
+    return <Sparkles className="h-4 w-4 opacity-75" aria-hidden="true" />;
+  }
+  if (filter.startsWith('trousers')) {
+    return <Scissors className="h-4 w-4 opacity-75" aria-hidden="true" />;
+  }
+  if (filter.startsWith('shoes')) {
+    return <Footprints className="h-4 w-4 opacity-75" aria-hidden="true" />;
+  }
+  return null;
+}
+
 const SideBar = ({
   isOpen,
   onClose,
@@ -43,7 +72,6 @@ const SideBar = ({
 
   const currentMenuId = breadcrumbs[breadcrumbs.length - 1].menuId;
 
-  // Sync sidebar menu level when top-level filter is changed externally (e.g. BottomBar)
   useEffect(() => {
     if (animState) return;
     if (activeFilter === 'all') {
@@ -210,18 +238,28 @@ const SideBar = ({
         aria-label="Go back"
         onClick={handleBack}
       >
-        <span className="fa-icon icon--arrow-left"></span>
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
       </button>
 
       <nav className="menu__breadcrumbs" aria-label="You are here">
         {breadcrumbs.map((crumb, idx) => (
-          <a
+          <span
             key={`${crumb.menuId}-${idx}`}
-            href={`#${crumb.menuId}`}
-            onClick={(ev) => handleBreadcrumbClick(ev, idx)}
+            className="inline-flex items-center gap-1"
           >
-            {crumb.label}
-          </a>
+            {idx > 0 && (
+              <ChevronRight
+                className="h-3 w-3 text-[var(--fg-muted)]"
+                aria-hidden="true"
+              />
+            )}
+            <a
+              href={`#${crumb.menuId}`}
+              onClick={(ev) => handleBreadcrumbClick(ev, idx)}
+            >
+              {crumb.label}
+            </a>
+          </span>
         ))}
       </nav>
 
@@ -232,7 +270,7 @@ const SideBar = ({
         aria-label="Close Menu"
         onClick={onClose}
       >
-        <span className="fa-icon icon--cross"></span>
+        <X className="h-5 w-5" aria-hidden="true" />
       </button>
 
       <div className="menu__wrap">
@@ -272,7 +310,11 @@ const SideBar = ({
                   !item.submenu && activeFilter === item.filter;
                 const delay =
                   isAnimatingOut || isAnimatingIn
-                    ? getItemDelay(pos, Boolean(isBack), animState?.clickPosition)
+                    ? getItemDelay(
+                        pos,
+                        Boolean(isBack),
+                        animState?.clickPosition
+                      )
                     : '0ms';
 
                 return (
@@ -294,7 +336,16 @@ const SideBar = ({
                       href={`#${item.filter || item.submenu}`}
                       onClick={(ev) => handleMenuItemClick(ev, item, pos)}
                     >
-                      {item.label}
+                      <span className="inline-flex items-center gap-2.5">
+                        {getCategoryMenuIcon(item.filter)}
+                        <span>{item.label}</span>
+                      </span>
+                      {item.submenu && (
+                        <ChevronRight
+                          className="h-4 w-4 opacity-60"
+                          aria-hidden="true"
+                        />
+                      )}
                     </a>
                   </li>
                 );

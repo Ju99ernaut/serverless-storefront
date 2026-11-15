@@ -1,7 +1,19 @@
 'use client';
 
 import { forwardRef } from 'react';
-import { BOTTOM_BAR_FILTERS, getMainCategoryForFilter } from '../data/products';
+import {
+  Footprints,
+  Layers,
+  Scissors,
+  Shirt,
+  ShoppingCart,
+  Sparkles,
+} from 'lucide-react';
+import {
+  BOTTOM_BAR_FILTERS,
+  BottomBarFilter,
+  getMainCategoryForFilter,
+} from '../data/products';
 
 interface BottomBarProps {
   activeFilter: string;
@@ -9,6 +21,24 @@ interface BottomBarProps {
   cartCount: number;
   isCartAnimating: boolean;
   onOpenCart: () => void;
+}
+
+function renderFilterIcon(icon: BottomBarFilter['icon']) {
+  switch (icon) {
+    case 'jacket':
+      return <Layers className="h-4 w-4" aria-hidden="true" />;
+    case 'shirt':
+      return <Shirt className="h-4 w-4" aria-hidden="true" />;
+    case 'dress':
+      return <Sparkles className="h-4 w-4" aria-hidden="true" />;
+    case 'trousers':
+      return <Scissors className="h-4 w-4" aria-hidden="true" />;
+    case 'shoe':
+      return <Footprints className="h-4 w-4" aria-hidden="true" />;
+    case 'all':
+    default:
+      return null;
+  }
 }
 
 const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
@@ -31,6 +61,7 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
               item.id === 'all'
                 ? activeFilter === 'all'
                 : activeFilter === item.id || activeMainCategory === item.id;
+            const iconNode = renderFilterIcon(item.icon);
 
             return (
               <button
@@ -43,10 +74,8 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
                 aria-pressed={isSelected}
                 onClick={() => onSelectFilter(item.id)}
               >
-                {item.icon && (
-                  <i className={`icon ${item.icon}`} aria-hidden="true"></i>
-                )}
-                <span className={item.icon ? 'action__text' : undefined}>
+                {iconNode}
+                <span className={iconNode ? 'action__text' : undefined}>
                   {item.label}
                 </span>
               </button>
@@ -60,7 +89,7 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
           onClick={onOpenCart}
           aria-label={`Shopping cart with ${cartCount} items`}
         >
-          <i className="cart__icon fa fa-shopping-cart" aria-hidden="true"></i>
+          <ShoppingCart className="cart__icon h-5 w-5" aria-hidden="true" />
           <span className="text-hidden">Shopping cart</span>
           <span className="cart__count">{cartCount}</span>
         </button>

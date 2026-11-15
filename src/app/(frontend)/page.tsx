@@ -1,89 +1,86 @@
-"use client";
+'use client';
 
-import { useState, useRef, useMemo } from "react";
-import BottomBar from "../components/BottomBar";
-import NavBar from "../components/NavBar";
-import SideBar from "../components/SideBar";
-import Cart from "../components/Cart";
-import Hamburger from "../components/Hamburger";
-import Grid from "../components/Grid";
-import CompareBasket from "../components/CompareBasket";
-import CompareWrapper from "../components/CompareWrapper";
-import { PRODUCTS, Product, CartLineItem } from "../data/products";
+import { useState, useRef, useMemo } from 'react';
+import BottomBar from '../../components/BottomBar';
+import NavBar, { type SortOption } from '../../components/NavBar';
+import SideBar from '../../components/SideBar';
+import Cart from '../../components/Cart';
+import Hamburger from '../../components/Hamburger';
+import BannerCarousel from '../../components/BannerCarousel';
+import Grid from '../../components/Grid';
+import CompareBasket from '../../components/CompareBasket';
+import CompareWrapper from '../../components/CompareWrapper';
+import { useStore } from '../../context/StoreContext';
+import type { Product } from '../../data/products';
 
 const MAX_COMPARE_ITEMS = 3;
 
 export default function HomePage() {
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const {
+    products,
+    banners,
+    cartItems,
+    totalCartCount,
+    isCartOpen,
+    setIsCartOpen,
+    isCartAnimating,
+    addToCart,
+    updateCartQuantity,
+    removeCartItem,
+    clearCart,
+  } = useStore();
+
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [isCartAnimating, setIsCartAnimating] = useState<boolean>(false);
   const [compareItems, setCompareItems] = useState<Product[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
-
-  const [cartItems, setCartItems] = useState<CartLineItem[]>(() => []);
 
   const hamburgerRef = useRef<HTMLButtonElement | null>(null);
   const cartBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const totalCartCount = useMemo(
-    () => cartItems.reduce((acc, item) => acc + item.quantity, 0),
-    [cartItems],
-  );
+  const sortedProducts = useMemo(() => {
+    const list = [...products];
+    if (sortBy === 'price-asc') {
+      list.sort((a, b) => a.price - b.price);
+    } else if (sortBy === 'price-desc') {
+      list.sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'rating') {
+      list.sort((a, b) => b.averageRating - a.averageRating);
+    }
+    return list;
+  }, [products, sortBy]);
 
   const visibleProductsCount = useMemo(() => {
-    if (!activeFilter || activeFilter === "all") return PRODUCTS.length;
-    return PRODUCTS.filter(
-      (p) =>
+    const q = searchQuery.trim().toLowerCase();
+    return sortedProducts.filter((p) => {
+      const matchesCat =
+        !activeFilter ||
+        activeFilter === 'all' ||
         p.category === activeFilter ||
-        (Array.isArray(p.tags) && p.tags.includes(activeFilter)),
-    ).length;
-  }, [activeFilter]);
+        (Array.isArray(p.tags) && p.tags.includes(activeFilter));
+      if (!matchesCat) return false;
+      if (!q) return true;
+      return [
+        p.title,
+        p.brand,
+        p.category,
+        p.subcategory,
+        p.description,
+        p.material,
+        ...(p.tags || []),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    }).length;
+  }, [sortedProducts, activeFilter, searchQuery]);
 
   const compareIds = useMemo(
     () => compareItems.map((item) => item.id),
-    [compareItems],
+    [compareItems]
   );
-
-  const handleAddToCart = (product: Product) => {
-    setIsCartAnimating(true);
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-    setTimeout(() => {
-      setIsCartAnimating(false);
-    }, 450);
-  };
-
-  const handleUpdateCartQuantity = (productId: string, nextQty: number) => {
-    if (nextQty <= 0) {
-      setCartItems((prev) => prev.filter((item) => item.id !== productId));
-      return;
-    }
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === productId
-          ? { ...item, quantity: Math.min(99, nextQty) }
-          : item,
-      ),
-    );
-  };
-
-  const handleRemoveCartItem = (productId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== productId));
-  };
-
-  const handleClearCart = () => {
-    setCartItems([]);
-  };
 
   const handleToggleCompare = (product: Product) => {
     setCompareItems((prev) => {
@@ -153,25 +150,38 @@ export default function HomePage() {
         isOpen={isCartOpen}
         onClose={handleCloseCart}
         items={cartItems}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onRemoveItem={handleRemoveCartItem}
-        onClearCart={handleClearCart}
+        onUpdateQuantity={updateCartQuantity}
+        onRemoveItem={removeCartItem}
+        onClearCart={clearCart}
       />
 
-      <div className={`view${isCompareOpen ? " view--compare" : ""}`}>
+      <div className={`view${isCompareOpen ? ' view--compare' : ''}`}>
         <NavBar
           activeFilter={activeFilter}
-          onResetFilter={() => setActiveFilter("all")}
+          onResetFilter={() => setActiveFilter('all')}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
           totalShowing={visibleProductsCount}
-          totalProducts={PRODUCTS.length}
+          totalProducts={products.length}
         />
+
+        <BannerCarousel
+          banners={banners}
+          onCategorySelect={(filter) => {
+            setActiveFilter(filter || 'all');
+          }}
+        />
+
         <Grid
-          products={PRODUCTS}
+          products={sortedProducts}
           activeFilter={activeFilter}
+          searchQuery={searchQuery}
           compareIds={compareIds}
           maxCompareReached={compareItems.length >= MAX_COMPARE_ITEMS}
           onToggleCompare={handleToggleCompare}
-          onAddToCart={handleAddToCart}
+          onAddToCart={(product) => addToCart(product)}
         />
       </div>
 
@@ -179,7 +189,7 @@ export default function HomePage() {
         compareItems={compareItems}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
-        onAddToCart={handleAddToCart}
+        onAddToCart={(product) => addToCart(product)}
       />
     </>
   );

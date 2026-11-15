@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react';
 import type { Metadata, Viewport } from 'next';
-import '../styles/globals.css';
-import '../styles/sidebar.css';
-import '../styles/fonts/pixelfabric-clothes/style.css';
-import 'font-awesome/css/font-awesome.min.css';
+import '../../styles/globals.css';
+import '../../styles/sidebar.css';
+import { ThemeProvider } from '../../components/theme-provider';
+import { StoreImageKitProvider } from '../../components/ui/optimized-image';
+import { StoreProvider } from '../../context/StoreContext';
+import AuthModal from '../../components/AuthModal';
 
 export const metadata: Metadata = {
-  title: 'Storefront',
-  description: 'Modernized React & Next.js Storefront',
+  title: 'Storefront Atelier — Curated Clothing & Footwear',
+  description:
+    'Modern clothing storefront powered by Payload CMS, Cloudflare R2, ImageKit, Neon Managed Better Auth, and Workflow SDK durable stock tracking.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -20,15 +23,47 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#2A2B30',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#2A2B30' },
+    { media: '(prefers-color-scheme: light)', color: '#F4F5FA' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };
 
+const COLOR_SCHEME_INIT_SCRIPT = `
+(function() {
+  try {
+    var saved = localStorage.getItem('theme') || localStorage.getItem('color-scheme');
+    var meta = document.querySelector('meta[name="color-scheme"]');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(saved);
+      if (meta) meta.setAttribute('content', saved);
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="flexbox no-touch">
-      <body>{children}</body>
+    <html lang="en" className="flexbox no-touch" suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light dark" />
+        <script
+          dangerouslySetInnerHTML={{ __html: COLOR_SCHEME_INIT_SCRIPT }}
+        />
+      </head>
+      <body>
+        <ThemeProvider>
+          <StoreImageKitProvider>
+            <StoreProvider>
+              {children}
+              <AuthModal />
+            </StoreProvider>
+          </StoreImageKitProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
