@@ -1,85 +1,59 @@
-'use client';
+'use client'
 
-import { forwardRef } from 'react';
-import {
-  Footprints,
-  Layers,
-  Scissors,
-  Shirt,
-  ShoppingCart,
-  Sparkles,
-} from 'lucide-react';
-import {
-  BOTTOM_BAR_FILTERS,
-  BottomBarFilter,
-  getMainCategoryForFilter,
-} from '../data/utils';
+import { forwardRef } from 'react'
+import { ShoppingCart } from 'lucide-react'
+import { BOTTOM_BAR_FILTERS, BottomBarFilter, getMainCategoryForFilter } from '../data/utils'
+import { OptimizedImage } from './ui/optimized-image'
 
 interface BottomBarProps {
-  activeFilter: string;
-  onSelectFilter: (filter: string) => void;
-  cartCount: number;
-  isCartAnimating: boolean;
-  onOpenCart: () => void;
+  activeFilter: string
+  onSelectFilter: (filter: string) => void
+  cartCount: number
+  isCartAnimating: boolean
+  onOpenCart: () => void
 }
 
 function renderFilterIcon(icon: BottomBarFilter['icon']) {
-  switch (icon) {
-    case 'jacket':
-      return <Layers className="h-4 w-4" aria-hidden="true" />;
-    case 'shirt':
-      return <Shirt className="h-4 w-4" aria-hidden="true" />;
-    case 'dress':
-      return <Sparkles className="h-4 w-4" aria-hidden="true" />;
-    case 'trousers':
-      return <Scissors className="h-4 w-4" aria-hidden="true" />;
-    case 'shoe':
-      return <Footprints className="h-4 w-4" aria-hidden="true" />;
-    case 'all':
-    default:
-      return null;
-  }
+  if (icon === 'all') return null
+
+  return (
+    <OptimizedImage
+      src={`/images/${icon}.png`}
+      alt={icon}
+      width={20}
+      height={20}
+      className="w-6 h-6 w-auto object-contain"
+    />
+  )
 }
 
 const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
-  (
-    { activeFilter, onSelectFilter, cartCount, isCartAnimating, onOpenCart },
-    cartBtnRef
-  ) => {
-    const activeMainCategory = getMainCategoryForFilter(activeFilter);
+  ({ activeFilter, onSelectFilter, cartCount, isCartAnimating, onOpenCart }, cartBtnRef) => {
+    const activeMainCategory = getMainCategoryForFilter(activeFilter)
 
     return (
       <div className="bar">
-        <div
-          className="filter"
-          role="toolbar"
-          aria-label="Product category filters"
-        >
-          <span className="filter__label">Filter: </span>
+        <div className="filter" role="toolbar" aria-label="Product category filters">
           {BOTTOM_BAR_FILTERS.map((item) => {
             const isSelected =
               item.id === 'all'
                 ? activeFilter === 'all'
-                : activeFilter === item.id || activeMainCategory === item.id;
-            const iconNode = renderFilterIcon(item.icon);
+                : activeFilter === item.id || activeMainCategory === item.id
+            const iconNode = renderFilterIcon(item.icon)
 
             return (
               <button
                 key={item.id}
                 type="button"
-                className={`action filter__item${
-                  isSelected ? ' filter__item--selected' : ''
-                }`}
+                className={`action filter__item${isSelected ? ' filter__item--selected' : ''}`}
                 data-filter={item.id}
                 aria-pressed={isSelected}
                 onClick={() => onSelectFilter(item.id)}
               >
                 {iconNode}
-                <span className={iconNode ? 'action__text' : undefined}>
-                  {item.label}
-                </span>
+                <span className={iconNode ? 'action__text' : undefined}>{item.label}</span>
               </button>
-            );
+            )
           })}
         </div>
         <button
@@ -94,10 +68,10 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
           <span className="cart__count">{cartCount}</span>
         </button>
       </div>
-    );
-  }
-);
+    )
+  },
+)
 
-BottomBar.displayName = 'BottomBar';
+BottomBar.displayName = 'BottomBar'
 
-export default BottomBar;
+export default BottomBar

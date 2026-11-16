@@ -8,7 +8,7 @@ import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/effect-coverflow'
 import 'swiper/css/zoom'
-import { AlertTriangle, Check, Eye, Heart, Loader2, Plus, ShoppingCart, Star } from 'lucide-react'
+import { AlertTriangle, Check, Heart, Loader2, Plus, Star } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
 import { Badge } from './ui/badge'
 import { useStore } from '../context/StoreContext'
@@ -337,46 +337,9 @@ const Grid = ({
                     {product.averageRating.toFixed(1)}
                   </span>
                   <span className="text-[var(--fg-muted)]">({product.reviewCount})</span>
-
-                  {colorSwatches.length > 0 && (
-                    <span
-                      className="ml-1 inline-flex items-center gap-1"
-                      aria-label="Available colors"
-                    >
-                      {colorSwatches.map((swatch) => (
-                        <span
-                          key={`${product.id}-${swatch.color}`}
-                          title={swatch.color}
-                          className="h-2.5 w-2.5 rounded-none border border-white/40 shadow-xs"
-                          style={{ backgroundColor: swatch.colorHex }}
-                        />
-                      ))}
-                    </span>
-                  )}
                 </div>
-
-                <Link
-                  href={`/products/${product.slug}`}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#797BED] hover:underline"
-                >
-                  <Eye className="h-3 w-3" aria-hidden="true" />
-                  <span>Details</span>
-                </Link>
               </div>
             </div>
-
-            {/* Add to Cart quick action */}
-            <button
-              type="button"
-              className="action action--button action--buy"
-              onClick={() => onAddToCart(product)}
-              disabled={stockStatus.isCompletelyOutOfStock}
-              aria-label={`Add ${product.title} to cart`}
-              title={stockStatus.isCompletelyOutOfStock ? 'Out of stock' : 'Quick add to bag'}
-            >
-              <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-              <span className="text-hidden">Add to cart</span>
-            </button>
 
             {/* Love / Wishlist toggle */}
             <button

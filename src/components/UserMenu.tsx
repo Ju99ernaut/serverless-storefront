@@ -44,7 +44,7 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
         variant="default"
         size="sm"
         onClick={() => openAuthModal('account')}
-        className={`rounded-none h-9 px-3 text-xs ${className}`}
+        className={`rounded-none text-xs ${className}`}
       >
         <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
         <span>Sign In</span>

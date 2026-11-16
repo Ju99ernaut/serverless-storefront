@@ -1,29 +1,15 @@
-'use client';
+'use client'
 
-import { useState, FormEvent, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Alert } from './ui/alert';
-import { useStore } from '../context/StoreContext';
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  ShieldCheck,
-  Sparkles,
-  User as UserIcon,
-  AlertCircle,
-} from 'lucide-react';
+import { useState, FormEvent, useEffect } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
+import { Input } from './ui/input'
+import { Button } from './ui/button'
+import { Alert } from './ui/alert'
+import { useStore } from '../context/StoreContext'
+import { Eye, EyeOff, Lock, Mail, User as UserIcon, AlertCircle, Info } from 'lucide-react'
 
+// TODO: use proper forms via shadcn, axios, react-query
 export default function AuthModal() {
   const {
     isAuthModalOpen,
@@ -33,127 +19,111 @@ export default function AuthModal() {
     signInWithGoogle,
     cartItems,
     setIsCartOpen,
-  } = useStore();
+  } = useStore()
 
-  const [tab, setTab] = useState<'signin' | 'signup'>('signin');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [tab, setTab] = useState<'signin' | 'signup'>('signin')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!isAuthModalOpen) {
-      setError('');
-      setShowPassword(false);
+      setError('')
+      setShowPassword(false)
     }
-  }, [isAuthModalOpen]);
+  }, [isAuthModalOpen])
 
   const handleSuccessRedirect = () => {
     if (authModalIntent === 'checkout') {
-      setIsCartOpen(true);
+      setIsCartOpen(true)
     }
-  };
+  }
 
   const handleSignInSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
-      return;
+      setError('Please enter your email and password.')
+      return
     }
-    setIsSubmitting(true);
-    setError('');
+    setIsSubmitting(true)
+    setError('')
     try {
       await signInWithEmail({
         email: email.trim(),
         password,
         isRegister: false,
-      });
-      handleSuccessRedirect();
+      })
+      handleSuccessRedirect()
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to sign in. Please retry.'
-      );
+      setError(err instanceof Error ? err.message : 'Unable to sign in. Please retry.')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleSignUpSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!name.trim() || !email.trim() || password.length < 6) {
       setError(
-        'Please provide your full name, a valid email, and a password of at least 6 characters.'
-      );
-      return;
+        'Please provide your full name, a valid email, and a password of at least 6 characters.',
+      )
+      return
     }
-    setIsSubmitting(true);
-    setError('');
+    setIsSubmitting(true)
+    setError('')
     try {
       await signInWithEmail({
         email: email.trim(),
         password,
         name: name.trim(),
         isRegister: true,
-      });
-      handleSuccessRedirect();
+      })
+      handleSuccessRedirect()
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to create account. Please retry.'
-      );
+      setError(err instanceof Error ? err.message : 'Unable to create account. Please retry.')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleGoogleSignIn = async () => {
-    setIsSubmitting(true);
-    setError('');
+    setIsSubmitting(true)
+    setError('')
     try {
-      await signInWithGoogle();
-      handleSuccessRedirect();
+      await signInWithGoogle()
+      handleSuccessRedirect()
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Google authentication failed.'
-      );
+      setError(err instanceof Error ? err.message : 'Google authentication failed.')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <Dialog open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#797BED]">
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            <span>Neon Managed Better Auth</span>
-          </div>
           <DialogTitle>
             {tab === 'signin' ? 'Sign in to Storefront' : 'Create your account'}
           </DialogTitle>
           <DialogDescription>
-            Save loved clothing items, sync your cart across sessions, write
-            verified reviews, and track orders.
+            Save loved clothing items, sync your cart across sessions, write verified reviews, and
+            track orders.
           </DialogDescription>
         </DialogHeader>
 
         {authModalIntent === 'checkout' && (
-          <Alert className="border-[#5C5EDC]/40 bg-[#5C5EDC]/10 text-[var(--fg-primary)]">
-            <Sparkles
-              className="h-4 w-4 text-[#797BED] shrink-0 mt-0.5"
-              aria-hidden="true"
-            />
+          <Alert>
+            <Info className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="text-xs leading-relaxed">
-              Registration or sign-in is required at checkout to allocate stock
-              and send order tracking updates.{' '}
+              Registration or sign-in is required at checkout to allocate stock and send order
+              tracking updates.{' '}
               {cartItems.length > 0 && (
                 <strong>
-                  Your {cartItems.reduce((s, i) => s + i.quantity, 0)} guest
-                  cart item(s) saved in localStorage will merge automatically.
+                  Your {cartItems.reduce((s, i) => s + i.quantity, 0)} cart item(s) will be saved.
                 </strong>
               )}
             </div>
@@ -174,17 +144,13 @@ export default function AuthModal() {
           disabled={isSubmitting}
           className="w-full gap-2 font-semibold"
         >
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="currentColor"
               d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27c3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10c5.35 0 9.25-3.67 9.25-9.09c0-1.15-.15-1.81-.15-1.81Z"
             />
           </svg>
-          <span>Continue with Google (Neon Auth)</span>
+          <span>Continue with Google</span>
         </Button>
 
         <div className="relative flex items-center py-1">
@@ -198,8 +164,8 @@ export default function AuthModal() {
         <Tabs
           value={tab}
           onValueChange={(v) => {
-            setTab(v as 'signin' | 'signup');
-            setError('');
+            setTab(v as 'signin' | 'signup')
+            setError('')
           }}
         >
           <TabsList className="grid w-full grid-cols-2">
@@ -277,18 +243,9 @@ export default function AuthModal() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full mt-2"
-              >
+              <Button type="submit" disabled={isSubmitting} className="w-full mt-2">
                 {isSubmitting ? 'Signing in...' : 'Sign In & Sync Account'}
               </Button>
-
-              <p className="text-[11px] text-[var(--fg-muted)] text-center">
-                Demo account ready: <code>alex.rivera@example.com</code> (any
-                password)
-              </p>
             </form>
           </TabsContent>
 
@@ -389,19 +346,13 @@ export default function AuthModal() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full mt-2"
-              >
-                {isSubmitting
-                  ? 'Creating Neon Auth account...'
-                  : 'Create Account & Merge Cart'}
+              <Button type="submit" disabled={isSubmitting} className="w-full mt-2">
+                {isSubmitting ? 'Creating Neon Auth account...' : 'Create Account & Merge Cart'}
               </Button>
             </form>
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

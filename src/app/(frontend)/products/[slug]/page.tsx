@@ -1,8 +1,8 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useMemo, FormEvent } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, useMemo, FormEvent } from 'react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -14,33 +14,25 @@ import {
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
   Star,
   Truck,
-} from 'lucide-react';
-import { useStore } from '@/context/StoreContext';
-import {
-  fetchProductBySlugWithReviews,
-  submitProductReviewViaSdk,
-} from '@/lib/payload-sdk';
-import type {
-  Product,
-  ProductReviewItem,
-  ProductVariant,
-} from '@/data/utils';
-import { OptimizedImage } from '@/components/ui/optimized-image';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import Cart from '@/components/Cart';
-import UserMenu from '@/components/UserMenu';
+} from 'lucide-react'
+import { useStore } from '@/context/StoreContext'
+import { fetchProductBySlugWithReviews, submitProductReviewViaSdk } from '@/lib/payload-sdk'
+import type { Product, ProductReviewItem, ProductVariant } from '@/data/utils'
+import { OptimizedImage } from '@/components/ui/optimized-image'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Alert } from '@/components/ui/alert'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import Cart from '@/components/Cart'
+import UserMenu from '@/components/UserMenu'
 
 export default function ProductDetailPage() {
-  const params = useParams<{ slug: string }>();
-  const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || '';
+  const params = useParams<{ slug: string }>()
+  const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || ''
 
   const {
     products,
@@ -57,158 +49,155 @@ export default function ProductDetailPage() {
     toggleWishlist,
     openAuthModal,
     refreshCatalog,
-  } = useStore();
+  } = useStore()
 
   const fallbackProduct = useMemo(
     () => products.find((p) => p.slug === slug || p.id === slug) || null,
-    [products, slug]
-  );
+    [products, slug],
+  )
 
-  const [product, setProduct] = useState<Product | null>(fallbackProduct);
-  const [reviews, setReviews] = useState<ProductReviewItem[]>([]);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(!fallbackProduct);
+  const [product, setProduct] = useState<Product | null>(fallbackProduct)
+  const [reviews, setReviews] = useState<ProductReviewItem[]>([])
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(!fallbackProduct)
 
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<string>('');
-  const [selectedSize, setSelectedSize] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
-  const [addedFeedback, setAddedFeedback] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [selectedColor, setSelectedColor] = useState<string>('')
+  const [selectedSize, setSelectedSize] = useState<string>('')
+  const [quantity, setQuantity] = useState<number>(1)
+  const [addedFeedback, setAddedFeedback] = useState(false)
 
   // Review Form State
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewTitle, setReviewTitle] = useState('');
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState('');
-  const [reviewSuccess, setReviewSuccess] = useState('');
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewTitle, setReviewTitle] = useState('')
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [reviewSuccess, setReviewSuccess] = useState('')
 
   useEffect(() => {
     if (fallbackProduct && !product) {
-      setProduct(fallbackProduct);
+      setProduct(fallbackProduct)
     }
-  }, [fallbackProduct, product]);
+  }, [fallbackProduct, product])
 
   useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-    setLoading(true);
+    if (!slug) return
+    let cancelled = false
+    setLoading(true)
     fetchProductBySlugWithReviews(slug)
       .then((res) => {
-        if (cancelled) return;
-        setProduct(res.product);
-        setReviews(res.reviews || []);
-        setRelatedProducts(res.relatedProducts || []);
-        setLoading(false);
+        if (cancelled) return
+        setProduct(res.product)
+        setReviews(res.reviews || [])
+        setRelatedProducts(res.relatedProducts || [])
+        setLoading(false)
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled) return
         if (fallbackProduct) {
-          setProduct(fallbackProduct);
+          setProduct(fallbackProduct)
         }
-        setLoading(false);
-      });
+        setLoading(false)
+      })
     return () => {
-      cancelled = true;
-    };
-  }, [slug]);
+      cancelled = true
+    }
+  }, [slug])
 
   // Synchronize default color and size when product loads
   useEffect(() => {
-    if (!product || !product.variants || product.variants.length === 0) return;
+    if (!product || !product.variants || product.variants.length === 0) return
     const firstInStock =
-      product.variants.find((v) => v.stock - (v.reservedStock || 0) > 0) ||
-      product.variants[0];
+      product.variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || product.variants[0]
     setSelectedColor((prev) =>
-      product.variants.some((v) => v.color === prev) ? prev : firstInStock.color
-    );
+      product.variants.some((v) => v.color === prev) ? prev : firstInStock.color,
+    )
     setSelectedSize((prev) =>
-      product.variants.some((v) => v.size === prev) ? prev : firstInStock.size
-    );
-  }, [product]);
+      product.variants.some((v) => v.size === prev) ? prev : firstInStock.size,
+    )
+  }, [product])
 
   const uniqueColors = useMemo(() => {
-    if (!product?.variants) return [];
-    const seen = new Map<string, string>();
+    if (!product?.variants) return []
+    const seen = new Map<string, string>()
     for (const v of product.variants) {
       if (!seen.has(v.color)) {
-        seen.set(v.color, v.colorHex);
+        seen.set(v.color, v.colorHex)
       }
     }
     return Array.from(seen.entries()).map(([color, colorHex]) => ({
       color,
       colorHex,
-    }));
-  }, [product]);
+    }))
+  }, [product])
 
   const uniqueSizes = useMemo(() => {
-    if (!product?.variants) return [];
-    const set = new Set<string>();
+    if (!product?.variants) return []
+    const set = new Set<string>()
     for (const v of product.variants) {
-      set.add(v.size);
+      set.add(v.size)
     }
-    return Array.from(set);
-  }, [product]);
+    return Array.from(set)
+  }, [product])
 
   const activeVariant: ProductVariant | undefined = useMemo(() => {
-    if (!product?.variants || product.variants.length === 0) return undefined;
+    if (!product?.variants || product.variants.length === 0) return undefined
     return (
-      product.variants.find(
-        (v) => v.color === selectedColor && v.size === selectedSize
-      ) ||
+      product.variants.find((v) => v.color === selectedColor && v.size === selectedSize) ||
       product.variants.find((v) => v.color === selectedColor) ||
       product.variants.find((v) => v.size === selectedSize) ||
       product.variants[0]
-    );
-  }, [product, selectedColor, selectedSize]);
+    )
+  }, [product, selectedColor, selectedSize])
 
   const availableStock = activeVariant
     ? Math.max(0, activeVariant.stock - (activeVariant.reservedStock || 0))
-    : 0;
-  const lowStockThreshold = activeVariant?.lowStockThreshold || 5;
-  const isLowStock = availableStock > 0 && availableStock <= lowStockThreshold;
-  const isOutOfStock = availableStock <= 0;
+    : 0
+  const lowStockThreshold = activeVariant?.lowStockThreshold || 5
+  const isLowStock = availableStock > 0 && availableStock <= lowStockThreshold
+  const isOutOfStock = availableStock <= 0
 
   useEffect(() => {
     if (availableStock > 0 && quantity > availableStock) {
-      setQuantity(availableStock);
+      setQuantity(availableStock)
     } else if (availableStock > 0 && quantity < 1) {
-      setQuantity(1);
+      setQuantity(1)
     }
-  }, [availableStock, quantity]);
+  }, [availableStock, quantity])
 
   const galleryImages = useMemo(() => {
-    const imgs = [...(product?.images || ['/images/shirt.png'])];
+    const imgs = [...(product?.images || ['/images/shirt.png'])]
     if (activeVariant?.imageUrl && !imgs.includes(activeVariant.imageUrl)) {
-      imgs.unshift(activeVariant.imageUrl);
+      imgs.unshift(activeVariant.imageUrl)
     }
-    return imgs;
-  }, [product, activeVariant]);
+    return imgs
+  }, [product, activeVariant])
 
   const handleAddToCart = () => {
-    if (!product || !activeVariant || isOutOfStock) return;
+    if (!product || !activeVariant || isOutOfStock) return
     addToCart(product, {
       variantSku: activeVariant.sku,
       size: activeVariant.size,
       color: activeVariant.color,
       colorHex: activeVariant.colorHex,
       quantity,
-    });
-    setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 1800);
-  };
+    })
+    setAddedFeedback(true)
+    setTimeout(() => setAddedFeedback(false), 1800)
+  }
 
   const handleReviewSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!product || !user) return;
+    e.preventDefault()
+    if (!product || !user) return
     if (!reviewTitle.trim() || !reviewComment.trim()) {
-      setReviewError('Please enter a review headline and comment.');
-      return;
+      setReviewError('Please enter a review headline and comment.')
+      return
     }
 
-    setReviewSubmitting(true);
-    setReviewError('');
-    setReviewSuccess('');
+    setReviewSubmitting(true)
+    setReviewError('')
+    setReviewSuccess('')
 
     try {
       const res = await submitProductReviewViaSdk({
@@ -220,37 +209,33 @@ export default function ProductDetailPage() {
         comment: reviewComment.trim(),
         variantSize: activeVariant?.size,
         variantColor: activeVariant?.color,
-      });
-      setReviews((prev) => [res.review, ...prev]);
-      setProduct(res.product);
-      setReviewTitle('');
-      setReviewComment('');
-      setReviewRating(5);
-      setReviewSuccess('Thank you! Your review has been published.');
-      await refreshCatalog();
+      })
+      setReviews((prev) => [res.review, ...prev])
+      setProduct(res.product)
+      setReviewTitle('')
+      setReviewComment('')
+      setReviewRating(5)
+      setReviewSuccess('Thank you! Your review has been published.')
+      await refreshCatalog()
     } catch (err: unknown) {
-      setReviewError(
-        err instanceof Error ? err.message : 'Unable to submit review.'
-      );
+      setReviewError(err instanceof Error ? err.message : 'Unable to submit review.')
     } finally {
-      setReviewSubmitting(false);
+      setReviewSubmitting(false)
     }
-  };
+  }
 
   if (loading && !product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8 text-[var(--fg-muted)]">
         Loading garment details...
       </div>
-    );
+    )
   }
 
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center gap-4">
-        <h1 className="text-2xl font-bold text-[var(--fg-heading)]">
-          Garment Not Found
-        </h1>
+        <h1 className="text-2xl font-bold text-[var(--fg-heading)]">Garment Not Found</h1>
         <p className="text-sm text-[var(--fg-muted)]">
           We couldn&apos;t locate the requested clothing item.
         </p>
@@ -258,11 +243,11 @@ export default function ProductDetailPage() {
           <Link href="/">Return to Storefront</Link>
         </Button>
       </div>
-    );
+    )
   }
 
-  const wishlisted = isWishlisted(product.slug);
-  const displayPrice = activeVariant?.priceOverride ?? product.price;
+  const wishlisted = isWishlisted(product.slug)
+  const displayPrice = activeVariant?.priceOverride ?? product.price
 
   return (
     <div className="min-h-screen overflow-anchor-parent pb-16">
@@ -292,12 +277,7 @@ export default function ProductDetailPage() {
 
           <div className="flex items-center gap-2">
             <UserMenu />
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setIsCartOpen(true)}
-              className="gap-1.5"
-            >
+            <Button type="button" size="sm" onClick={() => setIsCartOpen(true)} className="gap-1.5">
               <ShoppingCart className="h-4 w-4" aria-hidden="true" />
               <span>Bag ({totalCartCount})</span>
             </Button>
@@ -312,10 +292,7 @@ export default function ProductDetailPage() {
           <div className="lg:col-span-6 space-y-4">
             <div className="relative overflow-hidden rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-8 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
               {isOutOfStock ? (
-                <Badge
-                  variant="destructive"
-                  className="absolute top-4 left-4 z-10"
-                >
+                <Badge variant="destructive" className="absolute top-4 left-4 z-10">
                   Out of Stock
                 </Badge>
               ) : isLowStock ? (
@@ -397,16 +374,11 @@ export default function ProductDetailPage() {
                   </span>
                 )}
                 <div className="flex items-center gap-1.5 text-sm">
-                  <Star
-                    className="h-4 w-4 fill-amber-400 text-amber-400"
-                    aria-hidden="true"
-                  />
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
                   <span className="font-bold text-[var(--fg-heading)]">
                     {product.averageRating.toFixed(1)}
                   </span>
-                  <span className="text-[var(--fg-muted)]">
-                    ({product.reviewCount} reviews)
-                  </span>
+                  <span className="text-[var(--fg-muted)]">({product.reviewCount} reviews)</span>
                 </div>
               </div>
 
@@ -422,13 +394,11 @@ export default function ProductDetailPage() {
                   <span className="font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                     Color
                   </span>
-                  <span className="font-semibold text-[var(--fg-heading)]">
-                    {selectedColor}
-                  </span>
+                  <span className="font-semibold text-[var(--fg-heading)]">{selectedColor}</span>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
                   {uniqueColors.map((c) => {
-                    const isSelected = selectedColor === c.color;
+                    const isSelected = selectedColor === c.color
                     return (
                       <button
                         key={c.color}
@@ -448,7 +418,7 @@ export default function ProductDetailPage() {
                         />
                         <span>{c.color}</span>
                       </button>
-                    );
+                    )
                   })}
                 </div>
               </div>
@@ -468,16 +438,12 @@ export default function ProductDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {uniqueSizes.map((sz) => {
                     const variantForSize = product.variants.find(
-                      (v) => v.size === sz && v.color === selectedColor
-                    );
+                      (v) => v.size === sz && v.color === selectedColor,
+                    )
                     const avail = variantForSize
-                      ? Math.max(
-                          0,
-                          variantForSize.stock -
-                            (variantForSize.reservedStock || 0)
-                        )
-                      : 0;
-                    const isSelected = selectedSize === sz;
+                      ? Math.max(0, variantForSize.stock - (variantForSize.reservedStock || 0))
+                      : 0
+                    const isSelected = selectedSize === sz
                     return (
                       <button
                         key={sz}
@@ -494,7 +460,7 @@ export default function ProductDetailPage() {
                       >
                         {sz}
                       </button>
-                    );
+                    )
                   })}
                 </div>
               </div>
@@ -509,8 +475,8 @@ export default function ProductDetailPage() {
                     Out of stock in {selectedColor} ({selectedSize})
                   </strong>
                   <span className="text-xs">
-                    All units are currently allocated or sold out. Choose
-                    another color or size variant.
+                    All units are currently allocated or sold out. Choose another color or size
+                    variant.
                   </span>
                 </div>
               </Alert>
@@ -524,8 +490,6 @@ export default function ProductDetailPage() {
                   <span className="text-xs">
                     Variant <strong>{activeVariant?.color}</strong> (Size{' '}
                     <strong>{activeVariant?.size}</strong>) is selling fast.
-                    Durable workflow reservations prevent double allocation at
-                    checkout.
                   </span>
                 </div>
               </Alert>
@@ -533,9 +497,8 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2 text-xs font-medium text-emerald-500">
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                 <span>
-                  {availableStock} units available in {activeVariant?.color} (
-                  {activeVariant?.size}) &bull; Protected against double
-                  allocation
+                  {availableStock} units available in {activeVariant?.color} ({activeVariant?.size}
+                  ).
                 </span>
               </div>
             )}
@@ -548,7 +511,7 @@ export default function ProductDetailPage() {
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={isOutOfStock || quantity <= 1}
                   aria-label="Decrease quantity"
-                  className="p-2.5 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
+                  className="p-2 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -557,12 +520,10 @@ export default function ProductDetailPage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setQuantity((q) => Math.min(availableStock, q + 1))
-                  }
+                  onClick={() => setQuantity((q) => Math.min(availableStock, q + 1))}
                   disabled={isOutOfStock || quantity >= availableStock}
                   aria-label="Increase quantity"
-                  className="p-2.5 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
+                  className="p-2 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -570,10 +531,10 @@ export default function ProductDetailPage() {
 
               <Button
                 type="button"
-                size="lg"
+                size="sm"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
-                className="flex-1 min-w-[180px] gap-2"
+                className="flex-1 gap-2"
               >
                 {addedFeedback ? (
                   <>
@@ -586,7 +547,7 @@ export default function ProductDetailPage() {
                     <span>
                       {isOutOfStock
                         ? 'Out of Stock'
-                        : `Add to Bag — $${(displayPrice * quantity).toFixed(2)}`}
+                        : `Add to Bag: $${(displayPrice * quantity).toFixed(2)}`}
                     </span>
                   </>
                 )}
@@ -595,18 +556,15 @@ export default function ProductDetailPage() {
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
+                size="sm"
                 onClick={() => void toggleWishlist(product)}
                 aria-label={wishlisted ? 'Remove from loved items' : 'Love item'}
                 className="gap-1.5"
               >
                 <Heart
-                  className={`h-4 w-4 ${
-                    wishlisted ? 'fill-rose-500 text-rose-500' : ''
-                  }`}
+                  className={`h-4 w-4 ${wishlisted ? 'fill-rose-500 text-rose-500' : ''}`}
                   aria-hidden="true"
                 />
-                <span>{wishlisted ? 'Loved' : 'Love'}</span>
               </Button>
             </div>
 
@@ -625,7 +583,7 @@ export default function ProductDetailPage() {
 
             {/* Garment Specifications */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Material
                 </span>
@@ -633,7 +591,7 @@ export default function ProductDetailPage() {
                   {product.material}
                 </span>
               </div>
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Tailored Fit
                 </span>
@@ -641,7 +599,7 @@ export default function ProductDetailPage() {
                   {product.fit}
                 </span>
               </div>
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3.5">
+              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
                   Garment Care
                 </span>
@@ -654,8 +612,8 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
               <Truck className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
               <span>
-                Available for Pay &amp; Delivery, Pay then Collect, Pay on
-                Delivery (COD), and Pay on Collection.
+                Available for Pay &amp; Delivery, Pay then Collect, Pay on Delivery, and Pay on
+                Collection.
               </span>
             </div>
           </div>
@@ -672,7 +630,7 @@ export default function ProductDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+                    <Star className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
                     <span>Customer Reviews ({product.reviewCount})</span>
                   </CardTitle>
                 </CardHeader>
@@ -722,9 +680,7 @@ export default function ProductDetailPage() {
                       )}
 
                       <div className="space-y-1">
-                        <span className="text-xs text-[var(--fg-muted)]">
-                          Your Rating
-                        </span>
+                        <span className="text-xs text-[var(--fg-muted)]">Your Rating</span>
                         <div className="flex items-center gap-1">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
@@ -778,21 +734,14 @@ export default function ProductDetailPage() {
                         />
                       </div>
 
-                      <Button
-                        type="submit"
-                        disabled={reviewSubmitting}
-                        className="w-full"
-                      >
-                        {reviewSubmitting
-                          ? 'Publishing Review...'
-                          : 'Submit Review'}
+                      <Button type="submit" disabled={reviewSubmitting} className="w-full">
+                        {reviewSubmitting ? 'Publishing Review...' : 'Submit Review'}
                       </Button>
                     </form>
                   ) : (
                     <div className="border-t border-[var(--border-color)] pt-4 space-y-2">
                       <p className="text-xs text-[var(--fg-muted)]">
-                        Sign in or create an account to leave a verified
-                        clothing review.
+                        Sign in or create an account to leave a verified clothing review.
                       </p>
                       <Button
                         type="button"
@@ -813,8 +762,7 @@ export default function ProductDetailPage() {
               {reviews.length === 0 ? (
                 <Card>
                   <CardContent className="p-6 text-center text-sm text-[var(--fg-muted)]">
-                    No customer reviews yet for {product.title}. Be the first to
-                    review this piece!
+                    No customer reviews yet for {product.title}. Be the first to review this piece!
                   </CardContent>
                 </Card>
               ) : (
@@ -828,10 +776,7 @@ export default function ProductDetailPage() {
                           </span>
                           {rev.verifiedPurchase && (
                             <Badge variant="success" className="text-[10px]">
-                              <CheckCircle2
-                                className="h-3 w-3"
-                                aria-hidden="true"
-                              />
+                              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                               <span>Verified Purchase</span>
                             </Badge>
                           )}
@@ -858,16 +803,12 @@ export default function ProductDetailPage() {
                         {(rev.variantColor || rev.variantSize) && (
                           <span className="text-[11px] text-[var(--fg-muted)]">
                             Purchased:{' '}
-                            {[rev.variantColor, rev.variantSize]
-                              .filter(Boolean)
-                              .join(' • ')}
+                            {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-sm font-bold text-[var(--fg-heading)]">
-                        {rev.title}
-                      </h3>
+                      <h3 className="text-sm font-bold text-[var(--fg-heading)]">{rev.title}</h3>
                       <p className="text-xs sm:text-sm leading-relaxed text-[var(--fg-primary)]">
                         {rev.comment}
                       </p>
@@ -907,9 +848,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="mt-0.5 flex items-center justify-between text-xs text-[var(--fg-muted)]">
                       <span>{rel.brand}</span>
-                      <span className="font-bold text-[#797BED]">
-                        ${rel.price}
-                      </span>
+                      <span className="font-bold text-[#797BED]">${rel.price}</span>
                     </div>
                   </div>
                 </Link>
@@ -919,5 +858,5 @@ export default function ProductDetailPage() {
         )}
       </main>
     </div>
-  );
+  )
 }

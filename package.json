@@ -1,7 +1,7 @@
 {
-  "name": "the-store",
+  "name": "serverless-store",
   "version": "1.0.0",
-  "description": "A blank template to get started with Payload 3.0",
+  "description": "A serverless store using payload CMS, better-auth, r2, workflow SDK and vercel postgres(neon)",
   "license": "MIT",
   "type": "module",
   "scripts": {

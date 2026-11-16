@@ -1,8 +1,8 @@
-'use client';
+'use client'
 
-import { Suspense, useEffect, useState, FormEvent, ChangeEvent } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState, FormEvent, ChangeEvent } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   ArrowLeft,
@@ -26,26 +26,21 @@ import {
   Upload,
   User as UserIcon,
   X,
-} from 'lucide-react';
-import { useStore } from '../../../context/StoreContext';
-import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk';
-import type { StoreOrderRecord } from '../../../data/utils';
-import { OptimizedImage } from '../../../components/ui/optimized-image';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avatar';
-import { Button } from '../../../components/ui/button';
-import { Badge } from '../../../components/ui/badge';
-import { Alert } from '../../../components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Input } from '../../../components/ui/input';
-import { Textarea } from '../../../components/ui/textarea';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '../../../components/ui/tabs';
-import Cart from '../../../components/Cart';
-import UserMenu, { getUserInitials } from '../../../components/UserMenu';
+} from 'lucide-react'
+import { useStore } from '../../../context/StoreContext'
+import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
+import type { StoreOrderRecord } from '../../../data/utils'
+import { OptimizedImage } from '../../../components/ui/optimized-image'
+import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avatar'
+import { Button } from '../../../components/ui/button'
+import { Badge } from '../../../components/ui/badge'
+import { Alert } from '../../../components/ui/alert'
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
+import { Input } from '../../../components/ui/input'
+import { Textarea } from '../../../components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
+import Cart from '../../../components/Cart'
+import UserMenu, { getUserInitials } from '../../../components/UserMenu'
 
 const STATUS_BADGE_MAP: Record<
   StoreOrderRecord['orderStatus'],
@@ -58,11 +53,11 @@ const STATUS_BADGE_MAP: Record<
   OUT_FOR_DELIVERY: { label: 'Out for Delivery', variant: 'warning' },
   COMPLETED: { label: 'Completed', variant: 'success' },
   CANCELLED: { label: 'Cancelled & Stock Released', variant: 'destructive' },
-};
+}
 
 function AccountPortalContent() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab');
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab')
 
   const {
     user,
@@ -81,43 +76,41 @@ function AccountPortalContent() {
     openAuthModal,
     updateProfile,
     refreshUserOrders,
-  } = useStore();
+  } = useStore()
 
   const [activeTab, setActiveTab] = useState(
     initialTab === 'wishlist' || initialTab === 'cart' || initialTab === 'profile'
       ? initialTab
-      : 'orders'
-  );
+      : 'orders',
+  )
 
-  const [profileName, setProfileName] = useState(user?.name || '');
-  const [profileEmail, setProfileEmail] = useState(user?.email || '');
-  const [profilePhone, setProfilePhone] = useState(user?.phone || '');
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [profileEmail, setProfileEmail] = useState(user?.email || '')
+  const [profilePhone, setProfilePhone] = useState(user?.phone || '')
   const [profileAddress, setProfileAddress] = useState(
-    user?.shippingAddresses?.[0]?.streetAddress || ''
-  );
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(
-    user?.avatarUrl || ''
-  );
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [profileSavedMsg, setProfileSavedMsg] = useState('');
-  const [profileErrorMsg, setProfileErrorMsg] = useState('');
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [orderNotice, setOrderNotice] = useState('');
+    user?.shippingAddresses?.[0]?.streetAddress || '',
+  )
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || '')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSavedMsg, setProfileSavedMsg] = useState('')
+  const [profileErrorMsg, setProfileErrorMsg] = useState('')
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
+  const [orderNotice, setOrderNotice] = useState('')
 
   useEffect(() => {
     if (user) {
-      setProfileName(user.name || '');
-      setProfileEmail(user.email || '');
-      setProfilePhone(user.phone || '');
-      setProfileAddress(user.shippingAddresses?.[0]?.streetAddress || '');
-      setProfileAvatarUrl(user.avatarUrl || '');
+      setProfileName(user.name || '')
+      setProfileEmail(user.email || '')
+      setProfilePhone(user.phone || '')
+      setProfileAddress(user.shippingAddresses?.[0]?.streetAddress || '')
+      setProfileAvatarUrl(user.avatarUrl || '')
     }
-  }, [user]);
+  }, [user])
 
   useEffect(() => {
     if (
@@ -126,51 +119,51 @@ function AccountPortalContent() {
       initialTab === 'profile' ||
       initialTab === 'orders'
     ) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab)
     }
-  }, [initialTab]);
+  }, [initialTab])
 
-  const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug));
+  const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug))
 
   const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]
+    if (!file) return
     if (file.size > 1_500_000) {
-      setProfileErrorMsg('Please select an image smaller than 1.5 MB.');
-      return;
+      setProfileErrorMsg('Please select an image smaller than 1.5 MB.')
+      return
     }
-    setProfileErrorMsg('');
-    const reader = new FileReader();
+    setProfileErrorMsg('')
+    const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setProfileAvatarUrl(reader.result);
+        setProfileAvatarUrl(reader.result)
       }
-    };
-    reader.readAsDataURL(file);
-  };
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSaveProfile = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setProfileSavedMsg('');
-    setProfileErrorMsg('');
+    e.preventDefault()
+    setProfileSavedMsg('')
+    setProfileErrorMsg('')
 
     if (!profileName.trim() || !profileEmail.trim()) {
-      setProfileErrorMsg('Full name and email address are required.');
-      return;
+      setProfileErrorMsg('Full name and email address are required.')
+      return
     }
 
     if (newPassword) {
       if (newPassword.length < 6) {
-        setProfileErrorMsg('New password must be at least 6 characters long.');
-        return;
+        setProfileErrorMsg('New password must be at least 6 characters long.')
+        return
       }
       if (newPassword !== confirmNewPassword) {
-        setProfileErrorMsg('New password and confirmation do not match.');
-        return;
+        setProfileErrorMsg('New password and confirmation do not match.')
+        return
       }
     }
 
-    setSavingProfile(true);
+    setSavingProfile(true)
     try {
       await updateProfile({
         name: profileName.trim(),
@@ -180,51 +173,41 @@ function AccountPortalContent() {
         avatarUrl: profileAvatarUrl.trim() ? profileAvatarUrl.trim() : null,
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
-      });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setProfileSavedMsg(
-        'Profile details, email, password, and avatar updated successfully.'
-      );
+      })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
+      setProfileSavedMsg('Profile details, email, password, and avatar updated successfully.')
     } catch (err: unknown) {
-      setProfileErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'Unable to save profile updates.'
-      );
+      setProfileErrorMsg(err instanceof Error ? err.message : 'Unable to save profile updates.')
     } finally {
-      setSavingProfile(false);
+      setSavingProfile(false)
     }
-  };
+  }
 
   const handleAdvanceStatus = async (
     orderId: string,
-    nextStatus: StoreOrderRecord['orderStatus']
+    nextStatus: StoreOrderRecord['orderStatus'],
   ) => {
-    setUpdatingOrderId(orderId);
-    setOrderNotice('');
+    setUpdatingOrderId(orderId)
+    setOrderNotice('')
     try {
       const res = await updateOrderStatusViaSdk({
         orderId,
         nextStatus,
-      });
+      })
       setOrderNotice(
         `Order ${orderId} updated to "${nextStatus}". ${
-          res.emailDispatched
-            ? 'Email status notification dispatched to your inbox.'
-            : ''
-        }`
-      );
-      await refreshUserOrders();
+          res.emailDispatched ? 'Email status notification dispatched to your inbox.' : ''
+        }`,
+      )
+      await refreshUserOrders()
     } catch (err: unknown) {
-      setOrderNotice(
-        err instanceof Error ? err.message : 'Unable to update order status.'
-      );
+      setOrderNotice(err instanceof Error ? err.message : 'Unable to update order status.')
     } finally {
-      setUpdatingOrderId(null);
+      setUpdatingOrderId(null)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen overflow-anchor-parent pb-16">
@@ -254,12 +237,7 @@ function AccountPortalContent() {
 
           <div className="flex items-center gap-2">
             <UserMenu />
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setIsCartOpen(true)}
-              className="gap-1.5"
-            >
+            <Button type="button" size="sm" onClick={() => setIsCartOpen(true)} className="gap-1.5">
               <ShoppingCart className="h-4 w-4" aria-hidden="true" />
               <span>Bag ({totalCartCount})</span>
             </Button>
@@ -280,25 +258,21 @@ function AccountPortalContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-[var(--fg-muted)]">
-                Create an account or sign in via Neon Managed Better Auth (Email
-                or Google) to track orders, download Invoice/Receipt PDFs, sync
-                your saved bag, and receive email shipping updates.
+                Create an account or sign in via Neon Managed Better Auth (Email or Google) to track
+                orders, download Invoice/Receipt PDFs, sync your saved bag, and receive email
+                shipping updates.
               </p>
               {totalCartCount > 0 && (
                 <Alert>
                   <Sparkles className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
                   <span className="text-xs">
-                    You currently have <strong>{totalCartCount}</strong> item(s)
-                    in your guest <code>localStorage</code> bag &mdash; signing
-                    in will merge them automatically.
+                    You currently have <strong>{totalCartCount}</strong> item(s) in your guest{' '}
+                    <code>localStorage</code> bag &mdash; signing in will merge them automatically.
                   </span>
                 </Alert>
               )}
               <div className="flex justify-center gap-3">
-                <Button
-                  type="button"
-                  onClick={() => openAuthModal('account')}
-                >
+                <Button type="button" onClick={() => openAuthModal('account')}>
                   Sign In / Create Account
                 </Button>
                 <Button asChild variant="outline">
@@ -313,21 +287,14 @@ function AccountPortalContent() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-6">
               <div className="flex items-center gap-4">
                 <Avatar className="h-14 w-14 border border-[#5C5EDC]/40">
-                  {user.avatarUrl ? (
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  ) : null}
+                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.name} /> : null}
                   <AvatarFallback className="text-lg">
                     {getUserInitials(user.name, user.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold text-[var(--fg-heading)]">
-                      {user.name}
-                    </h1>
-                    <Badge variant="outline" className="text-[10px]">
-                      {user.authProvider.toUpperCase()} AUTH
-                    </Badge>
+                    <h1 className="text-xl font-bold text-[var(--fg-heading)]">{user.name}</h1>
                   </div>
                   <p className="text-sm text-[var(--fg-muted)]">{user.email}</p>
                 </div>
@@ -335,28 +302,18 @@ function AccountPortalContent() {
 
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
-                  <div className="text-lg font-bold text-[var(--fg-heading)]">
-                    {orders.length}
-                  </div>
-                  <div className="text-[11px] text-[var(--fg-muted)]">
-                    Orders
-                  </div>
+                  <div className="text-lg font-bold text-[var(--fg-heading)]">{orders.length}</div>
+                  <div className="text-[11px] text-[var(--fg-muted)]">Orders</div>
                 </div>
                 <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
                   <div className="text-lg font-bold text-[var(--fg-heading)]">
                     {wishlistSlugs.length}
                   </div>
-                  <div className="text-[11px] text-[var(--fg-muted)]">
-                    Loved
-                  </div>
+                  <div className="text-[11px] text-[var(--fg-muted)]">Loved</div>
                 </div>
                 <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-4 py-2.5">
-                  <div className="text-lg font-bold text-[var(--fg-heading)]">
-                    {totalCartCount}
-                  </div>
-                  <div className="text-[11px] text-[var(--fg-muted)]">
-                    Saved Bag
-                  </div>
+                  <div className="text-lg font-bold text-[var(--fg-heading)]">{totalCartCount}</div>
+                  <div className="text-[11px] text-[var(--fg-muted)]">Saved Bag</div>
                 </div>
               </div>
             </div>
@@ -408,11 +365,9 @@ function AccountPortalContent() {
                 ) : (
                   orders.map((order) => {
                     const statusBadge =
-                      STATUS_BADGE_MAP[order.orderStatus] ||
-                      STATUS_BADGE_MAP.CONFIRMED;
+                      STATUS_BADGE_MAP[order.orderStatus] || STATUS_BADGE_MAP.CONFIRMED
                     const isTerminal =
-                      order.orderStatus === 'COMPLETED' ||
-                      order.orderStatus === 'CANCELLED';
+                      order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED'
 
                     return (
                       <Card key={order.orderId}>
@@ -420,18 +375,12 @@ function AccountPortalContent() {
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <CardTitle>{order.orderId}</CardTitle>
-                              <Badge variant={statusBadge.variant}>
-                                {statusBadge.label}
-                              </Badge>
-                              <Badge variant="secondary">
-                                Payment: {order.paymentStatus}
-                              </Badge>
+                              <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                              <Badge variant="secondary">Payment: {order.paymentStatus}</Badge>
                             </div>
                             <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                              Placed{' '}
-                              {new Date(order.issuedAt).toLocaleString()} &bull;{' '}
-                              {order.paymentMethodLabel} &bull;{' '}
-                              {order.fulfillmentMethod}
+                              Placed {new Date(order.issuedAt).toLocaleString()} &bull;{' '}
+                              {order.paymentMethodLabel} &bull; {order.fulfillmentMethod}
                             </p>
                           </div>
 
@@ -443,15 +392,9 @@ function AccountPortalContent() {
                                 rel="noreferrer"
                                 className="gap-1.5"
                               >
-                                <FileText
-                                  className="h-3.5 w-3.5"
-                                  aria-hidden="true"
-                                />
+                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>Invoice PDF</span>
-                                <ExternalLink
-                                  className="h-3 w-3"
-                                  aria-hidden="true"
-                                />
+                                <ExternalLink className="h-3 w-3" aria-hidden="true" />
                               </a>
                             </Button>
                             <Button asChild variant="outline" size="sm">
@@ -461,15 +404,9 @@ function AccountPortalContent() {
                                 rel="noreferrer"
                                 className="gap-1.5"
                               >
-                                <FileText
-                                  className="h-3.5 w-3.5"
-                                  aria-hidden="true"
-                                />
+                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>Receipt PDF</span>
-                                <ExternalLink
-                                  className="h-3 w-3"
-                                  aria-hidden="true"
-                                />
+                                <ExternalLink className="h-3 w-3" aria-hidden="true" />
                               </a>
                             </Button>
                           </div>
@@ -501,9 +438,8 @@ function AccountPortalContent() {
                                       {item.title}
                                     </Link>
                                     <div className="text-[var(--fg-muted)]">
-                                      {item.color} / Size {item.size} &bull; Qty{' '}
-                                      {item.quantity} &bull; SKU{' '}
-                                      <code>{item.variantSku}</code>
+                                      {item.color} / Size {item.size} &bull; Qty {item.quantity}{' '}
+                                      &bull; SKU <code>{item.variantSku}</code>
                                     </div>
                                   </div>
                                 </div>
@@ -552,27 +488,20 @@ function AccountPortalContent() {
                                         {entry.label}
                                       </div>
                                       {entry.note && (
-                                        <div className="text-[var(--fg-muted)]">
-                                          {entry.note}
-                                        </div>
+                                        <div className="text-[var(--fg-muted)]">{entry.note}</div>
                                       )}
                                     </div>
                                   </div>
                                   <div className="text-right shrink-0">
                                     <div className="text-[var(--fg-muted)]">
-                                      {new Date(
-                                        entry.timestamp
-                                      ).toLocaleTimeString([], {
+                                      {new Date(entry.timestamp).toLocaleTimeString([], {
                                         hour: '2-digit',
                                         minute: '2-digit',
                                       })}
                                     </div>
                                     {entry.emailSent && (
                                       <span className="inline-flex items-center gap-1 text-[10px] text-[#797BED]">
-                                        <Mail
-                                          className="h-2.5 w-2.5"
-                                          aria-hidden="true"
-                                        />
+                                        <Mail className="h-2.5 w-2.5" aria-hidden="true" />
                                         Emailed
                                       </span>
                                     )}
@@ -592,10 +521,7 @@ function AccountPortalContent() {
                                   variant="secondary"
                                   disabled={updatingOrderId === order.orderId}
                                   onClick={() =>
-                                    void handleAdvanceStatus(
-                                      order.orderId,
-                                      'PROCESSING'
-                                    )
+                                    void handleAdvanceStatus(order.orderId, 'PROCESSING')
                                   }
                                 >
                                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
@@ -611,7 +537,7 @@ function AccountPortalContent() {
                                       order.orderId,
                                       order.fulfillmentMethod === 'COLLECTION'
                                         ? 'READY_FOR_COLLECTION'
-                                        : 'OUT_FOR_DELIVERY'
+                                        : 'OUT_FOR_DELIVERY',
                                     )
                                   }
                                 >
@@ -626,10 +552,7 @@ function AccountPortalContent() {
                                   variant="outline"
                                   disabled={updatingOrderId === order.orderId}
                                   onClick={() =>
-                                    void handleAdvanceStatus(
-                                      order.orderId,
-                                      'COMPLETED'
-                                    )
+                                    void handleAdvanceStatus(order.orderId, 'COMPLETED')
                                   }
                                 >
                                   Mark Completed
@@ -640,10 +563,7 @@ function AccountPortalContent() {
                                   variant="destructive"
                                   disabled={updatingOrderId === order.orderId}
                                   onClick={() =>
-                                    void handleAdvanceStatus(
-                                      order.orderId,
-                                      'CANCELLED'
-                                    )
+                                    void handleAdvanceStatus(order.orderId, 'CANCELLED')
                                   }
                                 >
                                   Cancel &amp; Release Stock
@@ -653,7 +573,7 @@ function AccountPortalContent() {
                           </div>
                         </CardContent>
                       </Card>
-                    );
+                    )
                   })
                 )}
               </TabsContent>
@@ -710,10 +630,7 @@ function AccountPortalContent() {
                               className="flex-1 gap-1.5"
                               onClick={() => addToCart(item)}
                             >
-                              <ShoppingCart
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
+                              <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>Add to Bag</span>
                             </Button>
                             <Button
@@ -770,8 +687,8 @@ function AccountPortalContent() {
                                     {ci.title}
                                   </Link>
                                   <div className="text-xs text-[var(--fg-muted)]">
-                                    {ci.selectedColor} / Size {ci.selectedSize}{' '}
-                                    &bull; Qty {ci.quantity}
+                                    {ci.selectedColor} / Size {ci.selectedSize} &bull; Qty{' '}
+                                    {ci.quantity}
                                   </div>
                                 </div>
                               </div>
@@ -793,10 +710,7 @@ function AccountPortalContent() {
                           ))}
                         </div>
                         <div className="flex justify-end pt-2">
-                          <Button
-                            type="button"
-                            onClick={() => setIsCartOpen(true)}
-                          >
+                          <Button type="button" onClick={() => setIsCartOpen(true)}>
                             Open Checkout Drawer
                           </Button>
                         </div>
@@ -810,31 +724,20 @@ function AccountPortalContent() {
               <TabsContent value="profile">
                 <Card>
                   <CardHeader>
-                    <CardTitle>
-                      Profile Picture, Identity, Password &amp; Address
-                    </CardTitle>
+                    <CardTitle>Profile Picture, Identity, Password &amp; Address</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <form
-                      onSubmit={handleSaveProfile}
-                      className="space-y-5 max-w-xl"
-                    >
+                    <form onSubmit={handleSaveProfile} className="space-y-5 max-w-xl">
                       {profileErrorMsg && (
                         <Alert variant="destructive">
-                          <AlertCircle
-                            className="h-4 w-4 shrink-0 mt-0.5"
-                            aria-hidden="true"
-                          />
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                           <span className="text-xs">{profileErrorMsg}</span>
                         </Alert>
                       )}
 
                       {profileSavedMsg && (
                         <Alert variant="success">
-                          <CheckCircle2
-                            className="h-4 w-4 shrink-0 mt-0.5"
-                            aria-hidden="true"
-                          />
+                          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                           <span className="text-xs">{profileSavedMsg}</span>
                         </Alert>
                       )}
@@ -897,14 +800,8 @@ function AccountPortalContent() {
                               <Input
                                 id="profile-avatar-url"
                                 type="url"
-                                value={
-                                  profileAvatarUrl.startsWith('data:')
-                                    ? ''
-                                    : profileAvatarUrl
-                                }
-                                onChange={(e) =>
-                                  setProfileAvatarUrl(e.target.value)
-                                }
+                                value={profileAvatarUrl.startsWith('data:') ? '' : profileAvatarUrl}
+                                onChange={(e) => setProfileAvatarUrl(e.target.value)}
                                 placeholder="https://example.com/avatar.jpg"
                               />
                             </div>
@@ -991,10 +888,7 @@ function AccountPortalContent() {
                       {/* Password Update Section */}
                       <div className="border border-[var(--border-color)] bg-[var(--surface-elevated)] p-4 space-y-3">
                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--fg-heading)]">
-                          <KeyRound
-                            className="h-4 w-4 text-[#797BED]"
-                            aria-hidden="true"
-                          />
+                          <KeyRound className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
                           <span>Change Password (Optional)</span>
                         </div>
                         <div className="space-y-1">
@@ -1011,17 +905,13 @@ function AccountPortalContent() {
                               type={showCurrentPassword ? 'text' : 'password'}
                               autoComplete="current-password"
                               value={currentPassword}
-                              onChange={(e) =>
-                                setCurrentPassword(e.target.value)
-                              }
+                              onChange={(e) => setCurrentPassword(e.target.value)}
                               placeholder="Required only if modifying an existing password"
                               className="pr-10"
                             />
                             <button
                               type="button"
-                              onClick={() =>
-                                setShowCurrentPassword((prev) => !prev)
-                              }
+                              onClick={() => setShowCurrentPassword((prev) => !prev)}
                               aria-label={
                                 showCurrentPassword
                                   ? 'Hide current password'
@@ -1061,22 +951,15 @@ function AccountPortalContent() {
                               />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setShowNewPassword((prev) => !prev)
-                                }
+                                onClick={() => setShowNewPassword((prev) => !prev)}
                                 aria-label={
-                                  showNewPassword
-                                    ? 'Hide new password'
-                                    : 'Show new password'
+                                  showNewPassword ? 'Hide new password' : 'Show new password'
                                 }
                                 aria-pressed={showNewPassword}
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
                               >
                                 {showNewPassword ? (
-                                  <EyeOff
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                  />
+                                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                                 ) : (
                                   <Eye className="h-4 w-4" aria-hidden="true" />
                                 )}
@@ -1098,9 +981,7 @@ function AccountPortalContent() {
                               minLength={6}
                               autoComplete="new-password"
                               value={confirmNewPassword}
-                              onChange={(e) =>
-                                setConfirmNewPassword(e.target.value)
-                              }
+                              onChange={(e) => setConfirmNewPassword(e.target.value)}
                               placeholder="Re-enter new password"
                             />
                           </div>
@@ -1119,7 +1000,7 @@ function AccountPortalContent() {
         )}
       </main>
     </div>
-  );
+  )
 }
 
 export default function AccountPage() {
@@ -1133,5 +1014,5 @@ export default function AccountPage() {
     >
       <AccountPortalContent />
     </Suspense>
-  );
+  )
 }
