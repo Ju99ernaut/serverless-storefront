@@ -28,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import Cart from '@/components/Cart'
-import UserMenu from '@/components/UserMenu'
+import UserMenu from '@/components/user-menu'
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>()

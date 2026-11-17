@@ -2,11 +2,7 @@ import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
 import '../../styles/globals.css'
 import '../../styles/sidebar.css'
-import { ThemeProvider } from '../../components/theme-provider'
-import { StoreImageKitProvider } from '../../components/ui/optimized-image'
-import { StoreProvider } from '../../context/StoreContext'
-import AuthModal from '../../components/AuthModal'
-import ScrollToTopButton from '../../components/ScrollToTopButton'
+import { ClientLayout } from '@/components/client-layout'
 
 export const metadata: Metadata = {
   title: 'Storefront Atelier — Curated Clothing & Footwear',
@@ -32,37 +28,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-const COLOR_SCHEME_INIT_SCRIPT = `
-(function() {
-  try {
-    var saved = localStorage.getItem('theme') || localStorage.getItem('color-scheme');
-    var meta = document.querySelector('meta[name="color-scheme"]');
-    if (saved === 'light' || saved === 'dark') {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(saved);
-      if (meta) meta.setAttribute('content', saved);
-    }
-  } catch (e) {}
-})();
-`
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="flexbox no-touch" suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="light dark" />
-        <script dangerouslySetInnerHTML={{ __html: COLOR_SCHEME_INIT_SCRIPT }} />
       </head>
       <body>
-        <ThemeProvider>
-          <StoreImageKitProvider>
-            <StoreProvider>
-              <ScrollToTopButton />
-              <AuthModal />
-              {children}
-            </StoreProvider>
-          </StoreImageKitProvider>
-        </ThemeProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   )

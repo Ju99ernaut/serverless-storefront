@@ -40,7 +40,7 @@ import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import Cart from '../../../components/Cart'
-import UserMenu, { getUserInitials } from '../../../components/UserMenu'
+import UserMenu, { getUserInitials } from '../../../components/user-menu'
 
 const STATUS_BADGE_MAP: Record<
   StoreOrderRecord['orderStatus'],

@@ -56,7 +56,7 @@ export function getRuntimeStore(): RuntimeStoreState {
 }
 
 export function isLivePostgresConfigured(): boolean {
-  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || ''
+  const url = process.env.DATABASE_URL || ''
   if (!url || url.includes('<password>') || url.includes('your-database-name')) {
     return false
   }

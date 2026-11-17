@@ -6,8 +6,8 @@ import { ArrowUpDown, Moon, Search, Sun, X } from 'lucide-react'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import Hamburger from './Hamburger'
-import UserMenu from './UserMenu'
+import Hamburger from './hamburger'
+import UserMenu from './user-menu'
 
 export type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'rating'
 

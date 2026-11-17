@@ -37,13 +37,13 @@ export default buildConfig({
   },
   collections: [Users, Media, Categories, Banners, Products, Reviews, Orders, StockReservations],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || 'default-storefront-payload-secret-key',
+  secret: process.env.DB_SECRET || 'default-storefront-payload-secret-key',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: vercelPostgresAdapter({
     pool: {
-      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL || '',
+      connectionString: process.env.DATABASE_URL || '',
     },
   }),
   sharp,
