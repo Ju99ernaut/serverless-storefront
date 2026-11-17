@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type RefObject } from 'react'
 import { useTheme } from 'next-themes'
-import { ArrowUpDown, Moon, Search, Sun, X } from 'lucide-react'
+import { ArrowUpDown, Moon, Search, Sun } from 'lucide-react'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
@@ -39,16 +39,14 @@ const NavBar = ({
 
   return (
     <div className="sticky-topbar-container">
-      {/* Sticky Top Bar (mobile: filter + search + UserMenu; tablet+: filter + logo + search + sort + utilities) */}
       <div className="sticky-topbar-inner mx-auto max-w-[1300px]">
         <div className="flex items-center justify-between gap-2.5 sm:gap-4 px-4 py-3 sm:px-6">
           <Hamburger ref={hamburgerRef} onOpen={onOpenMenu} />
 
-          {/* Search (all screens) + Sort (tablet/desktop only) between Filter and Profile/Sign-In */}
           <div className="flex flex-1 min-w-0 max-w-2xl items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 aria-hidden="true"
               />
               <Input
@@ -65,11 +63,11 @@ const NavBar = ({
               <Select value={sortBy} onValueChange={(val) => onSortChange(val as SortOption)}>
                 <SelectTrigger
                   aria-label="Sort products"
-                  className="h-10 w-full rounded-none border-[var(--border-color)] bg-[var(--surface-card)] text-sm font-medium text-[var(--fg-primary)] cursor-pointer"
+                  className="h-10 w-full border-border bg-secondary text-sm font-medium text-foreground cursor-pointer"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <ArrowUpDown
-                      className="h-4 w-4 shrink-0 text-[var(--fg-muted)]"
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
                       aria-hidden="true"
                     />
                     <SelectValue placeholder="Sort products" />

@@ -5,13 +5,14 @@ import { X } from 'lucide-react'
 import BottomBar from '../../components/bottom-bar'
 import NavBar, { type SortOption } from '../../components/nav-bar'
 import SideBar from '../../components/side-bar'
-import Cart from '../../components/Cart'
+import Cart from '../../components/cart'
 import BannerCarousel from '../../components/banner-carousel'
 import Grid from '../../components/grid'
 import CompareBasket from '../../components/compare-basket'
 import CompareWrapper from '../../components/compare-wrapper'
-import { useStore } from '../../context/StoreContext'
+import { useStore } from '../../context/store-context'
 import { getFilterDisplayName, type Product } from '../../data/utils'
+import { cn } from 'cn'
 
 const MAX_COMPARE_ITEMS = 3
 
@@ -153,7 +154,7 @@ export default function HomePage() {
         onClearCart={clearCart}
       />
 
-      <div className={`view${isCompareOpen ? ' view--compare' : ''}`}>
+      <div className={cn('view bg-background', isCompareOpen && 'view--compare')}>
         <NavBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

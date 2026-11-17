@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Alert } from './ui/alert'
-import { useStore } from '../context/StoreContext'
+import { useStore } from '../context/store-context'
 import { Eye, EyeOff, Lock, Mail, User as UserIcon, Info, Loader2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
@@ -166,11 +166,11 @@ export default function AuthModal() {
         </Button>
 
         <div className="relative flex items-center py-1">
-          <div className="flex-grow border-t border-[var(--border-color)]" />
-          <span className="mx-3 shrink text-[11px] uppercase tracking-wider text-[var(--fg-muted)]">
+          <div className="flex-grow border-t border-border" />
+          <span className="mx-3 shrink text-[11px] uppercase tracking-wider text-muted-foreground">
             Or continue with email
           </span>
-          <div className="flex-grow border-t border-[var(--border-color)]" />
+          <div className="flex-grow border-t border-border" />
         </div>
 
         <Tabs defaultValue={'signin'}>
@@ -194,7 +194,7 @@ export default function AuthModal() {
                       <FieldLabel htmlFor="auth-signin-email">Email</FieldLabel>
                       <div className="relative">
                         <Mail
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                           aria-hidden="true"
                         />
                         <Input
@@ -221,7 +221,7 @@ export default function AuthModal() {
                       <FieldLabel htmlFor="auth-signin-password">Password</FieldLabel>
                       <div className="relative">
                         <Lock
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                           aria-hidden="true"
                         />
                         <Input
@@ -238,7 +238,7 @@ export default function AuthModal() {
                           onClick={() => setShowPassword((prev) => !prev)}
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                           aria-pressed={showPassword}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -279,7 +279,7 @@ export default function AuthModal() {
                       <FieldLabel htmlFor="auth-signup-name">Full Name</FieldLabel>
                       <div className="relative">
                         <UserIcon
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                           aria-hidden="true"
                         />
                         <Input
@@ -306,7 +306,7 @@ export default function AuthModal() {
                       <FieldLabel htmlFor="auth-signup-email">Email</FieldLabel>
                       <div className="relative">
                         <Mail
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                           aria-hidden="true"
                         />
                         <Input
@@ -333,7 +333,7 @@ export default function AuthModal() {
                       <FieldLabel htmlFor="auth-signup-password">Password</FieldLabel>
                       <div className="relative">
                         <Lock
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-muted)]"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                           aria-hidden="true"
                         />
                         <Input
@@ -350,7 +350,7 @@ export default function AuthModal() {
                           onClick={() => setShowPassword((prev) => !prev)}
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                           aria-pressed={showPassword}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" aria-hidden="true" />

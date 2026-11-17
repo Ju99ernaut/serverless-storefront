@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ChevronDown, Heart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react'
-import { useStore } from '../context/StoreContext'
+import { useStore } from '../context/store-context'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import {
   DropdownMenu,
@@ -44,7 +44,7 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
         variant="default"
         size="sm"
         onClick={() => openAuthModal('account')}
-        className={`rounded-none text-xs ${className}`}
+        className={className}
       >
         <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
         <span>Sign In</span>
@@ -54,63 +54,71 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Open account menu"
-          className={`inline-flex items-center gap-2 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] px-2 py-1 md:px-2 text-xs font-semibold text-[var(--fg-heading)] hover:border-[#5C5EDC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5C5EDC] transition-colors cursor-pointer ${className}`}
-        >
-          <Avatar className="h-6 w-6 border border-[#5C5EDC]/40">
-            {user.avatarUrl ? (
-              <AvatarImage src={user.avatarUrl} alt={user.name || 'User avatar'} />
-            ) : null}
-            <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
-          </Avatar>
-          <ChevronDown
-            className="hidden md:inline h-3.5 w-3.5 text-[var(--fg-muted)]"
-            aria-hidden="true"
-          />
-        </button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            aria-label="Open account menu"
+            className={className}
+            variant="outline"
+          >
+            <Avatar className="h-6 w-6">
+              {user.avatarUrl ? (
+                <AvatarImage src={user.avatarUrl} alt={user.name || 'User avatar'} />
+              ) : null}
+              <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
+            </Avatar>
+            <ChevronDown
+              className="hidden md:inline h-3.5 w-3.5 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="font-normal">
           <div className="flex items-center gap-2.5">
-            <Avatar className="h-9 w-9 border border-[#5C5EDC]/40 shrink-0">
+            <Avatar className="h-9 w-9 shrink-0">
               {user.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} alt={user.name || 'User avatar'} />
               ) : null}
               <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--fg-heading)] truncate">{user.name}</p>
-              <p className="text-[11px] text-[var(--fg-muted)] truncate">{user.email}</p>
+              <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/account?tab=profile" className="w-full">
-            <UserIcon className="h-4 w-4" aria-hidden="true" />
-            <span>Profile &amp; Settings</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/account?tab=orders" className="w-full">
-            <Package className="h-4 w-4" aria-hidden="true" />
-            <span>Orders ({orders.length})</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/account?tab=wishlist" className="w-full">
-            <Heart className="h-4 w-4" aria-hidden="true" />
-            <span>Loved Items ({wishlistSlugs.length})</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() => signOut()}
-          className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-        >
+          render={
+            <Link href="/account?tab=profile" className="w-full">
+              <UserIcon className="h-4 w-4" aria-hidden="true" />
+              <span>Profile &amp; Settings</span>
+            </Link>
+          }
+        />
+        <DropdownMenuItem
+          render={
+            <Link href="/account?tab=orders" className="w-full">
+              <Package className="h-4 w-4" aria-hidden="true" />
+              <span>Orders ({orders.length})</span>
+            </Link>
+          }
+        />
+
+        <DropdownMenuItem
+          render={
+            <Link href="/account?tab=wishlist" className="w-full">
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              <span>Loved Items ({wishlistSlugs.length})</span>
+            </Link>
+          }
+        />
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => signOut()} variant="destructive">
           <LogOut className="h-4 w-4" aria-hidden="true" />
           <span>Log out</span>
         </DropdownMenuItem>

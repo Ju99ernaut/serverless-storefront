@@ -1,15 +1,7 @@
-'use client';
+'use client'
 
-import {
-  useState,
-  useEffect,
-  useRef,
-  useId,
-  FormEvent,
-  FocusEvent,
-  TouchEvent,
-} from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useId, FormEvent, FocusEvent, TouchEvent } from 'react'
+import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -25,125 +17,115 @@ import {
   Truck,
   UserCheck,
   X,
-} from 'lucide-react';
-import styles from '../../styles/Hamburger.module.css';
-import s from '../../styles/CartSidebar.module.css';
-import CartItem from './CartItem';
-import { useStore } from '../../context/StoreContext';
-import {
-  PAYMENT_OPTIONS,
-  PaymentOptionType,
-  type CartLineItem,
-} from '../../data/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+} from 'lucide-react'
+import styles from '../../styles/Hamburger.module.css'
+import s from '../../styles/CartSidebar.module.css'
+import CartItem from './cart-item'
+import { useStore } from '../../context/store-context'
+import { PAYMENT_OPTIONS, PaymentOptionType, type CartLineItem } from '../../data/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface CheckoutSuccessResponse {
-  success: boolean;
-  reservationKey?: string;
+  success: boolean
+  reservationKey?: string
   order: {
-    orderId: string;
-    invoiceNumber: string;
-    receiptNumber: string;
-    issuedAt: string;
-    paymentOption: PaymentOptionType;
-    fulfillmentMethod: 'DELIVERY' | 'COLLECTION';
-    orderStatus: string;
+    orderId: string
+    invoiceNumber: string
+    receiptNumber: string
+    issuedAt: string
+    paymentOption: PaymentOptionType
+    fulfillmentMethod: 'DELIVERY' | 'COLLECTION'
+    orderStatus: string
     paymentSummary: {
-      method: string;
-      status: string;
-    };
+      method: string
+      status: string
+    }
     totals: {
-      subTotal: number;
-      tax: number;
-      shipping: number;
-      grandTotal: number;
-    };
-  };
+      subTotal: number
+      tax: number
+      shipping: number
+      grandTotal: number
+    }
+  }
   documents: {
     invoice: {
-      filename: string;
-      templateId: string;
+      filename: string
+      templateId: string
       pdf?: {
-        url: string;
-        sizeBytes: number;
-        mimeType: string;
-        checksum: string;
-      };
-      payloadSent: unknown;
-    };
+        url: string
+        sizeBytes: number
+        mimeType: string
+        checksum: string
+      }
+      payloadSent: unknown
+    }
     receipt: {
-      filename: string;
-      templateId: string;
+      filename: string
+      templateId: string
       pdf?: {
-        url: string;
-        sizeBytes: number;
-        mimeType: string;
-        checksum: string;
-      };
-      payloadSent: unknown;
-    };
-  };
+        url: string
+        sizeBytes: number
+        mimeType: string
+        checksum: string
+      }
+      payloadSent: unknown
+    }
+  }
   email: {
-    status: string;
-    messageId: string;
-    to: string;
-    subject: string;
-    previewUrl: string | null;
-    templateId: string;
-    attachmentsCount: number;
+    status: string
+    messageId: string
+    to: string
+    subject: string
+    previewUrl: string | null
+    templateId: string
+    attachmentsCount: number
     attachments: Array<{
-      filename: string;
-      path: string;
-      contentType: string;
-    }>;
-    renderedHtml: string;
+      filename: string
+      path: string
+      contentType: string
+    }>
+    renderedHtml: string
     html?: {
-      htmlDocument: string;
-      checksum: string;
-      mimeType: string;
-      url: string;
-      sizeBytes: number;
-    };
-    payloadSent: unknown;
-  };
+      htmlDocument: string
+      checksum: string
+      mimeType: string
+      url: string
+      sizeBytes: number
+    }
+    payloadSent: unknown
+  }
 }
 
 interface CartSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  items: CartLineItem[];
-  onUpdateQuantity: (cartItemId: string, nextQty: number) => void;
-  onRemoveItem: (cartItemId: string) => void;
-  onClearCart: () => void;
+  isOpen: boolean
+  onClose: () => void
+  items: CartLineItem[]
+  onUpdateQuantity: (cartItemId: string, nextQty: number) => void
+  onRemoveItem: (cartItemId: string) => void
+  onClearCart: () => void
 }
 
 interface FieldInteractionState {
-  hasInteracted: boolean;
-  hasBlurred: boolean;
+  hasInteracted: boolean
+  hasBlurred: boolean
 }
 
 const COLLECTION_LOCATIONS = [
   'Flagship Storefront Atelier — 450 Mercer St, SoHo',
   'Midtown Boutique — 685 Fifth Ave, Lounge B',
   'San Francisco Jackson Square Showroom',
-];
+]
 
 function getPaymentOptionIcon(optionId: PaymentOptionType) {
   switch (optionId) {
     case 'pay_and_delivery':
-      return <CreditCard className="h-4 w-4 text-[#797BED]" aria-hidden="true" />;
+      return <CreditCard className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
     case 'pay_then_collect':
-      return <Store className="h-4 w-4 text-[#797BED]" aria-hidden="true" />;
+      return <Store className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
     case 'pay_on_delivery':
-      return <Truck className="h-4 w-4 text-emerald-500" aria-hidden="true" />;
+      return <Truck className="h-4 w-4 text-emerald-500" aria-hidden="true" />
     case 'pay_on_collection':
-      return <Clock className="h-4 w-4 text-amber-500" aria-hidden="true" />;
+      return <Clock className="h-4 w-4 text-amber-500" aria-hidden="true" />
   }
 }
 
@@ -155,222 +137,204 @@ const CartSidebar = ({
   onRemoveItem,
   onClearCart,
 }: CartSidebarProps) => {
-  const { user, openAuthModal, refreshUserOrders, refreshCatalog } = useStore();
+  const { user, openAuthModal, refreshUserOrders, refreshCatalog } = useStore()
 
-  const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [stockWasReleased, setStockWasReleased] = useState(false);
-  const [orderResult, setOrderResult] =
-    useState<CheckoutSuccessResponse | null>(null);
-  const [showPayloadPreview, setShowPayloadPreview] = useState(false);
+  const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [stockWasReleased, setStockWasReleased] = useState(false)
+  const [orderResult, setOrderResult] = useState<CheckoutSuccessResponse | null>(null)
+  const [showPayloadPreview, setShowPayloadPreview] = useState(false)
 
-  const [paymentOption, setPaymentOption] =
-    useState<PaymentOptionType>('pay_and_delivery');
-  const [collectionLocation, setCollectionLocation] = useState(
-    COLLECTION_LOCATIONS[0]
-  );
-  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false);
+  const [paymentOption, setPaymentOption] = useState<PaymentOptionType>('pay_and_delivery')
+  const [collectionLocation, setCollectionLocation] = useState(COLLECTION_LOCATIONS[0])
+  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false)
 
-  const [customerName, setCustomerName] = useState(
-    user?.name || 'Alex Rivera'
-  );
-  const [customerEmail, setCustomerEmail] = useState(
-    user?.email || 'alex.rivera@example.com'
-  );
-  const [customerPhone, setCustomerPhone] = useState(
-    user?.phone || '+1 (415) 555-0192'
-  );
+  const [customerName, setCustomerName] = useState(user?.name || 'Alex Rivera')
+  const [customerEmail, setCustomerEmail] = useState(user?.email || 'alex.rivera@example.com')
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || '+1 (415) 555-0192')
   const [shippingAddress, setShippingAddress] = useState(
     user?.shippingAddresses?.[0]?.streetAddress
       ? `${user.shippingAddresses[0].streetAddress}, ${user.shippingAddresses[0].city || ''}`
-      : '742 Evergreen Terrace, Suite 200\nSan Francisco, CA 94107'
-  );
-  const [ccName, setCcName] = useState(user?.name || 'Alex Rivera');
-  const [ccNumber, setCcNumber] = useState('4242 4242 4242 4242');
-  const [ccExp, setCcExp] = useState('08/29');
-  const [ccCsc, setCcCsc] = useState('842');
+      : '742 Evergreen Terrace, Suite 200\nSan Francisco, CA 94107',
+  )
+  const [ccName, setCcName] = useState(user?.name || 'Alex Rivera')
+  const [ccNumber, setCcNumber] = useState('4242 4242 4242 4242')
+  const [ccExp, setCcExp] = useState('08/29')
+  const [ccCsc, setCcCsc] = useState('842')
 
-  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
-  const dirtyStateRef = useRef<WeakMap<Element, FieldInteractionState>>(
-    new WeakMap()
-  );
-  const touchStartXRef = useRef<number | null>(null);
-  const [dragOffsetX, setDragOffsetX] = useState(0);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
+  const formRef = useRef<HTMLFormElement | null>(null)
+  const dirtyStateRef = useRef<WeakMap<Element, FieldInteractionState>>(new WeakMap())
+  const touchStartXRef = useRef<number | null>(null)
+  const [dragOffsetX, setDragOffsetX] = useState(0)
 
-  const baseId = useId();
-  const nameId = `${baseId}-name`;
-  const emailId = `${baseId}-email`;
-  const phoneId = `${baseId}-phone`;
-  const addressId = `${baseId}-address`;
-  const ccNameId = `${baseId}-cc-name`;
-  const ccNumberId = `${baseId}-cc-number`;
-  const ccExpId = `${baseId}-cc-exp`;
-  const ccCscId = `${baseId}-cc-csc`;
+  const baseId = useId()
+  const nameId = `${baseId}-name`
+  const emailId = `${baseId}-email`
+  const phoneId = `${baseId}-phone`
+  const addressId = `${baseId}-address`
+  const ccNameId = `${baseId}-cc-name`
+  const ccNumberId = `${baseId}-cc-number`
+  const ccExpId = `${baseId}-cc-exp`
+  const ccCscId = `${baseId}-cc-csc`
 
   // Pre-fill profile details when user logs in
   useEffect(() => {
     if (user) {
-      setCustomerName(user.name || '');
-      setCustomerEmail(user.email || '');
-      if (user.phone) setCustomerPhone(user.phone);
-      setCcName(user.name || '');
+      setCustomerName(user.name || '')
+      setCustomerEmail(user.email || '')
+      if (user.phone) setCustomerPhone(user.phone)
+      setCcName(user.name || '')
       if (user.shippingAddresses?.[0]?.streetAddress) {
-        const addr = user.shippingAddresses[0];
+        const addr = user.shippingAddresses[0]
         setShippingAddress(
-          `${addr.streetAddress}${addr.city ? `, ${addr.city}` : ''}${addr.postalCode ? ` ${addr.postalCode}` : ''}`
-        );
+          `${addr.streetAddress}${addr.city ? `, ${addr.city}` : ''}${addr.postalCode ? ` ${addr.postalCode}` : ''}`,
+        )
       }
     }
-  }, [user]);
+  }, [user])
 
   const selectedPaymentMeta =
-    PAYMENT_OPTIONS.find((opt) => opt.id === paymentOption) ||
-    PAYMENT_OPTIONS[0];
+    PAYMENT_OPTIONS.find((opt) => opt.id === paymentOption) || PAYMENT_OPTIONS[0]
 
   const subTotal = Number(
-    items.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)
-  );
-  const tax = Number((subTotal * 0.08).toFixed(2));
-  const shippingFee =
-    selectedPaymentMeta.fulfillmentMethod === 'DELIVERY' ? 12 : 0;
-  const grandTotal = Number((subTotal + tax + shippingFee).toFixed(2));
-  const isEmpty = items.length === 0;
+    items.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2),
+  )
+  const tax = Number((subTotal * 0.08).toFixed(2))
+  const shippingFee = selectedPaymentMeta.fulfillmentMethod === 'DELIVERY' ? 12 : 0
+  const grandTotal = Number((subTotal + tax + shippingFee).toFixed(2))
+  const isEmpty = items.length === 0
 
   useEffect(() => {
     if (isOpen && closeBtnRef.current) {
-      closeBtnRef.current.focus();
+      closeBtnRef.current.focus()
     }
     if (!isOpen) {
-      setStep('cart');
-      setOrderResult(null);
-      setShowPayloadPreview(false);
-      setSubmitError('');
-      setStockWasReleased(false);
+      setStep('cart')
+      setOrderResult(null)
+      setShowPayloadPreview(false)
+      setSubmitError('')
+      setStockWasReleased(false)
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   useEffect(() => {
     if (items.length > 0 && step === 'success') {
-      setStep('cart');
-      setOrderResult(null);
-      setShowPayloadPreview(false);
+      setStep('cart')
+      setOrderResult(null)
+      setShowPayloadPreview(false)
     }
-  }, [items.length, step]);
+  }, [items.length, step])
 
   const handleCloseSidebar = () => {
-    setStep('cart');
-    setOrderResult(null);
-    setShowPayloadPreview(false);
-    setSubmitError('');
-    setStockWasReleased(false);
-    onClose();
-  };
+    setStep('cart')
+    setOrderResult(null)
+    setShowPayloadPreview(false)
+    setSubmitError('')
+    setStockWasReleased(false)
+    onClose()
+  }
 
   const handleProceedToCheckout = () => {
     if (!user) {
-      onClose();
-      openAuthModal('checkout');
-      return;
+      onClose()
+      openAuthModal('checkout')
+      return
     }
-    setStep('checkout');
-  };
+    setStep('checkout')
+  }
 
   const syncInputValidationState = (
     input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
-    eventType: 'blur' | 'input'
+    eventType: 'blur' | 'input',
   ) => {
-    if (!input || typeof input.checkValidity !== 'function') return;
+    if (!input || typeof input.checkValidity !== 'function') return
 
     const supportsUserInvalid =
       typeof CSS !== 'undefined' &&
       typeof CSS.supports === 'function' &&
-      CSS.supports('selector(:user-invalid)');
+      CSS.supports('selector(:user-invalid)')
 
     if (!supportsUserInvalid) {
       const state = dirtyStateRef.current.get(input) || {
         hasInteracted: false,
         hasBlurred: false,
-      };
-      if (eventType === 'input') {
-        state.hasInteracted = true;
-      } else if (eventType === 'blur') {
-        state.hasBlurred = true;
       }
-      dirtyStateRef.current.set(input, state);
+      if (eventType === 'input') {
+        state.hasInteracted = true
+      } else if (eventType === 'blur') {
+        state.hasBlurred = true
+      }
+      dirtyStateRef.current.set(input, state)
 
       if (state.hasInteracted && state.hasBlurred) {
-        const isValid = input.checkValidity();
-        input.classList.toggle(s.userInvalidFallback, !isValid);
-        input.classList.toggle(s.userValidFallback, isValid);
+        const isValid = input.checkValidity()
+        input.classList.toggle(s.userInvalidFallback, !isValid)
+        input.classList.toggle(s.userValidFallback, isValid)
         if (!isValid) {
-          input.setAttribute('aria-invalid', 'true');
+          input.setAttribute('aria-invalid', 'true')
         } else {
-          input.removeAttribute('aria-invalid');
+          input.removeAttribute('aria-invalid')
         }
       }
-      return;
+      return
     }
 
-    const isUserInvalid = input.matches(':user-invalid');
+    const isUserInvalid = input.matches(':user-invalid')
     if (isUserInvalid) {
-      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-invalid', 'true')
     } else {
-      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-invalid')
     }
-  };
+  }
 
   const handleFormBlurCapture = (e: FocusEvent<HTMLFormElement>) => {
-    const target = e.target as HTMLElement;
+    const target = e.target as HTMLElement
     if (
       target instanceof HTMLInputElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement
     ) {
-      syncInputValidationState(target, 'blur');
+      syncInputValidationState(target, 'blur')
     }
-  };
+  }
 
   const handleFormInputCapture = (e: FormEvent<HTMLFormElement>) => {
-    const target = e.target as HTMLElement;
-    if (
-      !(
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement
-      )
-    ) {
-      return;
+    const target = e.target as HTMLElement
+    if (!(
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    )) {
+      return
     }
-    target.setCustomValidity('');
+    target.setCustomValidity('')
     if (target.hasAttribute('aria-invalid')) {
-      syncInputValidationState(target, 'input');
+      syncInputValidationState(target, 'input')
     }
-  };
+  }
 
   const handleCheckoutSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isSubmitting || isEmpty) return;
+    e.preventDefault()
+    if (isSubmitting || isEmpty) return
 
-    const formEl = formRef.current;
+    const formEl = formRef.current
     if (formEl && !formEl.checkValidity()) {
-      const firstInvalid = formEl.querySelector<HTMLElement>(':invalid');
+      const firstInvalid = formEl.querySelector<HTMLElement>(':invalid')
       if (firstInvalid) {
-        firstInvalid.setAttribute('aria-invalid', 'true');
-        firstInvalid.focus();
+        firstInvalid.setAttribute('aria-invalid', 'true')
+        firstInvalid.focus()
       }
-      return;
+      return
     }
 
-    setIsSubmitting(true);
-    setSubmitError('');
-    setStockWasReleased(false);
+    setIsSubmitting(true)
+    setSubmitError('')
+    setStockWasReleased(false)
 
     try {
-      const idempotencyKey = `chk_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
+      const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
@@ -414,65 +378,59 @@ const CartSidebar = ({
             images: item.images,
           })),
         }),
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
       if (!response.ok) {
-        setStockWasReleased(Boolean(data.stockReleased));
-        await refreshCatalog();
-        throw new Error(data.error || 'Could not process checkout.');
+        setStockWasReleased(Boolean(data.stockReleased))
+        await refreshCatalog()
+        throw new Error(data.error || 'Could not process checkout.')
       }
 
-      setOrderResult(data as CheckoutSuccessResponse);
-      setStep('success');
-      onClearCart();
-      await refreshUserOrders();
+      setOrderResult(data as CheckoutSuccessResponse)
+      setStep('success')
+      onClearCart()
+      await refreshUserOrders()
     } catch (err: unknown) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'We couldn’t process the purchase. Please try again.';
-      setSubmitError(message);
+        err instanceof Error ? err.message : 'We couldn’t process the purchase. Please try again.'
+      setSubmitError(message)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleTouchStart = (e: TouchEvent<HTMLElement>) => {
     if (e.changedTouches && e.changedTouches[0]) {
-      touchStartXRef.current = e.changedTouches[0].clientX;
+      touchStartXRef.current = e.changedTouches[0].clientX
     }
-  };
+  }
 
   const handleTouchMove = (e: TouchEvent<HTMLElement>) => {
-    if (touchStartXRef.current === null) return;
-    const currentX = e.changedTouches[0]?.clientX ?? 0;
-    const dx = currentX - touchStartXRef.current;
+    if (touchStartXRef.current === null) return
+    const currentX = e.changedTouches[0]?.clientX ?? 0
+    const dx = currentX - touchStartXRef.current
     if (dx > 0) {
-      setDragOffsetX(Math.round(dx));
+      setDragOffsetX(Math.round(dx))
     }
-  };
+  }
 
   const handleTouchEnd = (e: TouchEvent<HTMLElement>) => {
-    if (touchStartXRef.current === null) return;
-    const currentX = e.changedTouches[0]?.clientX ?? 0;
-    const dx = currentX - touchStartXRef.current;
+    if (touchStartXRef.current === null) return
+    const currentX = e.changedTouches[0]?.clientX ?? 0
+    const dx = currentX - touchStartXRef.current
     if (dx > 90) {
-      handleCloseSidebar();
+      handleCloseSidebar()
     }
-    touchStartXRef.current = null;
-    setDragOffsetX(0);
-  };
+    touchStartXRef.current = null
+    setDragOffsetX(0)
+  }
 
   return (
     <nav
       id="cart-menu"
       className={`menu right${isOpen ? ' menu--open' : ''} ${s.drawerFlex}`}
-      style={
-        dragOffsetX > 0
-          ? { transform: `translate3d(${dragOffsetX}px, 0, 0)` }
-          : undefined
-      }
+      style={dragOffsetX > 0 ? { transform: `translate3d(${dragOffsetX}px, 0, 0)` } : undefined}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -495,10 +453,9 @@ const CartSidebar = ({
           </div>
           <h2 className={s.emptyHeader}>Order Confirmed!</h2>
           <p className={s.emptyText}>
-            Order <strong>{orderResult.order.orderId}</strong> has been
-            allocated cleanly by our durable checkout workflow. Your{' '}
-            <strong>Invoice</strong> &amp; <strong>Receipt</strong> PDFs and
-            confirmation email have been dispatched to{' '}
+            Order <strong>{orderResult.order.orderId}</strong> has been allocated cleanly by our
+            durable checkout workflow. Your <strong>Invoice</strong> &amp; <strong>Receipt</strong>{' '}
+            PDFs and confirmation email have been dispatched to{' '}
             <strong>{orderResult.email.to}</strong>.
           </p>
 
@@ -568,11 +525,7 @@ const CartSidebar = ({
             )}
           </div>
 
-          <Link
-            href="/account"
-            onClick={handleCloseSidebar}
-            className={`${s.btn} mt-3`}
-          >
+          <Link href="/account" onClick={handleCloseSidebar} className={`${s.btn} mt-3`}>
             Track Order in My Account
           </Link>
 
@@ -601,16 +554,12 @@ const CartSidebar = ({
                   attachmentsViaUrl: orderResult.email.attachments,
                 },
                 null,
-                2
+                2,
               )}
             </pre>
           )}
 
-          <button
-            type="button"
-            className={s.secondaryBtn}
-            onClick={handleCloseSidebar}
-          >
+          <button type="button" className={s.secondaryBtn} onClick={handleCloseSidebar}>
             Continue Shopping
           </button>
         </div>
@@ -621,8 +570,8 @@ const CartSidebar = ({
           </span>
           <h2 className={s.emptyHeader}>Your cart is empty</h2>
           <p className={s.emptyText}>
-            Explore our collection of jackets, shirts, dresses, trousers, and
-            shoes to add items to your bag.
+            Explore our collection of jackets, shirts, dresses, trousers, and shoes to add items to
+            your bag.
           </p>
         </div>
       ) : step === 'checkout' ? (
@@ -632,9 +581,9 @@ const CartSidebar = ({
               type="button"
               className={s.backToCartBtn}
               onClick={() => {
-                setSubmitError('');
-                setStockWasReleased(false);
-                setStep('cart');
+                setSubmitError('')
+                setStockWasReleased(false)
+                setStep('cart')
               }}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -650,8 +599,8 @@ const CartSidebar = ({
           <div className="mb-3 flex items-center gap-2 rounded-none border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
             <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
-              Durable workflow locks variant inventory during authorization and
-              releases stock automatically if payment fails.
+              Durable workflow locks variant inventory during authorization and releases stock
+              automatically if payment fails.
             </span>
           </div>
 
@@ -662,8 +611,7 @@ const CartSidebar = ({
                 <div>{submitError}</div>
                 {stockWasReleased && (
                   <div className="mt-1 font-semibold underline">
-                    Workflow Status: Reserved variant stock automatically
-                    released.
+                    Workflow Status: Reserved variant stock automatically released.
                   </div>
                 )}
               </div>
@@ -682,13 +630,11 @@ const CartSidebar = ({
           >
             {/* Payment & Fulfillment Options */}
             <fieldset className={s.fieldset}>
-              <legend className={s.legend}>
-                Payment &amp; Fulfillment Method
-              </legend>
+              <legend className={s.legend}>Payment &amp; Fulfillment Method</legend>
 
               <div className="grid grid-cols-1 gap-2">
                 {PAYMENT_OPTIONS.map((option) => {
-                  const selected = paymentOption === option.id;
+                  const selected = paymentOption === option.id
                   return (
                     <label
                       key={option.id}
@@ -721,7 +667,7 @@ const CartSidebar = ({
                         </p>
                       </div>
                     </label>
-                  );
+                  )
                 })}
               </div>
             </fieldset>
@@ -822,10 +768,7 @@ const CartSidebar = ({
                   <label htmlFor={addressId} className={s.label}>
                     Select Store Collection Boutique
                   </label>
-                  <Select
-                    value={collectionLocation}
-                    onValueChange={setCollectionLocation}
-                  >
+                  <Select value={collectionLocation} onValueChange={setCollectionLocation}>
                     <SelectTrigger
                       id={addressId}
                       className="h-10 w-full rounded-none border-[var(--border-color)] bg-[var(--surface-drawer)] text-sm text-[var(--fg-heading)] cursor-pointer"
@@ -948,14 +891,12 @@ const CartSidebar = ({
                   <input
                     type="checkbox"
                     checked={simulatePaymentFailure}
-                    onChange={(e) =>
-                      setSimulatePaymentFailure(e.target.checked)
-                    }
+                    onChange={(e) => setSimulatePaymentFailure(e.target.checked)}
                     className="mt-0.5 accent-amber-500"
                   />
                   <span>
-                    <strong>Simulate Failed Payment:</strong> Test Workflow SDK
-                    rollback &amp; automatic release of reserved stock.
+                    <strong>Simulate Failed Payment:</strong> Test Workflow SDK rollback &amp;
+                    automatic release of reserved stock.
                   </span>
                 </label>
               </fieldset>
@@ -963,10 +904,7 @@ const CartSidebar = ({
 
             <div className={s.checkoutSummaryMini}>
               <div className={s.total}>
-                <span>
-                  Subtotal ({items.reduce((sum, i) => sum + i.quantity, 0)}{' '}
-                  items)
-                </span>
+                <span>Subtotal ({items.reduce((sum, i) => sum + i.quantity, 0)} items)</span>
                 <span>${subTotal.toFixed(2)}</span>
               </div>
               <div className={s.total}>
@@ -1009,11 +947,7 @@ const CartSidebar = ({
               <h2 className={s.cartHeader}>
                 My Bag ({items.reduce((sum, i) => sum + i.quantity, 0)})
               </h2>
-              <button
-                type="button"
-                className={s.clearCartBtn}
-                onClick={onClearCart}
-              >
+              <button type="button" className={s.clearCartBtn} onClick={onClearCart}>
                 Clear All
               </button>
             </div>
@@ -1040,13 +974,10 @@ const CartSidebar = ({
               </div>
             ) : (
               <div className="mb-3 flex items-start gap-2 rounded-none border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-3 py-2 text-xs text-[var(--fg-primary)]">
-                <Lock
-                  className="h-4 w-4 shrink-0 text-[#797BED] mt-0.5"
-                  aria-hidden="true"
-                />
+                <Lock className="h-4 w-4 shrink-0 text-[#797BED] mt-0.5" aria-hidden="true" />
                 <span>
-                  Guest bag is saved in <code>localStorage</code>. Sign in or
-                  create a free account at checkout to reserve stock.
+                  Guest bag is saved in <code>localStorage</code>. Sign in or create a free account
+                  at checkout to reserve stock.
                 </span>
               </div>
             )}
@@ -1071,11 +1002,7 @@ const CartSidebar = ({
                 <span>${(subTotal + tax).toFixed(2)}</span>
               </div>
             </div>
-            <button
-              type="button"
-              className={s.btn}
-              onClick={handleProceedToCheckout}
-            >
+            <button type="button" className={s.btn} onClick={handleProceedToCheckout}>
               {user
                 ? `Proceed to Checkout ($${(subTotal + tax).toFixed(2)})`
                 : 'Sign In / Register to Checkout'}
@@ -1084,7 +1011,7 @@ const CartSidebar = ({
         </>
       )}
     </nav>
-  );
-};
+  )
+}
 
-export default CartSidebar;
+export default CartSidebar

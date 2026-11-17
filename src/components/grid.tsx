@@ -11,8 +11,9 @@ import 'swiper/css/zoom'
 import { AlertTriangle, Check, Heart, Loader2, Plus, Star } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
 import { Badge } from './ui/badge'
-import { useStore } from '../context/StoreContext'
+import { useStore } from '../context/store-context'
 import { getProductLowestAvailableVariantStock, type Product } from '../data/utils'
+import { cn } from 'cn'
 
 interface ItemPosition {
   visible: boolean
@@ -43,7 +44,6 @@ const Grid = ({
   compareIds,
   maxCompareReached,
   onToggleCompare,
-  onAddToCart,
 }: GridProps) => {
   const { isWishlisted, toggleWishlist } = useStore()
   const gridRef = useRef<HTMLElement | null>(null)
@@ -198,17 +198,15 @@ const Grid = ({
         transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <div className="grid__loader text-[#5C5EDC]" aria-hidden="true">
+      <div className="grid__loader text-primary" aria-hidden="true">
         <Loader2 className="h-10 w-10 animate-spin mx-auto" />
       </div>
       <div className="grid__sizer"></div>
 
       {!anyVisible && isLoaded && (
-        <div className="mx-auto my-12 max-w-md rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-8 text-center">
-          <p className="text-base font-bold text-[var(--fg-heading)]">
-            No matching clothing items found
-          </p>
-          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+        <div className="mx-auto my-12 max-w-md rounded-none border border-border bg-card p-8 text-center">
+          <p className="text-base font-bold text-foreground">No matching clothing items found</p>
+          <p className="mt-1 text-sm text-muted-foreground">
             Try clearing your search term or selecting another category filter.
           </p>
         </div>
@@ -256,9 +254,11 @@ const Grid = ({
             ref={(el) => {
               itemRefs.current[product.id] = el
             }}
-            className={`grid__item${
-              product.size === 'large' ? ' grid__item--size-a' : ''
-            } ${product.category}`}
+            className={cn(
+              'grid__item',
+              product.size === 'large' && 'grid__item--size-a',
+              product.category,
+            )}
             style={itemStyle}
             aria-hidden={!visible}
           >
@@ -273,7 +273,7 @@ const Grid = ({
                 </Badge>
               ) : stockStatus.hasLowStockVariant ? (
                 <Badge
-                  variant="warning"
+                  variant="outline"
                   className="pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]"
                 >
                   <AlertTriangle className="h-3 w-3" aria-hidden="true" />
@@ -282,7 +282,7 @@ const Grid = ({
               ) : null}
 
               <Swiper
-                className={`swiper-container slider${isCompared ? ' product--selected' : ''}`}
+                className={cn('swiper-container slider', isCompared && ' product--selected')}
                 modules={[Pagination, EffectCoverflow, Zoom]}
                 effect="coverflow"
                 grabCursor={true}
@@ -295,7 +295,7 @@ const Grid = ({
                   const isLcpCandidate = isPriorityCard && imgIdx === 0
                   return (
                     <SwiperSlide key={`${product.id}-slide-${imgIdx}`} className="slider__item">
-                      <div className="swiper-zoom-container">
+                      <div className="swiper-zoom-container ">
                         <OptimizedImage
                           src={imgSrc}
                           alt={`${product.title} view ${imgIdx + 1}`}
@@ -315,7 +315,7 @@ const Grid = ({
 
             <div className="meta">
               <Link href={`/products/${product.slug}`} className="group inline-block pr-2">
-                <h3 className="meta__title group-hover:text-[#5C5EDC] transition-colors">
+                <h3 className="meta__title group-hover:text-primary transition-colors">
                   {product.title}
                 </h3>
               </Link>
@@ -336,7 +336,7 @@ const Grid = ({
                     />
                     {product.averageRating.toFixed(1)}
                   </span>
-                  <span className="text-[var(--fg-muted)]">({product.reviewCount})</span>
+                  <span className="text-muted-foreground">({product.reviewCount})</span>
                 </div>
               </div>
             </div>
@@ -378,7 +378,7 @@ const Grid = ({
                 onChange={() => onToggleCompare(product)}
               />
               {isCompared ? (
-                <Check className="h-4 w-4 text-[#5C5EDC]" aria-hidden="true" />
+                <Check className="h-4 w-4 text-primary" aria-hidden="true" />
               ) : (
                 <Plus className="h-4 w-4" aria-hidden="true" />
               )}

@@ -10,7 +10,7 @@ import 'swiper/css/pagination'
 import 'swiper/css/navigation'
 import { OptimizedImage } from './ui/optimized-image'
 import { Badge } from './ui/badge'
-import { Button } from './ui/button'
+import { Button, buttonVariants } from './ui/button'
 import type { BannerSlide } from '../data/utils'
 
 interface BannerCarouselProps {
@@ -26,9 +26,9 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
   return (
     <section
       aria-label="Featured Storefront Collections"
-      className="mx-auto w-full md:w-[92%] max-w-[1280px] md:mt-6 md:mb-6 relative"
+      className="mx-auto w-full md:w-[92%] max-w-[1280px] md:mt-6 md:mb-6 relative rounded-md"
     >
-      <div className="relative overflow-hidden rounded-none md:border md:border-[var(--border-color)] md:bg-[var(--surface-card)] md:shadow-sm">
+      <div className="relative overflow-hidden md:border md:border-border md:bg-card md:shadow-sm rounded-md">
         <Swiper
           modules={[Autoplay, Pagination, Navigation]}
           onSwiper={(swiper) => {
@@ -62,11 +62,11 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
                     <span>{slide.badgeText}</span>
                   </Badge>
 
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[var(--fg-heading)] leading-tight">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
                     {slide.title}
                   </h2>
 
-                  <p className="text-sm sm:text-base text-[var(--fg-muted)] max-w-xl leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-xl leading-relaxed">
                     {slide.subtitle}
                   </p>
 
@@ -80,16 +80,19 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
                     </Button>
 
                     {slide.ctaProductSlug && (
-                      <Button asChild variant="outline">
-                        <Link href={`/products/${slide.ctaProductSlug}`}>View Spotlight Piece</Link>
-                      </Button>
+                      <Link
+                        className={buttonVariants({ variant: 'outline' })}
+                        href={`/products/${slide.ctaProductSlug}`}
+                      >
+                        View Spotlight Piece
+                      </Link>
                     )}
                   </div>
                 </div>
 
                 {/* Product/Editorial Hero Visual */}
                 <div className="relative z-10 md:col-span-5 flex items-center justify-center">
-                  <div className="relative w-64 h-64 rounded-none bg-[var(--surface-elevated)] border border-[var(--border-color)] p-4 flex items-center justify-center shadow-inner">
+                  <div className="relative w-64 h-64 rounded-md border border-border p-4 flex items-center justify-center shadow-inner">
                     <OptimizedImage
                       src={slide.imageUrl}
                       alt={slide.title}

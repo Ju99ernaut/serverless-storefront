@@ -27,7 +27,7 @@ import {
   User as UserIcon,
   X,
 } from 'lucide-react'
-import { useStore } from '../../../context/StoreContext'
+import { useStore } from '../../../context/store-context'
 import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
 import type { StoreOrderRecord } from '../../../data/utils'
 import { OptimizedImage } from '../../../components/ui/optimized-image'
@@ -39,7 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
-import Cart from '../../../components/Cart'
+import Cart from '../../../components/cart'
 import UserMenu, { getUserInitials } from '../../../components/user-menu'
 
 const STATUS_BADGE_MAP: Record<
@@ -736,7 +736,7 @@ function AccountPortalContent() {
                       )}
 
                       {profileSavedMsg && (
-                        <Alert variant="success">
+                        <Alert>
                           <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                           <span className="text-xs">{profileSavedMsg}</span>
                         </Alert>

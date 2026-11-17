@@ -4,6 +4,7 @@ import { forwardRef } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { BOTTOM_BAR_FILTERS, BottomBarFilter, getMainCategoryForFilter } from '../data/utils'
 import { OptimizedImage } from './ui/optimized-image'
+import { cn } from 'cn'
 
 interface BottomBarProps {
   activeFilter: string
@@ -45,7 +46,7 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
               <button
                 key={item.id}
                 type="button"
-                className={`action filter__item${isSelected ? ' filter__item--selected' : ''}`}
+                className={cn('action filter__item', isSelected && 'filter__item--selected')}
                 data-filter={item.id}
                 aria-pressed={isSelected}
                 onClick={() => onSelectFilter(item.id)}

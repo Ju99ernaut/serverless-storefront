@@ -17,18 +17,19 @@ import {
   Star,
   Truck,
 } from 'lucide-react'
-import { useStore } from '@/context/StoreContext'
+import { useStore } from '@/context/store-context'
 import { fetchProductBySlugWithReviews, submitProductReviewViaSdk } from '@/lib/payload-sdk'
 import type { Product, ProductReviewItem, ProductVariant } from '@/data/utils'
 import { OptimizedImage } from '@/components/ui/optimized-image'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import Cart from '@/components/Cart'
+import Cart from '@/components/cart'
 import UserMenu from '@/components/user-menu'
+import { cn } from 'cn'
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>()
@@ -234,14 +235,14 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center gap-4">
-        <h1 className="text-2xl font-bold text-[var(--fg-heading)]">Garment Not Found</h1>
-        <p className="text-sm text-[var(--fg-muted)]">
+      <div className="bg-background min-h-screen flex flex-col items-center justify-center p-8 text-center gap-4">
+        <h1 className="text-2xl font-bold text-foreground">Garment Not Found</h1>
+        <p className="text-sm text-muted-foreground">
           We couldn&apos;t locate the requested clothing item.
         </p>
-        <Button asChild>
-          <Link href="/">Return to Storefront</Link>
-        </Button>
+        <Link className={buttonVariants()} href="/">
+          Return to Storefront
+        </Link>
       </div>
     )
   }
@@ -250,7 +251,7 @@ export default function ProductDetailPage() {
   const displayPrice = activeVariant?.priceOverride ?? product.price
 
   return (
-    <div className="min-h-screen overflow-anchor-parent pb-16">
+    <div className="bg-background min-h-screen overflow-anchor-parent pb-16">
       <Cart
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -264,13 +265,11 @@ export default function ProductDetailPage() {
       <header className="sticky-topbar-container">
         <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <Button asChild variant="ghost" size="sm" className="gap-1.5">
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                <span>Back to Store</span>
-              </Link>
-            </Button>
-            <span className="hidden sm:inline text-xs text-[var(--fg-muted)]">
+            <Link className={buttonVariants({ variant: 'ghost', className: 'gap-1.5' })} href="/">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>Back to Store</span>
+            </Link>
+            <span className="hidden sm:inline text-xs text-muted-foreground">
               / {product.category} / {product.subcategory}
             </span>
           </div>
@@ -290,18 +289,18 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left: Multi-Image Gallery */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="relative overflow-hidden rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-8 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
+            <div className="relative overflow-hidden rounded-md border border-border bg-card p-8 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
               {isOutOfStock ? (
                 <Badge variant="destructive" className="absolute top-4 left-4 z-10">
                   Out of Stock
                 </Badge>
               ) : isLowStock ? (
-                <Badge variant="warning" className="absolute top-4 left-4 z-10">
+                <Badge variant="outline" className="absolute top-4 left-4 z-10">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Low Stock: Only {availableStock} Left</span>
                 </Badge>
               ) : (
-                <Badge variant="success" className="absolute top-4 left-4 z-10">
+                <Badge variant="outline" className="absolute top-4 left-4 z-10">
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>In Stock ({availableStock} ready)</span>
                 </Badge>
@@ -332,11 +331,12 @@ export default function ProductDetailPage() {
                     role="tab"
                     aria-selected={activeImageIndex === idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`rounded-none border p-2.5 bg-[var(--surface-card)] flex items-center justify-center h-20 transition-all cursor-pointer ${
+                    className={cn(
+                      'rounded-md border p-2.5 bg-card flex items-center justify-center h-20 transition-all cursor-pointer',
                       activeImageIndex === idx
-                        ? 'border-[#5C5EDC] ring-2 ring-[#5C5EDC]/40'
-                        : 'border-[var(--border-color)] hover:border-[#5C5EDC]/60'
-                    }`}
+                        ? 'border-primary ring-2 ring-primary/40'
+                        : 'border-border hover:border-primary/60',
+                    )}
                   >
                     <OptimizedImage
                       src={imgUrl}
@@ -354,35 +354,33 @@ export default function ProductDetailPage() {
           {/* Right: Details, Variants, Stock & Add to Bag */}
           <div className="lg:col-span-6 space-y-6">
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#797BED]">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
                 <span>{product.brand}</span>
                 <span>&bull;</span>
                 <span>{product.subcategory}</span>
               </div>
 
-              <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-[var(--fg-heading)]">
+              <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-foreground">
                 {product.title}
               </h1>
 
               <div className="mt-3 flex flex-wrap items-center gap-4">
-                <span className="text-2xl font-bold text-[#797BED]">
-                  ${displayPrice.toFixed(2)}
-                </span>
+                <span className="text-2xl font-bold text-primary">${displayPrice.toFixed(2)}</span>
                 {product.compareAtPrice && product.compareAtPrice > displayPrice && (
-                  <span className="text-base line-through text-[var(--fg-muted)]">
+                  <span className="text-base line-through text-muted-foreground">
                     ${product.compareAtPrice.toFixed(2)}
                   </span>
                 )}
                 <div className="flex items-center gap-1.5 text-sm">
                   <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
-                  <span className="font-bold text-[var(--fg-heading)]">
+                  <span className="font-bold text-foreground">
                     {product.averageRating.toFixed(1)}
                   </span>
-                  <span className="text-[var(--fg-muted)]">({product.reviewCount} reviews)</span>
+                  <span className="text-muted-foreground">({product.reviewCount} reviews)</span>
                 </div>
               </div>
 
-              <p className="mt-4 text-sm leading-relaxed text-[var(--fg-primary)]">
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                 {product.description}
               </p>
             </div>
@@ -391,10 +389,10 @@ export default function ProductDetailPage() {
             {uniqueColors.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+                  <span className="font-bold uppercase tracking-wider text-muted-foreground">
                     Color
                   </span>
-                  <span className="font-semibold text-[var(--fg-heading)]">{selectedColor}</span>
+                  <span className="font-semibold text-foreground">{selectedColor}</span>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
                   {uniqueColors.map((c) => {
@@ -428,10 +426,10 @@ export default function ProductDetailPage() {
             {uniqueSizes.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+                  <span className="font-bold uppercase tracking-wider text-muted-foreground">
                     Size
                   </span>
-                  <span className="text-[var(--fg-muted)]">
+                  <span className="text-muted-foreground">
                     SKU: <code>{activeVariant?.sku || 'N/A'}</code>
                   </span>
                 </div>
@@ -481,7 +479,7 @@ export default function ProductDetailPage() {
                 </div>
               </Alert>
             ) : isLowStock ? (
-              <Alert variant="warning">
+              <Alert>
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <div>
                   <strong className="block font-semibold">
@@ -674,7 +672,7 @@ export default function ProductDetailPage() {
                         </Alert>
                       )}
                       {reviewSuccess && (
-                        <Alert variant="success">
+                        <Alert>
                           <span className="text-xs">{reviewSuccess}</span>
                         </Alert>
                       )}
@@ -775,7 +773,7 @@ export default function ProductDetailPage() {
                             {rev.authorName}
                           </span>
                           {rev.verifiedPurchase && (
-                            <Badge variant="success" className="text-[10px]">
+                            <Badge className="text-[10px]">
                               <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                               <span>Verified Purchase</span>
                             </Badge>

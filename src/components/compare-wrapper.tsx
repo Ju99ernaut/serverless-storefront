@@ -1,38 +1,26 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { ShoppingCart, Star, X } from 'lucide-react';
-import { OptimizedImage } from './ui/optimized-image';
-import {
-  getProductTotalAvailableStock,
-  type Product,
-} from '../data/utils';
+import Link from 'next/link'
+import { ShoppingCart, Star, X } from 'lucide-react'
+import { OptimizedImage } from './ui/optimized-image'
+import { getProductTotalAvailableStock, type Product } from '../data/utils'
 
 interface CompareWrapperProps {
-  compareItems: Product[];
-  isOpen: boolean;
-  onClose: () => void;
-  onAddToCart: (product: Product) => void;
+  compareItems: Product[]
+  isOpen: boolean
+  onClose: () => void
+  onAddToCart: (product: Product) => void
 }
 
-const CompareWrapper = ({
-  compareItems,
-  isOpen,
-  onClose,
-  onAddToCart,
-}: CompareWrapperProps) => {
+const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareWrapperProps) => {
   return (
-    <section
-      className="compare"
-      aria-hidden={!isOpen}
-      aria-label="Product comparison overlay"
-    >
+    <section className="compare" aria-hidden={!isOpen} aria-label="Product comparison overlay">
       {compareItems.map((product) => {
-        const totalAvail = getProductTotalAvailableStock(product);
+        const totalAvail = getProductTotalAvailableStock(product)
         return (
           <div key={product.id} className="compare__item">
             <div className="compare__effect">
-              <div className="w-40 h-40 flex items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3 border border-[var(--border-color)]">
+              <div className="w-40 h-40 flex items-center justify-center rounded-none bg-secondary p-3 border border-border">
                 <OptimizedImage
                   src={product.images[0] || '/images/shirt.png'}
                   alt={product.title}
@@ -73,7 +61,7 @@ const CompareWrapper = ({
               </button>
             </div>
           </div>
-        );
+        )
       })}
       <button
         type="button"
@@ -82,12 +70,10 @@ const CompareWrapper = ({
         aria-label="Close comparison overlay"
       >
         <X className="h-5 w-5" aria-hidden="true" />
-        <span className="action__text action__text--invisible">
-          Close comparison overlay
-        </span>
+        <span className="action__text action__text--invisible">Close comparison overlay</span>
       </button>
     </section>
-  );
-};
+  )
+}
 
-export default CompareWrapper;
+export default CompareWrapper
