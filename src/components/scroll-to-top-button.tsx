@@ -40,6 +40,7 @@ export default function ScrollToTopButton() {
         aria-label="Scroll to top"
         title="Scroll to top"
         className="back-to-top"
+        size="icon"
       >
         <ArrowUp className="h-5 w-5" aria-hidden="true" />
       </Button>

@@ -32,7 +32,7 @@ import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
 import type { StoreOrderRecord } from '../../../data/utils'
 import { OptimizedImage } from '../../../components/ui/optimized-image'
 import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avatar'
-import { Button } from '../../../components/ui/button'
+import { Button, buttonVariants } from '../../../components/ui/button'
 import { Badge } from '../../../components/ui/badge'
 import { Alert } from '../../../components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
@@ -224,12 +224,13 @@ function AccountPortalContent() {
       <header className="sticky-topbar-container">
         <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <Button asChild variant="ghost" size="sm" className="gap-1.5">
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                <span>Back to Store</span>
-              </Link>
-            </Button>
+            <Link
+              className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'gap-1.5' })}
+              href="/"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>Back to Store</span>
+            </Link>
             <span className="hidden sm:inline text-sm font-bold text-[var(--fg-heading)]">
               My Account Portal
             </span>
@@ -275,9 +276,9 @@ function AccountPortalContent() {
                 <Button type="button" onClick={() => openAuthModal('account')}>
                   Sign In / Create Account
                 </Button>
-                <Button asChild variant="outline">
-                  <Link href="/">Continue Browsing</Link>
-                </Button>
+                <Link className={buttonVariants({ variant: 'outline' })} href="/">
+                  Continue Browsing
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -319,7 +320,7 @@ function AccountPortalContent() {
             </div>
 
             {orderNotice && (
-              <Alert variant="success">
+              <Alert>
                 <Mail className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <span className="text-xs sm:text-sm">{orderNotice}</span>
               </Alert>
@@ -357,9 +358,9 @@ function AccountPortalContent() {
                       <p className="text-sm font-semibold text-[var(--fg-heading)]">
                         You haven&apos;t placed an order yet
                       </p>
-                      <Button asChild size="sm">
-                        <Link href="/">Explore Clothing Storefront</Link>
-                      </Button>
+                      <Link className={buttonVariants({ size: 'sm' })} href="/">
+                        Explore Clothing Storefront
+                      </Link>
                     </CardContent>
                   </Card>
                 ) : (
@@ -590,9 +591,9 @@ function AccountPortalContent() {
                       <p className="text-sm font-semibold text-[var(--fg-heading)]">
                         No loved items saved yet
                       </p>
-                      <Button asChild size="sm">
-                        <Link href="/">Discover Clothing Pieces</Link>
-                      </Button>
+                      <Link className={buttonVariants({ size: 'sm' })} href="/">
+                        Discover Clothing Pieces
+                      </Link>
                     </CardContent>
                   </Card>
                 ) : (
@@ -659,9 +660,9 @@ function AccountPortalContent() {
                         <p className="text-sm text-[var(--fg-muted)]">
                           Your saved shopping bag is currently empty.
                         </p>
-                        <Button asChild size="sm">
-                          <Link href="/">Browse Clothing Grid</Link>
-                        </Button>
+                        <Link className={buttonVariants({ size: 'sm' })} href="/">
+                          Browse Clothing Grid
+                        </Link>
                       </div>
                     ) : (
                       <>

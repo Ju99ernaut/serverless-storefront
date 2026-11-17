@@ -185,7 +185,7 @@ export default function ProductDetailPage() {
       quantity,
     })
     setAddedFeedback(true)
-    setTimeout(() => setAddedFeedback(false), 1800)
+    setTimeout(() => setAddedFeedback(false), 3600)
   }
 
   const handleReviewSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -398,16 +398,15 @@ export default function ProductDetailPage() {
                   {uniqueColors.map((c) => {
                     const isSelected = selectedColor === c.color
                     return (
-                      <button
+                      <Button
                         key={c.color}
                         type="button"
                         onClick={() => setSelectedColor(c.color)}
                         aria-pressed={isSelected}
-                        className={`inline-flex items-center gap-2 rounded-none border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-[#5C5EDC] bg-[#5C5EDC]/12 text-[var(--fg-heading)] ring-1 ring-[#5C5EDC]'
-                            : 'border-[var(--border-color)] bg-[var(--surface-card)] text-[var(--fg-primary)] hover:border-[#5C5EDC]/60'
-                        }`}
+                        variant="outline"
+                        className={cn(
+                          isSelected && 'border-primary text-foreground ring-1 ring-primary',
+                        )}
                       >
                         <span
                           className="h-3.5 w-3.5 rounded-none border border-white/40 shadow-xs"
@@ -415,7 +414,7 @@ export default function ProductDetailPage() {
                           aria-hidden="true"
                         />
                         <span>{c.color}</span>
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>
@@ -443,28 +442,22 @@ export default function ProductDetailPage() {
                       : 0
                     const isSelected = selectedSize === sz
                     return (
-                      <button
+                      <Button
                         key={sz}
                         type="button"
                         onClick={() => setSelectedSize(sz)}
                         aria-pressed={isSelected}
-                        className={`min-w-[48px] rounded-none border px-3 py-2 text-xs font-bold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-[#5C5EDC] bg-[#5C5EDC] text-white'
-                            : avail <= 0
-                              ? 'border-[var(--border-color)] bg-[var(--surface-card)] text-[var(--fg-muted)] opacity-50 line-through'
-                              : 'border-[var(--border-color)] bg-[var(--surface-card)] text-[var(--fg-heading)] hover:border-[#5C5EDC]'
-                        }`}
+                        variant={isSelected ? 'default' : 'outline'}
+                        className="font-bold min-w-[44px]"
                       >
                         {sz}
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>
               </div>
             )}
 
-            {/* Real-Time Stock Alert */}
             {isOutOfStock ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
@@ -503,28 +496,30 @@ export default function ProductDetailPage() {
 
             {/* Quantity + Actions */}
             <div className="flex flex-wrap items-center gap-3 pt-4">
-              <div className="inline-flex items-center rounded-none border border-[var(--border-color)] bg-[var(--surface-card)]">
-                <button
+              <div className="inline-flex items-center rounded-md border border-border bg-card">
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={isOutOfStock || quantity <= 1}
                   aria-label="Decrease quantity"
-                  className="p-2 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
+                  variant="ghost"
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <span className="w-10 text-center text-sm font-bold text-[var(--fg-heading)]">
+                </Button>
+                <span className="w-10 text-center text-sm font-bold text-foreground">
                   {isOutOfStock ? 0 : quantity}
                 </span>
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => setQuantity((q) => Math.min(availableStock, q + 1))}
                   disabled={isOutOfStock || quantity >= availableStock}
                   aria-label="Increase quantity"
-                  className="p-2 text-[var(--fg-heading)] hover:text-[#5C5EDC] disabled:opacity-40 cursor-pointer"
+                  variant="ghost"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
-                </button>
+                </Button>
               </div>
 
               <Button
@@ -532,7 +527,7 @@ export default function ProductDetailPage() {
                 size="sm"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
-                className="flex-1 gap-2"
+                className="flex-1 gap-2 font-bold"
               >
                 {addedFeedback ? (
                   <>
@@ -567,48 +562,49 @@ export default function ProductDetailPage() {
             </div>
 
             {addedFeedback && (
-              <div className="flex items-center justify-between rounded-none border border-[#5C5EDC]/40 bg-[#5C5EDC]/10 px-4 py-2.5 text-xs">
+              <div className="flex items-center justify-between rounded-none border border-border px-4 py-2.5 text-xs">
                 <span>Variant added to your shopping bag.</span>
-                <button
+                <Button
                   type="button"
+                  className="text-xs"
                   onClick={() => setIsCartOpen(true)}
-                  className="font-bold text-[#797BED] hover:underline cursor-pointer"
+                  variant="link"
                 >
                   Open Bag &amp; Checkout &rarr;
-                </button>
+                </Button>
               </div>
             )}
 
             {/* Garment Specifications */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+              <div className="rounded-md border border-border bg-card p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Material
                 </span>
-                <span className="mt-1 block text-xs font-semibold text-[var(--fg-heading)]">
+                <span className="mt-1 block text-xs font-semibold text-foreground">
                   {product.material}
                 </span>
               </div>
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+              <div className="rounded-md border border-border bg-card p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Tailored Fit
                 </span>
-                <span className="mt-1 block text-xs font-semibold text-[var(--fg-heading)]">
+                <span className="mt-1 block text-xs font-semibold text-foreground">
                   {product.fit}
                 </span>
               </div>
-              <div className="rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-3">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+              <div className="rounded-md border border-border bg-card p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Garment Care
                 </span>
-                <span className="mt-1 block text-xs font-semibold text-[var(--fg-heading)]">
+                <span className="mt-1 block text-xs font-semibold text-foreground">
                   {product.care}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
-              <Truck className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Truck className="h-4 w-4 text-primary" aria-hidden="true" />
               <span>
                 Available for Pay &amp; Delivery, Pay then Collect, Pay on Delivery, and Pay on
                 Collection.
@@ -618,17 +614,14 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Customer Reviews Section */}
-        <section
-          aria-label="Customer Reviews"
-          className="mt-14 pt-10 border-t border-[var(--border-color)]"
-        >
+        <section aria-label="Customer Reviews" className="mt-14 pt-10 border-t border-border">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Review Form / Prompt */}
             <div className="lg:col-span-5 space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+                    <Star className="h-4 w-4 text-primary" aria-hidden="true" />
                     <span>Customer Reviews ({product.reviewCount})</span>
                   </CardTitle>
                 </CardHeader>
@@ -645,13 +638,13 @@ export default function ProductDetailPage() {
                             className={`h-4 w-4 ${
                               star <= Math.round(product.averageRating)
                                 ? 'fill-amber-400 text-amber-400'
-                                : 'text-[var(--fg-muted)]'
+                                : 'text-muted-foreground'
                             }`}
                             aria-hidden="true"
                           />
                         ))}
                       </div>
-                      <span className="block text-xs text-[var(--fg-muted)]">
+                      <span className="block text-xs text-muted-foreground">
                         Based on {product.reviewCount} rating(s)
                       </span>
                     </div>
@@ -660,9 +653,9 @@ export default function ProductDetailPage() {
                   {user ? (
                     <form
                       onSubmit={handleReviewSubmit}
-                      className="space-y-3 border-t border-[var(--border-color)] pt-4"
+                      className="space-y-3 border-t border-border pt-4"
                     >
-                      <div className="text-xs font-semibold text-[var(--fg-heading)]">
+                      <div className="text-xs font-semibold text-foreground">
                         Write a Review as {user.name}
                       </div>
 
@@ -678,24 +671,26 @@ export default function ProductDetailPage() {
                       )}
 
                       <div className="space-y-1">
-                        <span className="text-xs text-[var(--fg-muted)]">Your Rating</span>
+                        <span className="text-xs text-muted-foreground">Your Rating</span>
                         <div className="flex items-center gap-1">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <button
+                            <Button
                               key={star}
                               type="button"
+                              size="icon-sm"
                               onClick={() => setReviewRating(star)}
                               aria-label={`Rate ${star} out of 5 stars`}
-                              className="p-1 cursor-pointer"
+                              variant="ghost"
                             >
                               <Star
-                                className={`h-5 w-5 ${
+                                className={cn(
+                                  'h-5 w-5',
                                   star <= reviewRating
                                     ? 'fill-amber-400 text-amber-400'
-                                    : 'text-[var(--fg-muted)]'
-                                }`}
+                                    : 'text-muted-foreground',
+                                )}
                               />
-                            </button>
+                            </Button>
                           ))}
                         </div>
                       </div>
@@ -703,7 +698,7 @@ export default function ProductDetailPage() {
                       <div className="space-y-1">
                         <label
                           htmlFor="review-title"
-                          className="text-xs font-semibold text-[var(--fg-heading)]"
+                          className="text-xs font-semibold text-foreground"
                         >
                           Headline
                         </label>
@@ -719,7 +714,7 @@ export default function ProductDetailPage() {
                       <div className="space-y-1">
                         <label
                           htmlFor="review-comment"
-                          className="text-xs font-semibold text-[var(--fg-heading)]"
+                          className="text-xs font-semibold text-foreground"
                         >
                           Review Details
                         </label>
@@ -737,8 +732,8 @@ export default function ProductDetailPage() {
                       </Button>
                     </form>
                   ) : (
-                    <div className="border-t border-[var(--border-color)] pt-4 space-y-2">
-                      <p className="text-xs text-[var(--fg-muted)]">
+                    <div className="border-t border-border pt-4 space-y-2">
+                      <p className="text-xs text-muted-foreground">
                         Sign in or create an account to leave a verified clothing review.
                       </p>
                       <Button
@@ -759,7 +754,7 @@ export default function ProductDetailPage() {
             <div className="lg:col-span-7 space-y-4">
               {reviews.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center text-sm text-[var(--fg-muted)]">
+                  <CardContent className="p-6 text-center text-sm text-muted-foreground">
                     No customer reviews yet for {product.title}. Be the first to review this piece!
                   </CardContent>
                 </Card>
@@ -769,7 +764,7 @@ export default function ProductDetailPage() {
                     <CardContent className="p-5 space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[var(--fg-heading)]">
+                          <span className="text-sm font-bold text-foreground">
                             {rev.authorName}
                           </span>
                           {rev.verifiedPurchase && (
@@ -779,7 +774,7 @@ export default function ProductDetailPage() {
                             </Badge>
                           )}
                         </div>
-                        <span className="text-xs text-[var(--fg-muted)]">
+                        <span className="text-xs text-muted-foreground">
                           {new Date(rev.createdAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -789,25 +784,26 @@ export default function ProductDetailPage() {
                           {[1, 2, 3, 4, 5].map((s) => (
                             <Star
                               key={s}
-                              className={`h-3.5 w-3.5 ${
+                              className={cn(
+                                'h-3.5 w-3.5',
                                 s <= rev.rating
                                   ? 'fill-amber-400 text-amber-400'
-                                  : 'text-[var(--fg-muted)]'
-                              }`}
+                                  : 'text-muted-foreground',
+                              )}
                               aria-hidden="true"
                             />
                           ))}
                         </div>
                         {(rev.variantColor || rev.variantSize) && (
-                          <span className="text-[11px] text-[var(--fg-muted)]">
+                          <span className="text-[11px] text-muted-foreground">
                             Purchased:{' '}
                             {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-sm font-bold text-[var(--fg-heading)]">{rev.title}</h3>
-                      <p className="text-xs sm:text-sm leading-relaxed text-[var(--fg-primary)]">
+                      <h3 className="text-sm font-bold text-foreground">{rev.title}</h3>
+                      <p className="text-xs sm:text-sm leading-relaxed text-primary">
                         {rev.comment}
                       </p>
                     </CardContent>
@@ -820,18 +816,16 @@ export default function ProductDetailPage() {
 
         {/* Related Clothing */}
         {relatedProducts.length > 0 && (
-          <section className="mt-14 pt-8 border-t border-[var(--border-color)]">
-            <h2 className="text-lg font-bold text-[var(--fg-heading)] mb-4">
-              Complete the Wardrobe
-            </h2>
+          <section className="mt-14 pt-8 border-t border-border">
+            <h2 className="text-lg font-bold text-foreground mb-4">Complete the Wardrobe</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {relatedProducts.map((rel) => (
                 <Link
                   key={rel.id}
                   href={`/products/${rel.slug}`}
-                  className="group rounded-none border border-[var(--border-color)] bg-[var(--surface-card)] p-4 transition-colors hover:border-[#5C5EDC]"
+                  className="group rounded-md border border-border bg-card p-4 transition-colors hover:border-primary"
                 >
-                  <div className="flex h-36 items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3">
+                  <div className="flex h-36 items-center justify-center rounded-none bg-secondary p-3">
                     <OptimizedImage
                       src={rel.images[0] || '/images/shirt.png'}
                       alt={rel.title}
@@ -841,12 +835,12 @@ export default function ProductDetailPage() {
                     />
                   </div>
                   <div className="mt-3">
-                    <div className="text-xs font-bold text-[var(--fg-heading)] group-hover:text-[#5C5EDC] truncate">
+                    <div className="text-xs font-bold text-foreground group-hover:text-primary truncate">
                       {rel.title}
                     </div>
-                    <div className="mt-0.5 flex items-center justify-between text-xs text-[var(--fg-muted)]">
+                    <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
                       <span>{rel.brand}</span>
-                      <span className="font-bold text-[#797BED]">${rel.price}</span>
+                      <span className="font-bold text-primary">${rel.price}</span>
                     </div>
                   </div>
                 </Link>
