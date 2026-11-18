@@ -1,7 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useId, FormEvent, FocusEvent } from 'react'
+import { useState, useEffect, useId } from 'react'
 import Link from 'next/link'
+import axios from 'axios'
+import { useMutation } from '@tanstack/react-query'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
 import {
   ArrowLeft,
   Check,
@@ -9,19 +14,46 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
+  Loader2,
   Lock,
   ShoppingBag,
   Store,
   Truck,
 } from 'lucide-react'
-import s from '../../styles/CartSidebar.module.css'
 import CartItem from './cart-item'
 import { useStore } from '../../context/store-context'
 import { PAYMENT_OPTIONS, PaymentOptionType, type CartLineItem } from '../../data/utils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { useIsMobile } from '@/hooks/use-is-mobile'
-import { Drawer, DrawerContent } from '../ui/drawer'
 import { Alert } from '../ui/alert'
+import { Badge } from '../ui/badge'
+import { Button, buttonVariants } from '../ui/button'
+import { Card, CardContent } from '../ui/card'
+import { Checkbox } from '../ui/checkbox'
+import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from '../ui/drawer'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '../ui/empty'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from '../ui/field'
+import { Input } from '../ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Separator } from '../ui/separator'
+import { Textarea } from '../ui/textarea'
+import { toast } from '../ui/toast'
 
 interface CheckoutSuccessResponse {
   success: boolean
@@ -103,23 +135,101 @@ interface CartSidebarProps {
   onClearCart: () => void
 }
 
-interface FieldInteractionState {
-  hasInteracted: boolean
-  hasBlurred: boolean
-}
-
 const COLLECTION_LOCATIONS = [
   'Flagship Storefront Atelier — 450 Mercer St, SoHo',
   'Midtown Boutique — 685 Fifth Ave, Lounge B',
   'San Francisco Jackson Square Showroom',
 ]
 
+const DEFAULT_SHIPPING_ADDRESS = '742 Evergreen Terrace, Suite 200\nSan Francisco, CA 94107'
+
+const checkoutSchema = z
+  .object({
+    paymentOption: z.enum([
+      'pay_and_delivery',
+      'pay_then_collect',
+      'pay_on_delivery',
+      'pay_on_collection',
+    ]),
+    customerName: z
+      .string()
+      .trim()
+      .min(2, { message: 'Please enter your full name.' })
+      .max(100, { message: 'Full name must be 100 characters or fewer.' }),
+    customerEmail: z.email({ message: 'Please enter a valid email address.' }),
+    customerPhone: z.string().trim(),
+    shippingAddress: z.string().max(300, {
+      message: 'Delivery address must be 300 characters or fewer.',
+    }),
+    collectionLocation: z.string(),
+    ccName: z.string().max(50, {
+      message: 'Cardholder name must be 50 characters or fewer.',
+    }),
+    ccNumber: z.string(),
+    ccExp: z.string(),
+    ccCsc: z.string(),
+    simulatePaymentFailure: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    const meta =
+      PAYMENT_OPTIONS.find((opt) => opt.id === values.paymentOption) || PAYMENT_OPTIONS[0]
+
+    if (meta.requiresShippingAddress && !values.shippingAddress.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['shippingAddress'],
+        message: 'Please enter a delivery address.',
+      })
+    }
+
+    if (!meta.requiresShippingAddress && !values.collectionLocation.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['collectionLocation'],
+        message: 'Please select a collection boutique.',
+      })
+    }
+
+    if (meta.requiresCardNow) {
+      if (!values.ccName.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ccName'],
+          message: 'Enter the cardholder name.',
+        })
+      }
+      if (!/^[\d ]{13,19}$/.test(values.ccNumber.trim())) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ccNumber'],
+          message: 'Enter a valid 13–19 digit card number.',
+        })
+      }
+      if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(values.ccExp.trim())) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ccExp'],
+          message: 'Use MM/YY.',
+        })
+      }
+      if (!/^[0-9]{3,4}$/.test(values.ccCsc.trim())) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ccCsc'],
+          message: '3–4 digits.',
+        })
+      }
+    }
+  })
+
+type CheckoutFormValues = z.infer<typeof checkoutSchema>
+
 function getPaymentOptionIcon(optionId: PaymentOptionType) {
   switch (optionId) {
     case 'pay_and_delivery':
-      return <CreditCard className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+      return <CreditCard className="h-4 w-4 text-primary" aria-hidden="true" />
     case 'pay_then_collect':
-      return <Store className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+      return <Store className="h-4 w-4 text-primary" aria-hidden="true" />
     case 'pay_on_delivery':
       return <Truck className="h-4 w-4 text-emerald-500" aria-hidden="true" />
     case 'pay_on_collection':
@@ -137,60 +247,52 @@ const CartSidebar = ({
 }: CartSidebarProps) => {
   const { user, openAuthModal, refreshUserOrders, refreshCatalog } = useStore()
   const isMobile = useIsMobile()
+  const baseId = useId()
 
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [stockWasReleased, setStockWasReleased] = useState(false)
   const [orderResult, setOrderResult] = useState<CheckoutSuccessResponse | null>(null)
-  const [showPayloadPreview, setShowPayloadPreview] = useState(false)
 
-  const [paymentOption, setPaymentOption] = useState<PaymentOptionType>('pay_and_delivery')
-  const [collectionLocation, setCollectionLocation] = useState(COLLECTION_LOCATIONS[0])
-  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false)
+  const initialAddress = user?.shippingAddresses?.[0]?.streetAddress
+    ? `${user.shippingAddresses[0].streetAddress}, ${user.shippingAddresses[0].city || ''}`
+    : DEFAULT_SHIPPING_ADDRESS
 
-  const [customerName, setCustomerName] = useState(user?.name || 'Alex Rivera')
-  const [customerEmail, setCustomerEmail] = useState(user?.email || 'alex.rivera@example.com')
-  const [customerPhone, setCustomerPhone] = useState(user?.phone || '+1 (415) 555-0192')
-  const [shippingAddress, setShippingAddress] = useState(
-    user?.shippingAddresses?.[0]?.streetAddress
-      ? `${user.shippingAddresses[0].streetAddress}, ${user.shippingAddresses[0].city || ''}`
-      : '742 Evergreen Terrace, Suite 200\nSan Francisco, CA 94107',
-  )
-  const [ccName, setCcName] = useState(user?.name || 'Alex Rivera')
-  const [ccNumber, setCcNumber] = useState('4242 4242 4242 4242')
-  const [ccExp, setCcExp] = useState('08/29')
-  const [ccCsc, setCcCsc] = useState('842')
-
-  const formRef = useRef<HTMLFormElement | null>(null)
-  const dirtyStateRef = useRef<WeakMap<Element, FieldInteractionState>>(new WeakMap())
-
-  const baseId = useId()
-  const nameId = `${baseId}-name`
-  const emailId = `${baseId}-email`
-  const phoneId = `${baseId}-phone`
-  const addressId = `${baseId}-address`
-  const ccNameId = `${baseId}-cc-name`
-  const ccNumberId = `${baseId}-cc-number`
-  const ccExpId = `${baseId}-cc-exp`
-  const ccCscId = `${baseId}-cc-csc`
+  const checkoutForm = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutSchema),
+    mode: 'onTouched',
+    defaultValues: {
+      paymentOption: 'pay_and_delivery',
+      customerName: user?.name || 'Alex Rivera',
+      customerEmail: user?.email || 'alex.rivera@example.com',
+      customerPhone: user?.phone || '+1 (415) 555-0192',
+      shippingAddress: initialAddress,
+      collectionLocation: COLLECTION_LOCATIONS[0],
+      ccName: user?.name || 'Alex Rivera',
+      ccNumber: '4242 4242 4242 4242',
+      ccExp: '08/29',
+      ccCsc: '842',
+      simulatePaymentFailure: false,
+    },
+  })
 
   // Pre-fill profile details when user logs in
   useEffect(() => {
-    if (user) {
-      setCustomerName(user.name || '')
-      setCustomerEmail(user.email || '')
-      if (user.phone) setCustomerPhone(user.phone)
-      setCcName(user.name || '')
-      if (user.shippingAddresses?.[0]?.streetAddress) {
-        const addr = user.shippingAddresses[0]
-        setShippingAddress(
-          `${addr.streetAddress}${addr.city ? `, ${addr.city}` : ''}${addr.postalCode ? ` ${addr.postalCode}` : ''}`,
-        )
-      }
+    if (!user) return
+    checkoutForm.setValue('customerName', user.name || '')
+    checkoutForm.setValue('customerEmail', user.email || '')
+    if (user.phone) {
+      checkoutForm.setValue('customerPhone', user.phone)
     }
-  }, [user])
+    checkoutForm.setValue('ccName', user.name || '')
+    if (user.shippingAddresses?.[0]?.streetAddress) {
+      const addr = user.shippingAddresses[0]
+      checkoutForm.setValue(
+        'shippingAddress',
+        `${addr.streetAddress}${addr.city ? `, ${addr.city}` : ''}${addr.postalCode ? ` ${addr.postalCode}` : ''}`,
+      )
+    }
+  }, [user, checkoutForm])
 
+  const paymentOption = checkoutForm.watch('paymentOption')
   const selectedPaymentMeta =
     PAYMENT_OPTIONS.find((opt) => opt.id === paymentOption) || PAYMENT_OPTIONS[0]
 
@@ -201,14 +303,12 @@ const CartSidebar = ({
   const shippingFee = selectedPaymentMeta.fulfillmentMethod === 'DELIVERY' ? 12 : 0
   const grandTotal = Number((subTotal + tax + shippingFee).toFixed(2))
   const isEmpty = items.length === 0
+  const totalItemCount = items.reduce((sum, i) => sum + i.quantity, 0)
 
   useEffect(() => {
     if (!isOpen) {
       setStep('cart')
       setOrderResult(null)
-      setShowPayloadPreview(false)
-      setSubmitError('')
-      setStockWasReleased(false)
     }
   }, [isOpen])
 
@@ -216,16 +316,12 @@ const CartSidebar = ({
     if (items.length > 0 && step === 'success') {
       setStep('cart')
       setOrderResult(null)
-      setShowPayloadPreview(false)
     }
   }, [items.length, step])
 
   const handleCloseSidebar = () => {
     setStep('cart')
     setOrderResult(null)
-    setShowPayloadPreview(false)
-    setSubmitError('')
-    setStockWasReleased(false)
     onClose()
   }
 
@@ -238,612 +334,674 @@ const CartSidebar = ({
     setStep('checkout')
   }
 
-  const syncInputValidationState = (
-    input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
-    eventType: 'blur' | 'input',
-  ) => {
-    if (!input || typeof input.checkValidity !== 'function') return
-
-    const supportsUserInvalid =
-      typeof CSS !== 'undefined' &&
-      typeof CSS.supports === 'function' &&
-      CSS.supports('selector(:user-invalid)')
-
-    if (!supportsUserInvalid) {
-      const state = dirtyStateRef.current.get(input) || {
-        hasInteracted: false,
-        hasBlurred: false,
-      }
-      if (eventType === 'input') {
-        state.hasInteracted = true
-      } else if (eventType === 'blur') {
-        state.hasBlurred = true
-      }
-      dirtyStateRef.current.set(input, state)
-
-      if (state.hasInteracted && state.hasBlurred) {
-        const isValid = input.checkValidity()
-        input.classList.toggle(s.userInvalidFallback, !isValid)
-        input.classList.toggle(s.userValidFallback, isValid)
-        if (!isValid) {
-          input.setAttribute('aria-invalid', 'true')
-        } else {
-          input.removeAttribute('aria-invalid')
-        }
-      }
-      return
-    }
-
-    const isUserInvalid = input.matches(':user-invalid')
-    if (isUserInvalid) {
-      input.setAttribute('aria-invalid', 'true')
-    } else {
-      input.removeAttribute('aria-invalid')
-    }
-  }
-
-  const handleFormBlurCapture = (e: FocusEvent<HTMLFormElement>) => {
-    const target = e.target as HTMLElement
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement
-    ) {
-      syncInputValidationState(target, 'blur')
-    }
-  }
-
-  const handleFormInputCapture = (e: FormEvent<HTMLFormElement>) => {
-    const target = e.target as HTMLElement
-    if (!(
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement
-    )) {
-      return
-    }
-    target.setCustomValidity('')
-    if (target.hasAttribute('aria-invalid')) {
-      syncInputValidationState(target, 'input')
-    }
-  }
-
-  const handleCheckoutSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (isSubmitting || isEmpty) return
-
-    const formEl = formRef.current
-    if (formEl && !formEl.checkValidity()) {
-      const firstInvalid = formEl.querySelector<HTMLElement>(':invalid')
-      if (firstInvalid) {
-        firstInvalid.setAttribute('aria-invalid', 'true')
-        firstInvalid.focus()
-      }
-      return
-    }
-
-    setIsSubmitting(true)
-    setSubmitError('')
-    setStockWasReleased(false)
-
-    try {
+  const checkoutMutation = useMutation({
+    mutationFn: async (values: CheckoutFormValues) => {
+      const meta =
+        PAYMENT_OPTIONS.find((opt) => opt.id === values.paymentOption) || PAYMENT_OPTIONS[0]
       const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idempotencyKey,
-          userId: user?.id,
-          paymentOption,
-          simulatePaymentFailure,
-          customer: {
-            name: customerName.trim(),
-            email: customerEmail.trim(),
-            phone: customerPhone.trim(),
-            address: selectedPaymentMeta.requiresShippingAddress
-              ? shippingAddress.trim()
-              : collectionLocation,
-            collectionLocation:
-              selectedPaymentMeta.fulfillmentMethod === 'COLLECTION'
-                ? collectionLocation
-                : undefined,
-          },
-          payment: selectedPaymentMeta.requiresCardNow
-            ? {
-                cardholderName: ccName.trim(),
-                cardNumber: ccNumber.replace(/\s+/g, ''),
-                expiry: ccExp.trim(),
-              }
-            : undefined,
-          items: items.map((item) => ({
-            id: item.id,
-            slug: item.slug,
-            variantSku: item.variantSku,
-            title: item.title,
-            brand: item.brand,
-            category: item.category,
-            subcategory: item.subcategory,
-            size: item.selectedSize,
-            color: item.selectedColor,
-            price: item.unitPrice ?? item.price,
-            quantity: item.quantity,
-            images: item.images,
-          })),
-        }),
+      const { data } = await axios.post<CheckoutSuccessResponse>('/api/checkout', {
+        idempotencyKey,
+        userId: user?.id,
+        paymentOption: values.paymentOption,
+        simulatePaymentFailure: values.simulatePaymentFailure,
+        customer: {
+          name: values.customerName.trim(),
+          email: values.customerEmail.trim(),
+          phone: values.customerPhone.trim(),
+          address: meta.requiresShippingAddress
+            ? values.shippingAddress.trim()
+            : values.collectionLocation,
+          collectionLocation:
+            meta.fulfillmentMethod === 'COLLECTION' ? values.collectionLocation : undefined,
+        },
+        payment: meta.requiresCardNow
+          ? {
+              cardholderName: values.ccName.trim(),
+              cardNumber: values.ccNumber.replace(/\s+/g, ''),
+              expiry: values.ccExp.trim(),
+            }
+          : undefined,
+        items: items.map((item) => ({
+          id: item.id,
+          slug: item.slug,
+          variantSku: item.variantSku,
+          title: item.title,
+          brand: item.brand,
+          category: item.category,
+          subcategory: item.subcategory,
+          size: item.selectedSize,
+          color: item.selectedColor,
+          price: item.unitPrice ?? item.price,
+          quantity: item.quantity,
+          images: item.images,
+        })),
       })
 
-      const data = await response.json()
-      if (!response.ok) {
-        setStockWasReleased(Boolean(data.stockReleased))
-        await refreshCatalog()
-        throw new Error(data.error || 'Could not process checkout.')
-      }
-
-      setOrderResult(data as CheckoutSuccessResponse)
+      return data
+    },
+    onSuccess: async (data) => {
+      setOrderResult(data)
       setStep('success')
       onClearCart()
+      toast.add({
+        type: 'success',
+        description: `Order ${data.order.orderId} confirmed!`,
+      })
       await refreshUserOrders()
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'We couldn’t process the purchase. Please try again.'
-      setSubmitError(message)
-    } finally {
-      setIsSubmitting(false)
-    }
+    },
+    onError: async (err: unknown) => {
+      let message = 'We couldn’t process the purchase. Please try again.'
+      let stockReleased = false
+
+      if (axios.isAxiosError<{ error?: string; stockReleased?: boolean }>(err)) {
+        const responseData = err.response?.data
+        if (responseData?.error) {
+          message = responseData.error
+        } else if (err.message) {
+          message = err.message
+        }
+        stockReleased = Boolean(responseData?.stockReleased)
+      } else if (err instanceof Error && err.message) {
+        message = err.message
+      }
+
+      if (stockReleased) {
+        await refreshCatalog()
+        toast.add({
+          type: 'error',
+          title: 'Checkout failed — reserved stock released',
+          description: message,
+        })
+        return
+      }
+
+      toast.add({
+        type: 'error',
+        description: message,
+      })
+    },
+  })
+
+  const onSubmitCheckout = (values: CheckoutFormValues) => {
+    if (checkoutMutation.isPending || isEmpty) return
+    checkoutMutation.mutate(values)
   }
 
   return (
     <Drawer
       open={isOpen}
-      onOpenChange={onClose}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleCloseSidebar()
+        }
+      }}
       showSwipeHandle={isMobile}
       swipeDirection={isMobile ? 'down' : 'right'}
-
       aria-label="Shopping Cart and Checkout"
     >
       <DrawerContent>
         {step === 'success' && orderResult ? (
-          <div className={s.successWrap} role="status" aria-live="polite">
-            <div className={s.emptyIcon}>
-              <Check className="h-8 w-8 text-emerald-500" aria-hidden="true" />
-            </div>
-            <h2 className={s.emptyHeader}>Order Confirmed!</h2>
-            <p className={s.emptyText}>
-              Order <strong>{orderResult.order.orderId}</strong> has been allocated cleanly by our
-              durable checkout workflow. Your <strong>Invoice</strong> &amp;{' '}
-              <strong>Receipt</strong> PDFs and confirmation email have been dispatched to{' '}
-              <strong>{orderResult.email.to}</strong>.
-            </p>
-
-            <div className={s.receiptCard}>
-              <div className={s.receiptRow}>
-                <span>Order ID</span>
-                <strong>{orderResult.order.orderId}</strong>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Payment Mode</span>
-                <code>{orderResult.order.paymentSummary?.method}</code>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Payment Status</span>
-                <code>{orderResult.order.paymentSummary?.status}</code>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Fulfillment</span>
-                <code>{orderResult.order.fulfillmentMethod}</code>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Total</span>
-                <strong>${orderResult.order.totals.grandTotal.toFixed(2)}</strong>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Email Status</span>
-                <code>{orderResult.email.status}</code>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Invoice PDF</span>
-                <a
-                  href={`/api/storefront/documents/${encodeURIComponent(orderResult.order.orderId)}?type=invoice`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[#797BED] hover:underline font-semibold"
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-4 py-6"
+            role="status"
+            aria-live="polite"
+          >
+            <Empty className="p-2">
+              <EmptyHeader>
+                <EmptyMedia
+                  variant="icon"
+                  className="size-16 rounded-full border border-dashed border-border bg-secondary text-emerald-500 [&_svg:not([class*='size-'])]:size-8"
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{orderResult.documents.invoice.filename}</span>
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                </a>
-              </div>
-              <div className={s.receiptRow}>
-                <span>Receipt PDF</span>
-                <a
-                  href={`/api/storefront/documents/${encodeURIComponent(orderResult.order.orderId)}?type=receipt`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[#797BED] hover:underline font-semibold"
+                  <Check aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle className="text-xl font-bold">Order Confirmed!</EmptyTitle>
+                <EmptyDescription>
+                  Order <strong>{orderResult.order.orderId}</strong> has been allocated cleanly by
+                  our durable checkout workflow. Your <strong>Invoice</strong> &amp;{' '}
+                  <strong>Receipt</strong> PDFs and confirmation email have been dispatched to{' '}
+                  <strong>{orderResult.email.to}</strong>.
+                </EmptyDescription>
+              </EmptyHeader>
+
+              <EmptyContent className="w-full max-w-none gap-3">
+                <Card className="w-full text-left text-xs">
+                  <CardContent className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Order ID</span>
+                      <strong className="text-foreground">{orderResult.order.orderId}</strong>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Payment Mode</span>
+                      <code className="text-primary">{orderResult.order.paymentSummary?.method}</code>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Payment Status</span>
+                      <code className="text-primary">{orderResult.order.paymentSummary?.status}</code>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Fulfillment</span>
+                      <code className="text-primary">{orderResult.order.fulfillmentMethod}</code>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Total</span>
+                      <strong className="text-foreground">
+                        ${orderResult.order.totals.grandTotal.toFixed(2)}
+                      </strong>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Email Status</span>
+                      <code className="text-primary">{orderResult.email.status}</code>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Invoice PDF</span>
+                      <a
+                        href={`/api/storefront/documents/${encodeURIComponent(orderResult.order.orderId)}?type=invoice`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="truncate max-w-[170px]">
+                          {orderResult.documents.invoice.filename}
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      </a>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Receipt PDF</span>
+                      <a
+                        href={`/api/storefront/documents/${encodeURIComponent(orderResult.order.orderId)}?type=receipt`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="truncate max-w-[170px]">
+                          {orderResult.documents.receipt.filename}
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Link
+                  href="/account"
+                  onClick={handleCloseSidebar}
+                  className={buttonVariants({ className: 'w-full' })}
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{orderResult.documents.receipt.filename}</span>
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                </a>
-              </div>
-            </div>
+                  Track Order in My Account
+                </Link>
 
-            <Link href="/account" onClick={handleCloseSidebar} className={`${s.btn} mt-3`}>
-              Track Order in My Account
-            </Link>
-
-            <button type="button" className={s.secondaryBtn} onClick={handleCloseSidebar}>
-              Continue Shopping
-            </button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleCloseSidebar}
+                >
+                  Continue Shopping
+                </Button>
+              </EmptyContent>
+            </Empty>
           </div>
         ) : isEmpty ? (
-          <div className={s.empty}>
-            <span className={s.emptyIcon}>
-              <ShoppingBag className="h-7 w-7" aria-hidden="true" />
-            </span>
-            <h2 className={s.emptyHeader}>Your cart is empty</h2>
-            <p className={s.emptyText}>
-              Explore our collection of jackets, shirts, dresses, trousers, and shoes to add items
-              to your bag.
-            </p>
+          <div className="flex flex-1 items-center justify-center p-6">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia
+                  variant="icon"
+                  className="size-16 rounded-full border border-dashed border-border bg-secondary text-primary [&_svg:not([class*='size-'])]:size-7"
+                >
+                  <ShoppingBag aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle className="text-lg font-bold">Your cart is empty</EmptyTitle>
+                <EmptyDescription>
+                  Explore our collection of jackets, shirts, dresses, trousers, and shoes to add
+                  items to your bag.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         ) : step === 'checkout' ? (
-          <div className={s.checkoutScroll}>
-            <div className={s.checkoutHeaderRow}>
-              <button
-                type="button"
-                className={s.backToCartBtn}
-                onClick={() => {
-                  setSubmitError('')
-                  setStockWasReleased(false)
-                  setStep('cart')
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                <span>Back to Cart</span>
-              </button>
-              <span className={s.stepBadge} aria-current="step">
-                Step 2 of 2: Checkout
-              </span>
-            </div>
-
-            <h2 className={s.cartHeader}>Payment and Stock Reservation</h2>
-
-            <form
-              ref={formRef}
-              method="POST"
-              action="/api/checkout"
-              className={s.checkoutForm}
-              onSubmit={handleCheckoutSubmit}
-              onBlurCapture={handleFormBlurCapture}
-              onInputCapture={handleFormInputCapture}
-              noValidate
-            >
-              {/* Payment & Fulfillment Options */}
-              <fieldset className={s.fieldset}>
-                <legend className={s.legend}>Payment &amp; Fulfillment Method</legend>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {PAYMENT_OPTIONS.map((option) => {
-                    const selected = paymentOption === option.id
-                    return (
-                      <label
-                        key={option.id}
-                        className={`flex items-start gap-2.5 rounded-none border p-2.5 cursor-pointer transition-colors ${
-                          selected
-                            ? 'border-[#5C5EDC] bg-[#5C5EDC]/12'
-                            : 'border-[var(--border-color)] hover:border-[#5C5EDC]/50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentOption"
-                          value={option.id}
-                          checked={selected}
-                          onChange={() => setPaymentOption(option.id)}
-                          className="mt-1 accent-[#5C5EDC]"
-                        />
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--fg-heading)]">
-                              {getPaymentOptionIcon(option.id)}
-                              <span>{option.label}</span>
-                            </span>
-                            <span className="rounded-none bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-semibold text-[#797BED]">
-                              {option.badge}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[11px] text-[var(--fg-muted)] leading-snug">
-                            {option.description}
-                          </p>
-                        </div>
-                      </label>
-                    )
-                  })}
-                </div>
-              </fieldset>
-
-              {/* Customer & Delivery/Collection */}
-              <fieldset className={s.fieldset}>
-                <legend className={s.legend}>
-                  Customer &amp;{' '}
-                  {selectedPaymentMeta.fulfillmentMethod === 'COLLECTION'
-                    ? 'Store Pickup'
-                    : 'Delivery'}
-                </legend>
-
-                <div className={s.field}>
-                  <label htmlFor={nameId} className={s.label}>
-                    Full name (required)
-                  </label>
-                  <input
-                    id={nameId}
-                    name="name"
-                    type="text"
-                    required
-                    maxLength={100}
-                    autoComplete="name"
-                    enterKeyHint="next"
-                    className={s.input}
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    aria-errormessage={`${nameId}-error`}
-                  />
-                  <span id={`${nameId}-error`} className={s.errorMsg}>
-                    Please enter your full name.
-                  </span>
-                </div>
-
-                <div className={s.field}>
-                  <label htmlFor={emailId} className={s.label}>
-                    Email for Invoice, Receipt &amp; Tracking Updates (required)
-                  </label>
-                  <input
-                    id={emailId}
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    enterKeyHint="next"
-                    className={s.input}
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    aria-errormessage={`${emailId}-error`}
-                  />
-                  <span id={`${emailId}-error`} className={s.errorMsg}>
-                    Please enter a valid email address.
-                  </span>
-                </div>
-
-                <div className={s.field}>
-                  <label htmlFor={phoneId} className={s.label}>
-                    Phone for Courier / Pickup SMS
-                  </label>
-                  <input
-                    id={phoneId}
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    className={s.input}
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                  />
-                </div>
-
-                {selectedPaymentMeta.requiresShippingAddress ? (
-                  <div className={s.field}>
-                    <label htmlFor={addressId} className={s.label}>
-                      Shipping &amp; Delivery Address (required)
-                    </label>
-                    <textarea
-                      id={addressId}
-                      name="address"
-                      required
-                      rows={2}
-                      maxLength={300}
-                      autoComplete="shipping street-address"
-                      className={s.textarea}
-                      value={shippingAddress}
-                      onChange={(e) => setShippingAddress(e.target.value)}
-                      aria-errormessage={`${addressId}-error`}
-                    />
-                    <span id={`${addressId}-error`} className={s.errorMsg}>
-                      Please enter a delivery address.
-                    </span>
-                  </div>
-                ) : (
-                  <div className={s.field}>
-                    <label htmlFor={addressId} className={s.label}>
-                      Select Store Collection Boutique
-                    </label>
-                    <Select value={collectionLocation} onValueChange={setCollectionLocation}>
-                      <SelectTrigger
-                        id={addressId}
-                        className="h-10 w-full rounded-none border-[var(--border-color)] bg-[var(--surface-drawer)] text-sm text-[var(--fg-heading)] cursor-pointer"
-                      >
-                        <SelectValue placeholder="Select Store Collection Boutique" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COLLECTION_LOCATIONS.map((loc) => (
-                          <SelectItem key={loc} value={loc}>
-                            {loc}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </fieldset>
-
-              {/* Card details only if payment is upfront */}
-              {selectedPaymentMeta.requiresCardNow && (
-                <fieldset className={s.fieldset}>
-                  <legend className={s.legend}>Online Card Payment</legend>
-
-                  <div className={s.field}>
-                    <label htmlFor={ccNameId} className={s.label}>
-                      Name on card (required)
-                    </label>
-                    <input
-                      id={ccNameId}
-                      name="cc-name"
-                      type="text"
-                      required
-                      maxLength={50}
-                      autoComplete="cc-name"
-                      enterKeyHint="next"
-                      className={s.input}
-                      value={ccName}
-                      onChange={(e) => setCcName(e.target.value)}
-                      aria-errormessage={`${ccNameId}-error`}
-                    />
-                    <span id={`${ccNameId}-error`} className={s.errorMsg}>
-                      Enter the cardholder name.
-                    </span>
-                  </div>
-
-                  <div className={s.field}>
-                    <label htmlFor={ccNumberId} className={s.label}>
-                      Card number (required)
-                    </label>
-                    <input
-                      id={ccNumberId}
-                      name="cc-number"
-                      type="text"
-                      required
-                      autoComplete="cc-number"
-                      inputMode="numeric"
-                      maxLength={19}
-                      pattern="[\d ]{13,19}"
-                      enterKeyHint="next"
-                      className={s.input}
-                      value={ccNumber}
-                      onChange={(e) => setCcNumber(e.target.value)}
-                      aria-errormessage={`${ccNumberId}-error`}
-                    />
-                    <span id={`${ccNumberId}-error`} className={s.errorMsg}>
-                      Enter a valid 13–19 digit card number.
-                    </span>
-                  </div>
-
-                  <div className={s.fieldRow}>
-                    <div className={s.field}>
-                      <label htmlFor={ccExpId} className={s.label}>
-                        Expiry (required)
-                      </label>
-                      <input
-                        id={ccExpId}
-                        name="cc-exp"
-                        type="text"
-                        required
-                        autoComplete="cc-exp"
-                        maxLength={5}
-                        pattern="(0[1-9]|1[0-2])\/[0-9]{2}"
-                        enterKeyHint="next"
-                        className={s.input}
-                        value={ccExp}
-                        onChange={(e) => setCcExp(e.target.value)}
-                        aria-errormessage={`${ccExpId}-error`}
-                      />
-                      <span id={`${ccExpId}-error`} className={s.errorMsg}>
-                        Use MM/YY.
-                      </span>
-                    </div>
-
-                    <div className={s.field}>
-                      <label htmlFor={ccCscId} className={s.label}>
-                        CVC (required)
-                      </label>
-                      <input
-                        id={ccCscId}
-                        name="cc-csc"
-                        type="text"
-                        required
-                        autoComplete="cc-csc"
-                        inputMode="numeric"
-                        maxLength={4}
-                        pattern="[0-9]{3,4}"
-                        enterKeyHint="done"
-                        className={s.input}
-                        value={ccCsc}
-                        onChange={(e) => setCcCsc(e.target.value)}
-                        aria-errormessage={`${ccCscId}-error`}
-                      />
-                      <span id={`${ccCscId}-error`} className={s.errorMsg}>
-                        3–4 digits.
-                      </span>
-                    </div>
-                  </div>
-
-                  <label className="mt-2 flex items-start gap-2 rounded-none border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-500 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={simulatePaymentFailure}
-                      onChange={(e) => setSimulatePaymentFailure(e.target.checked)}
-                      className="mt-0.5 accent-amber-500"
-                    />
-                    <span>
-                      <strong>Simulate Failed Payment:</strong> Test Workflow SDK rollback &amp;
-                      automatic release of reserved stock.
-                    </span>
-                  </label>
-                </fieldset>
-              )}
-
-              <div className={s.checkoutSummaryMini}>
-                <div className={s.total}>
-                  <span>Subtotal ({items.reduce((sum, i) => sum + i.quantity, 0)} items)</span>
-                  <span>${subTotal.toFixed(2)}</span>
-                </div>
-                <div className={s.total}>
-                  <span>Taxes (8%)</span>
-                  <span>${tax.toFixed(2)}</span>
-                </div>
-                <div className={s.total}>
-                  <span>
-                    {selectedPaymentMeta.fulfillmentMethod === 'DELIVERY'
-                      ? 'Courier Delivery'
-                      : 'In-Store Collection'}
-                  </span>
-                  <span className={shippingFee === 0 ? s.free : undefined}>
-                    {shippingFee === 0 ? 'FREE' : `$${shippingFee.toFixed(2)}`}
-                  </span>
-                </div>
-                <div className={s.grandTotal} style={{ marginBottom: '1rem' }}>
-                  <span>Total Due</span>
-                  <span>${grandTotal.toFixed(2)}</span>
-                </div>
+          <>
+            <DrawerHeader className="border-b border-border pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 gap-1.5"
+                  onClick={() => setStep('cart')}
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  <span>Back to Cart</span>
+                </Button>
+                <Badge variant="secondary" aria-current="step">
+                  Step 2 of 2: Checkout
+                </Badge>
               </div>
+              <DrawerTitle className="pt-1 text-lg font-bold">
+                Payment and Stock Reservation
+              </DrawerTitle>
+            </DrawerHeader>
 
-              <button
-                type="submit"
-                className={`${s.btn}${isSubmitting ? ` ${s.loading}` : ''}`}
-                disabled={isSubmitting}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <form
+                method="POST"
+                action="/api/checkout"
+                className="space-y-5"
+                onSubmit={checkoutForm.handleSubmit(onSubmitCheckout)}
+                noValidate
               >
-                {isSubmitting
-                  ? 'Running Durable Checkout Workflow...'
-                  : selectedPaymentMeta.requiresCardNow
-                    ? `Pay $${grandTotal.toFixed(2)} & Place Order`
-                    : `Confirm Reservation ($${grandTotal.toFixed(2)} ${selectedPaymentMeta.shortLabel})`}
-              </button>
-            </form>
-          </div>
+                {/* Payment & Fulfillment Options */}
+                <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
+                  <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
+                    Payment &amp; Fulfillment Method
+                  </FieldLegend>
+
+                  <Controller
+                    name="paymentOption"
+                    control={checkoutForm.control}
+                    render={({ field }) => (
+                      <div className="grid grid-cols-1 gap-2">
+                        {PAYMENT_OPTIONS.map((option) => {
+                          const selected = field.value === option.id
+                          const optionId = `${baseId}-payment-${option.id}`
+
+                          return (
+                            <FieldLabel
+                              key={option.id}
+                              htmlFor={optionId}
+                              className="cursor-pointer"
+                            >
+                              <Field orientation="horizontal">
+                                <Checkbox
+                                  id={optionId}
+                                  checked={selected}
+                                  onCheckedChange={() => field.onChange(option.id)}
+                                  className="mt-0.5"
+                                />
+                                <FieldContent>
+                                  <div className="flex w-full items-center justify-between gap-2">
+                                    <FieldTitle className="text-xs font-bold">
+                                      {getPaymentOptionIcon(option.id)}
+                                      <span>{option.label}</span>
+                                    </FieldTitle>
+                                    <Badge variant="secondary" className="text-[10px]">
+                                      {option.badge}
+                                    </Badge>
+                                  </div>
+                                  <FieldDescription className="text-xs leading-snug">
+                                    {option.description}
+                                  </FieldDescription>
+                                </FieldContent>
+                              </Field>
+                            </FieldLabel>
+                          )
+                        })}
+                      </div>
+                    )}
+                  />
+                </FieldSet>
+
+                {/* Customer & Delivery/Collection */}
+                <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
+                  <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
+                    Customer &amp;{' '}
+                    {selectedPaymentMeta.fulfillmentMethod === 'COLLECTION'
+                      ? 'Store Pickup'
+                      : 'Delivery'}
+                  </FieldLegend>
+
+                  <FieldGroup className="gap-3.5">
+                    <Controller
+                      name="customerName"
+                      control={checkoutForm.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={`${baseId}-name`}>Full name (required)</FieldLabel>
+                          <Input
+                            {...field}
+                            id={`${baseId}-name`}
+                            name="name"
+                            type="text"
+                            required
+                            maxLength={100}
+                            autoComplete="name"
+                            enterKeyHint="next"
+                            aria-invalid={fieldState.invalid}
+                            placeholder="Alex Rivera"
+                          />
+                          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name="customerEmail"
+                      control={checkoutForm.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={`${baseId}-email`}>
+                            Email for Invoice, Receipt &amp; Tracking Updates (required)
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            id={`${baseId}-email`}
+                            name="email"
+                            type="email"
+                            required
+                            autoComplete="email"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                            enterKeyHint="next"
+                            aria-invalid={fieldState.invalid}
+                            placeholder="alex.rivera@example.com"
+                          />
+                          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name="customerPhone"
+                      control={checkoutForm.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={`${baseId}-phone`}>
+                            Phone for Courier / Pickup SMS
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            id={`${baseId}-phone`}
+                            name="phone"
+                            type="tel"
+                            autoComplete="tel"
+                            enterKeyHint="next"
+                            aria-invalid={fieldState.invalid}
+                            placeholder="+1 (415) 555-0192"
+                          />
+                          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+
+                    {selectedPaymentMeta.requiresShippingAddress ? (
+                      <Controller
+                        name="shippingAddress"
+                        control={checkoutForm.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel htmlFor={`${baseId}-address`}>
+                              Shipping &amp; Delivery Address (required)
+                            </FieldLabel>
+                            <Textarea
+                              {...field}
+                              id={`${baseId}-address`}
+                              name="address"
+                              required
+                              rows={2}
+                              maxLength={300}
+                              autoComplete="shipping street-address"
+                              aria-invalid={fieldState.invalid}
+                              placeholder="742 Evergreen Terrace, Suite 200"
+                            />
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
+                      />
+                    ) : (
+                      <Controller
+                        name="collectionLocation"
+                        control={checkoutForm.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel htmlFor={`${baseId}-collection`}>
+                              Select Store Collection Boutique
+                            </FieldLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => field.onChange(value ?? '')}
+                            >
+                              <SelectTrigger
+                                id={`${baseId}-collection`}
+                                aria-invalid={fieldState.invalid}
+                                className="w-full cursor-pointer"
+                              >
+                                <SelectValue placeholder="Select Store Collection Boutique" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COLLECTION_LOCATIONS.map((loc) => (
+                                  <SelectItem key={loc} value={loc}>
+                                    {loc}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
+                      />
+                    )}
+                  </FieldGroup>
+                </FieldSet>
+
+                {/* Card details only if payment is upfront */}
+                {selectedPaymentMeta.requiresCardNow && (
+                  <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
+                    <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
+                      Online Card Payment
+                    </FieldLegend>
+
+                    <FieldGroup className="gap-3.5">
+                      <Controller
+                        name="ccName"
+                        control={checkoutForm.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel htmlFor={`${baseId}-cc-name`}>
+                              Name on card (required)
+                            </FieldLabel>
+                            <Input
+                              {...field}
+                              id={`${baseId}-cc-name`}
+                              name="cc-name"
+                              type="text"
+                              required
+                              maxLength={50}
+                              autoComplete="cc-name"
+                              enterKeyHint="next"
+                              aria-invalid={fieldState.invalid}
+                              placeholder="Alex Rivera"
+                            />
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
+                      />
+
+                      <Controller
+                        name="ccNumber"
+                        control={checkoutForm.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel htmlFor={`${baseId}-cc-number`}>
+                              Card number (required)
+                            </FieldLabel>
+                            <Input
+                              {...field}
+                              id={`${baseId}-cc-number`}
+                              name="cc-number"
+                              type="text"
+                              required
+                              autoComplete="cc-number"
+                              inputMode="numeric"
+                              maxLength={19}
+                              enterKeyHint="next"
+                              aria-invalid={fieldState.invalid}
+                              placeholder="4242 4242 4242 4242"
+                            />
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 items-end gap-2.5">
+                        <Controller
+                          name="ccExp"
+                          control={checkoutForm.control}
+                          render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                              <FieldLabel htmlFor={`${baseId}-cc-exp`}>
+                                Expiry (required)
+                              </FieldLabel>
+                              <FieldDescription id={`${baseId}-cc-exp-hint`} className="text-xs">
+                                Format: MM/YY
+                              </FieldDescription>
+                              <Input
+                                {...field}
+                                id={`${baseId}-cc-exp`}
+                                name="cc-exp"
+                                type="text"
+                                required
+                                autoComplete="cc-exp"
+                                maxLength={5}
+                                enterKeyHint="next"
+                                aria-describedby={`${baseId}-cc-exp-hint`}
+                                aria-invalid={fieldState.invalid}
+                                placeholder="08/29"
+                              />
+                              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                          )}
+                        />
+
+                        <Controller
+                          name="ccCsc"
+                          control={checkoutForm.control}
+                          render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                              <FieldLabel htmlFor={`${baseId}-cc-csc`}>
+                                CVC (required)
+                              </FieldLabel>
+                              <Input
+                                {...field}
+                                id={`${baseId}-cc-csc`}
+                                name="cc-csc"
+                                type="text"
+                                required
+                                autoComplete="cc-csc"
+                                inputMode="numeric"
+                                maxLength={4}
+                                enterKeyHint="done"
+                                aria-invalid={fieldState.invalid}
+                                placeholder="842"
+                              />
+                              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                          )}
+                        />
+                      </div>
+
+                      <Controller
+                        name="simulatePaymentFailure"
+                        control={checkoutForm.control}
+                        render={({ field }) => (
+                          <Field
+                            orientation="horizontal"
+                            className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-amber-600 dark:text-amber-400"
+                          >
+                            <Checkbox
+                              id={`${baseId}-simulate-fail`}
+                              checked={field.value}
+                              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                              className="mt-0.5"
+                            />
+                            <FieldLabel
+                              htmlFor={`${baseId}-simulate-fail`}
+                              className="cursor-pointer text-xs font-normal leading-snug text-amber-600 dark:text-amber-400"
+                            >
+                              <span>
+                                <strong>Simulate Failed Payment:</strong> Test Workflow SDK rollback
+                                &amp; automatic release of reserved stock.
+                              </span>
+                            </FieldLabel>
+                          </Field>
+                        )}
+                      />
+                    </FieldGroup>
+                  </FieldSet>
+                )}
+
+                <div className="space-y-1.5 pt-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Subtotal ({totalItemCount} items)
+                    </span>
+                    <span>${subTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Taxes (8%)</span>
+                    <span>${tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      {selectedPaymentMeta.fulfillmentMethod === 'DELIVERY'
+                        ? 'Courier Delivery'
+                        : 'In-Store Collection'}
+                    </span>
+                    <span className={shippingFee === 0 ? 'font-bold text-primary' : undefined}>
+                      {shippingFee === 0 ? 'FREE' : `$${shippingFee.toFixed(2)}`}
+                    </span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex items-center justify-between py-1 text-base font-bold">
+                    <span>Total Due</span>
+                    <span>${grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={checkoutMutation.isPending}
+                >
+                  {checkoutMutation.isPending && (
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  )}
+                  {checkoutMutation.isPending
+                    ? 'Running Durable Checkout Workflow...'
+                    : selectedPaymentMeta.requiresCardNow
+                      ? `Pay $${grandTotal.toFixed(2)} & Place Order`
+                      : `Confirm Reservation ($${grandTotal.toFixed(2)} ${selectedPaymentMeta.shortLabel})`}
+                </Button>
+              </form>
+            </div>
+          </>
         ) : (
           <>
-            <div className={s.cartContainer}>
-              <div className={s.cartHeaderBar}>
-                <h2 className={s.cartHeader}>
-                  My Bag ({items.reduce((sum, i) => sum + i.quantity, 0)})
-                </h2>
-                <button type="button" className={s.clearCartBtn} onClick={onClearCart}>
+            <DrawerHeader className="border-b border-border pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <DrawerTitle className="text-lg font-bold">
+                  My Bag ({totalItemCount})
+                </DrawerTitle>
+                <Button type="button" variant="outline" size="sm" onClick={onClearCart}>
                   Clear All
-                </button>
+                </Button>
               </div>
-              <ul className={s.listContainer}>
+            </DrawerHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+              <ul className="m-0 list-none p-0">
                 {items.map((item) => (
                   <CartItem
                     key={item.cartItemId || item.id}
@@ -855,40 +1013,42 @@ const CartSidebar = ({
               </ul>
             </div>
 
-            <div className={s.totalsContainer}>
+            <DrawerFooter className="border-t border-border bg-popover pt-3">
               {!user && (
                 <Alert>
-                  <Lock className="h-4 w-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
-                  <span>Sign in or create a free account at checkout to reserve stock.</span>
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="text-xs">
+                    Sign in or create a free account at checkout to reserve stock.
+                  </span>
                 </Alert>
               )}
 
-              <div>
-                <ul className={s.padding}>
-                  <li className={s.total}>
-                    <span>Subtotal</span>
-                    <span>${subTotal.toFixed(2)}</span>
-                  </li>
-                  <li className={s.total}>
-                    <span>Taxes (8%)</span>
-                    <span>${tax.toFixed(2)}</span>
-                  </li>
-                  <li className={s.total}>
-                    <span>Shipping / Collection</span>
-                    <span className={s.free}>From FREE ($12 Courier)</span>
-                  </li>
-                </ul>
-                <div className={s.grandTotal}>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${subTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Taxes (8%)</span>
+                  <span>${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Shipping / Collection</span>
+                  <span className="font-bold text-primary">From FREE ($12 Courier)</span>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex items-center justify-between pb-1 text-base font-bold">
                   <span>Estimated Total</span>
                   <span>${(subTotal + tax).toFixed(2)}</span>
                 </div>
               </div>
-              <button type="button" className={s.btn} onClick={handleProceedToCheckout}>
+
+              <Button type="button" size="lg" className="w-full" onClick={handleProceedToCheckout}>
                 {user
                   ? `Proceed to Checkout ($${(subTotal + tax).toFixed(2)})`
                   : 'Sign In / Register to Checkout'}
-              </button>
-            </div>
+              </Button>
+            </DrawerFooter>
           </>
         )}
       </DrawerContent>

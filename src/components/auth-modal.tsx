@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
 import { Alert } from './ui/alert'
 import { useStore } from '../context/store-context'
 import { Eye, EyeOff, Lock, Mail, User as UserIcon, Info, Loader2 } from 'lucide-react'
@@ -13,7 +15,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { toast } from './ui/toast'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { FieldGroup, FieldLabel, Field, FieldError } from './ui/field'
+import { FieldGroup, FieldLabel, Field, FieldError, FieldDescription } from './ui/field'
 import { neonAuthClient } from '@/lib/auth-client'
 
 const loginSchema = z.object({
@@ -89,7 +91,7 @@ export default function AuthModal() {
       })
 
       if (!error) {
-        toast.add({ type: 'sucess', description: 'Signed in successfully.' })
+        toast.add({ type: 'success', description: 'Signed in successfully.' })
       } else {
         toast.add({ type: 'error', description: error.message || 'An unknown error occurred.' })
       }
@@ -251,6 +253,22 @@ export default function AuthModal() {
                     </Field>
                   )}
                 />
+                <Controller
+                  name="rememberMe"
+                  control={loginForm.control}
+                  render={({ field }) => (
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        id="auth-signin-remember"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                      />
+                      <FieldLabel htmlFor="auth-signin-remember" className="font-normal cursor-pointer">
+                        Remember me
+                      </FieldLabel>
+                    </Field>
+                  )}
+                />
               </FieldGroup>
 
               <Button
@@ -261,6 +279,24 @@ export default function AuthModal() {
                 {loginWithEmailMutation.isPending && <Loader2 className="size-4 animate-spin" />}{' '}
                 {loginWithEmailMutation.isPending ? 'Signing in...' : 'Sign In & Sync Account'}
               </Button>
+
+              <div className="flex items-center justify-center gap-3 pt-1 text-xs text-muted-foreground">
+                <Link
+                  href="/terms"
+                  onClick={() => setIsAuthModalOpen(false)}
+                  className="underline underline-offset-4 hover:text-primary transition-colors"
+                >
+                  Terms of Service
+                </Link>
+                <span aria-hidden="true">&bull;</span>
+                <Link
+                  href="/privacy"
+                  onClick={() => setIsAuthModalOpen(false)}
+                  className="underline underline-offset-4 hover:text-primary transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </div>
             </form>
           </TabsContent>
 
@@ -363,6 +399,22 @@ export default function AuthModal() {
                     </Field>
                   )}
                 />
+                <Controller
+                  name="rememberMe"
+                  control={signUpForm.control}
+                  render={({ field }) => (
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        id="auth-signup-remember"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                      />
+                      <FieldLabel htmlFor="auth-signup-remember" className="font-normal cursor-pointer">
+                        Remember me
+                      </FieldLabel>
+                    </Field>
+                  )}
+                />
               </FieldGroup>
 
               <Button
@@ -375,6 +427,26 @@ export default function AuthModal() {
                   ? 'Creating account...'
                   : 'Create Account & Merge Cart'}
               </Button>
+
+              <FieldDescription className="text-xs text-center">
+                By creating an account, you agree to our{' '}
+                <Link
+                  href="/terms"
+                  onClick={() => setIsAuthModalOpen(false)}
+                  className="underline underline-offset-4 hover:text-primary transition-colors"
+                >
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/privacy"
+                  onClick={() => setIsAuthModalOpen(false)}
+                  className="underline underline-offset-4 hover:text-primary transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </FieldDescription>
             </form>
           </TabsContent>
         </Tabs>
