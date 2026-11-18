@@ -26,7 +26,7 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
   return (
     <section
       aria-label="Featured Storefront Collections"
-      className="mx-auto w-full md:w-[92%] max-w-[1280px] md:mt-6 md:mb-6 relative rounded-md"
+      className="mx-auto w-full md:w-[92%] max-w-[1280px] md:mt-6 md:mb-6 relative rounded-lg"
     >
       <div className="relative overflow-hidden md:border md:border-border md:bg-card md:shadow-sm rounded-md">
         <Swiper

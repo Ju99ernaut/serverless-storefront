@@ -14,6 +14,7 @@ import { Badge } from './ui/badge'
 import { useStore } from '../context/store-context'
 import { getProductLowestAvailableVariantStock, type Product } from '../data/utils'
 import { cn } from 'cn'
+import { Button, buttonVariants } from './ui/button'
 
 interface ItemPosition {
   visible: boolean
@@ -219,15 +220,6 @@ const Grid = ({
         const itemLayout = layout.items[product.id]
         const visible = itemLayout ? itemLayout.visible : isProductVisible(product)
 
-        // Unique color swatches for quick display
-        const colorSwatches: Array<{ color: string; colorHex: string }> = []
-        for (const v of product.variants || []) {
-          if (!colorSwatches.some((c) => c.color === v.color)) {
-            colorSwatches.push({ color: v.color, colorHex: v.colorHex })
-          }
-          if (colorSwatches.length >= 4) break
-        }
-
         const itemStyle: CSSProperties | undefined =
           isLoaded && itemLayout
             ? {
@@ -255,7 +247,7 @@ const Grid = ({
               itemRefs.current[product.id] = el
             }}
             className={cn(
-              'grid__item',
+              'grid__item absolute top-2 left-2 group',
               product.size === 'large' && 'grid__item--size-a',
               product.category,
             )}
@@ -283,7 +275,7 @@ const Grid = ({
 
               <Swiper
                 className={cn(
-                  'swiper-container slider bg-card border border-border rounded-md',
+                  'swiper-container slider bg-card border border-border rounded-lg',
                   isCompared && ' product--selected',
                 )}
                 modules={[Pagination, EffectCoverflow, Zoom]}
@@ -345,11 +337,13 @@ const Grid = ({
             </div>
 
             {/* Love / Wishlist toggle */}
-            <button
+            <Button
               type="button"
-              className="action action--button action--wishlist-add"
+              className="absolute top-4 right-4 z-2 transition-opacity opacity-0 group-hover:opacity-100"
               data-active={wishlisted ? 'true' : 'false'}
               onClick={() => void toggleWishlist(product)}
+              variant="outline"
+              size="icon"
               aria-label={
                 wishlisted ? `Remove ${product.title} from loved items` : `Love ${product.title}`
               }
@@ -357,14 +351,21 @@ const Grid = ({
               title={wishlisted ? 'Remove from loved items' : 'Love item'}
             >
               <Heart
-                className={`h-4 w-4 ${wishlisted ? 'fill-rose-500 text-rose-500' : ''}`}
+                className={cn('h-4 w-4', wishlisted && 'fill-rose-500 text-rose-500')}
                 aria-hidden="true"
               />
-            </button>
+            </Button>
 
             {/* Compare toggle */}
             <label
-              className="action action--compare-add"
+              className={cn(
+                buttonVariants({
+                  variant: 'outline',
+                  size: 'icon',
+                  className: 'absolute top-4 left-4 z-2',
+                }),
+                'transition-opacity opacity-0 group-hover:opacity-100',
+              )}
               data-active={isCompared ? 'true' : 'false'}
               title={
                 !isCompared && maxCompareReached
@@ -375,7 +376,7 @@ const Grid = ({
               }
             >
               <input
-                className="check-hidden"
+                className="sr-only"
                 type="checkbox"
                 checked={isCompared}
                 onChange={() => onToggleCompare(product)}
@@ -385,7 +386,7 @@ const Grid = ({
               ) : (
                 <Plus className="h-4 w-4" aria-hidden="true" />
               )}
-              <span className="action__text action__text--invisible">Add to compare</span>
+              <span className="sr-only">Add to compare</span>
             </label>
           </div>
         )

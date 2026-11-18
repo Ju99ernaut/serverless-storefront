@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
 import '../../styles/globals.css'
-import '../../styles/sidebar.css'
+import '../../styles/filters.css'
 import { ClientLayout } from '@/components/client-layout'
 
 export const metadata: Metadata = {
