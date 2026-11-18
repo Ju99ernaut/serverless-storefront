@@ -174,10 +174,6 @@ export default function ProductDetailPage() {
 
   return (
     <>
-      <div className="mb-4 text-xs text-muted-foreground">
-        / {product.category} / {product.subcategory}
-      </div>
-
       {/* Product Showcase Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <ProductImageGallery
