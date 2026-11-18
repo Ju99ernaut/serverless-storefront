@@ -164,12 +164,14 @@ export default function HomePage() {
           hamburgerRef={hamburgerRef}
         />
 
-        <BannerCarousel
-          banners={banners}
-          onCategorySelect={(filter) => {
-            setActiveFilter(filter || 'all')
-          }}
-        />
+        {!hasActiveCriteria && (
+          <BannerCarousel
+            banners={banners}
+            onCategorySelect={(filter) => {
+              setActiveFilter(filter || 'all')
+            }}
+          />
+        )}
 
         {hasActiveCriteria && (
           <div className="mx-auto w-[92%] max-w-[1280px] mb-2 flex justify-center">

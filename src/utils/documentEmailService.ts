@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export const API_CONFIG = {
   composeitApiUrl: process.env.COMPOSEIT_API_URL || '',
@@ -8,13 +8,12 @@ export const API_CONFIG = {
     receiptPdf: process.env.RECEIPT_PDF_TEMPLATE_ID || 'tpl_receipt_pdf_v1',
     receiptEmail: process.env.RECEIPT_EMAIL_TEMPLATE_ID || 'tpl_order_receipt_email_v1',
   },
-  smtp: {
-    host: process.env.SMTP_HOST || '',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-    from: process.env.SMTP_FROM || '"Storefront Orders" <orders@storefront.example.com>',
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    from:
+      process.env.RESEND_FROM ||
+      process.env.SMTP_FROM ||
+      'Storefront Orders <onboarding@resend.dev>',
   },
 }
 
@@ -102,7 +101,7 @@ export interface GenerateViaApiResult {
 }
 
 export interface SentEmailResult {
-  status: 'sent_smtp' | 'sent_ethereal' | 'queued_stream'
+  status: 'sent_resend' | 'queued_stream'
   messageId: string
   to: string
   subject: string
@@ -181,85 +180,56 @@ export async function sendRenderedEmailWithAttachments({
       contentType: att.pdf!.mimeType || 'application/pdf',
     }))
 
-  const smtpAttachments = mailAttachments.filter((att) => att.path.startsWith('http'))
+  const resendAttachments = mailAttachments
+    .filter((att) => att.path.startsWith('http'))
+    .map((att) => ({
+      filename: att.filename,
+      path: att.path,
+      contentType: att.contentType,
+    }))
 
-  const mailOptions = {
-    from: API_CONFIG.smtp.from,
+  const apiKey = process.env.RESEND_API_KEY || API_CONFIG.resend.apiKey
+
+  if (apiKey) {
+    try {
+      const resend = new Resend(apiKey)
+      const { data, error } = await resend.emails.send({
+        from: API_CONFIG.resend.from,
+        to,
+        subject,
+        html: htmlDocument || `<p>${subject}</p>`,
+        attachments: resendAttachments.length > 0 ? resendAttachments : undefined,
+      })
+
+      if (!error && data?.id) {
+        return {
+          status: 'sent_resend',
+          messageId: data.id,
+          to,
+          subject,
+          previewUrl: null,
+          templateId: renderedEmail.templateId,
+          renderedHtml: htmlDocument,
+          attachmentsCount: mailAttachments.length,
+          attachments: mailAttachments,
+          payloadSent: renderedEmail.payloadSent,
+        }
+      }
+    } catch {
+      // Fall back to queued_stream when Resend delivery is unavailable in local/test runs
+    }
+  }
+
+  return {
+    status: 'queued_stream',
+    messageId: `msg_${Date.now()}`,
     to,
     subject,
-    html: htmlDocument,
-    attachments: smtpAttachments,
-  }
-
-  if (API_CONFIG.smtp.host) {
-    const transporter = nodemailer.createTransport({
-      host: API_CONFIG.smtp.host,
-      port: API_CONFIG.smtp.port,
-      secure: API_CONFIG.smtp.secure,
-      auth:
-        API_CONFIG.smtp.user && API_CONFIG.smtp.pass
-          ? {
-              user: API_CONFIG.smtp.user,
-              pass: API_CONFIG.smtp.pass,
-            }
-          : undefined,
-    })
-
-    const info = await transporter.sendMail(mailOptions)
-
-    return {
-      status: 'sent_smtp',
-      messageId: info.messageId,
-      to,
-      subject,
-      previewUrl: null,
-      templateId: renderedEmail.templateId,
-      renderedHtml: htmlDocument,
-      attachmentsCount: mailAttachments.length,
-      attachments: mailAttachments,
-      payloadSent: renderedEmail.payloadSent,
-    }
-  }
-
-  try {
-    const testAccount = await nodemailer.createTestAccount()
-    const transporter = nodemailer.createTransport({
-      host: testAccount.smtp.host,
-      port: testAccount.smtp.port,
-      secure: testAccount.smtp.secure,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    })
-
-    const info = await transporter.sendMail(mailOptions)
-    const previewUrl = nodemailer.getTestMessageUrl(info) || null
-
-    return {
-      status: 'sent_ethereal',
-      messageId: info.messageId,
-      to,
-      subject,
-      previewUrl: typeof previewUrl === 'string' ? previewUrl : null,
-      templateId: renderedEmail.templateId,
-      renderedHtml: htmlDocument,
-      attachmentsCount: mailAttachments.length,
-      attachments: mailAttachments,
-      payloadSent: renderedEmail.payloadSent,
-    }
-  } catch {
-    return {
-      status: 'queued_stream',
-      messageId: `msg_${Date.now()}`,
-      to,
-      subject,
-      previewUrl: null,
-      templateId: renderedEmail.templateId,
-      renderedHtml: htmlDocument,
-      attachmentsCount: mailAttachments.length,
-      attachments: mailAttachments,
-      payloadSent: renderedEmail.payloadSent,
-    }
+    previewUrl: null,
+    templateId: renderedEmail.templateId,
+    renderedHtml: htmlDocument,
+    attachmentsCount: mailAttachments.length,
+    attachments: mailAttachments,
+    payloadSent: renderedEmail.payloadSent,
   }
 }

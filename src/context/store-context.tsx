@@ -9,6 +9,8 @@ import {
   useMemo,
   ReactNode,
 } from 'react'
+import axios from 'axios'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Product,
   BannerSlide,
@@ -16,7 +18,6 @@ import type {
   StoreUserRecord,
   StoreOrderRecord,
 } from '../data/utils'
-import { fetchStorefrontCatalog, syncUserAccountViaSdk } from '../lib/payload-sdk'
 import { neonAuthClient } from '../lib/auth-client'
 
 const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1'
@@ -29,9 +30,50 @@ interface AddToCartOptions {
   quantity?: number
 }
 
+interface AccountActionPayload {
+  action:
+    | 'register'
+    | 'login'
+    | 'oauth_google'
+    | 'sync_cart'
+    | 'toggle_wishlist'
+    | 'update_profile'
+  email?: string
+  newEmail?: string
+  password?: string
+  currentPassword?: string
+  newPassword?: string
+  name?: string
+  phone?: string
+  avatarUrl?: string | null
+  shippingAddress?: string
+  productSlug?: string
+  cartItems?: CartLineItem[]
+}
+
+interface AccountActionResponse {
+  user: StoreUserRecord
+  orders: StoreOrderRecord[]
+}
+
+async function postAccountAction(payload: AccountActionPayload): Promise<AccountActionResponse> {
+  try {
+    const { data } = await axios.post<AccountActionResponse>('/api/storefront/account', payload, {
+      withCredentials: true,
+    })
+    return data
+  } catch (err: unknown) {
+    if (axios.isAxiosError<{ error?: string }>(err)) {
+      throw new Error(err.response?.data?.error || err.message || 'Account operation failed')
+    }
+    throw err instanceof Error ? err : new Error('Account operation failed')
+  }
+}
+
 interface StoreContextValue {
   products: Product[]
   banners: BannerSlide[]
+  isCatalogLoading: boolean
   refreshCatalog: () => Promise<void>
   cartItems: CartLineItem[]
   totalCartCount: number
@@ -55,6 +97,7 @@ interface StoreContextValue {
     email: string
     password: string
     name?: string
+    rememberMe?: boolean
     isRegister?: boolean
   }) => Promise<StoreUserRecord>
   signInWithGoogle: () => Promise<StoreUserRecord>
@@ -74,8 +117,7 @@ interface StoreContextValue {
 const StoreContext = createContext<StoreContextValue | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>([])
-  const [banners, setBanners] = useState<BannerSlide[]>([])
+  const queryClient = useQueryClient()
   const [cartItems, setCartItems] = useState<CartLineItem[]>([])
   const [user, setUser] = useState<StoreUserRecord | null>(null)
   const [orders, setOrders] = useState<StoreOrderRecord[]>([])
@@ -88,19 +130,173 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   >('account')
   const [hydrated, setHydrated] = useState(false)
 
-  const refreshCatalog = useCallback(async () => {
-    try {
-      const data = await fetchStorefrontCatalog()
-      if (Array.isArray(data.products) && data.products.length > 0) {
-        setProducts(data.products)
-      }
-      if (Array.isArray(data.banners) && data.banners.length > 0) {
-        setBanners(data.banners)
-      }
-    } catch {}
-  }, [])
+  const catalogQuery = useQuery({
+    queryKey: ['storefront-catalog'],
+    queryFn: async () => {
+      const { data } = await axios.get<{
+        products: Product[]
+        banners: BannerSlide[]
+      }>('/api/storefront/catalog', { withCredentials: true })
+      return data
+    },
+  })
 
-  // Hydrate guest cart & persisted user session on mount
+  const products = useMemo(
+    () => catalogQuery.data?.products ?? [],
+    [catalogQuery.data?.products],
+  )
+  const banners = useMemo(
+    () => catalogQuery.data?.banners ?? [],
+    [catalogQuery.data?.banners],
+  )
+  const isCatalogLoading = catalogQuery.isLoading
+
+  const refreshCatalog = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['storefront-catalog'] })
+  }, [queryClient])
+
+  const { mutate: syncCartMutate } = useMutation({
+    mutationFn: (params: { email: string; cartItems: CartLineItem[] }) =>
+      postAccountAction({
+        action: 'sync_cart',
+        email: params.email,
+        cartItems: params.cartItems,
+      }),
+  })
+
+  const { mutateAsync: signInWithEmailMutateAsync } = useMutation({
+    mutationFn: async (params: {
+      email: string
+      password: string
+      name?: string
+      rememberMe?: boolean
+      isRegister?: boolean
+      cartItems: CartLineItem[]
+    }) => {
+      // Attempt Neon Managed Better Auth client first if configured
+      try {
+        if (params.isRegister) {
+          await neonAuthClient.signUp.email({
+            email: params.email,
+            password: params.password,
+            name: params.name || params.email.split('@')[0],
+          })
+        } else {
+          await neonAuthClient.signIn.email({
+            email: params.email,
+            password: params.password,
+            rememberMe: params.rememberMe,
+          })
+        }
+      } catch {
+        // Fallback seamlessly when Neon Auth baseUrl is local/unconfigured
+      }
+
+      return postAccountAction({
+        action: params.isRegister ? 'register' : 'login',
+        email: params.email,
+        password: params.password,
+        name: params.name,
+        cartItems: params.cartItems,
+      })
+    },
+    onSuccess: (synced) => {
+      setUser(synced.user)
+      setOrders(synced.orders || [])
+      if (Array.isArray(synced.user.savedCart) && synced.user.savedCart.length > 0) {
+        setCartItems(synced.user.savedCart)
+      }
+      try {
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY)
+      } catch {}
+      setIsAuthModalOpen(false)
+    },
+  })
+
+  const { mutateAsync: signInWithGoogleMutateAsync } = useMutation({
+    mutationFn: async (currentCart: CartLineItem[]) => {
+      try {
+        if (process.env.NEXT_PUBLIC_NEON_AUTH_BASE_URL) {
+          await neonAuthClient.signIn.social({
+            provider: 'google',
+            callbackURL: window.location.href,
+          })
+        }
+      } catch {}
+
+      return postAccountAction({
+        action: 'oauth_google',
+        email: 'alex.rivera@gmail.com',
+        name: 'Alex Rivera (Google)',
+        cartItems: currentCart,
+      })
+    },
+    onSuccess: (synced) => {
+      setUser(synced.user)
+      setOrders(synced.orders || [])
+      if (Array.isArray(synced.user.savedCart) && synced.user.savedCart.length > 0) {
+        setCartItems(synced.user.savedCart)
+      }
+      try {
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY)
+      } catch {}
+      setIsAuthModalOpen(false)
+    },
+  })
+
+  const { mutateAsync: toggleWishlistMutateAsync } = useMutation({
+    mutationFn: (params: { email: string; productSlug: string }) =>
+      postAccountAction({
+        action: 'toggle_wishlist',
+        email: params.email,
+        productSlug: params.productSlug,
+      }),
+    onSuccess: (res) => {
+      setUser(res.user)
+    },
+  })
+
+  const { mutateAsync: updateProfileMutateAsync } = useMutation({
+    mutationFn: (params: {
+      email: string
+      name?: string
+      newEmail?: string
+      phone?: string
+      shippingAddress?: string
+      avatarUrl?: string | null
+      currentPassword?: string
+      newPassword?: string
+    }) =>
+      postAccountAction({
+        action: 'update_profile',
+        email: params.email,
+        name: params.name,
+        newEmail: params.newEmail,
+        phone: params.phone,
+        shippingAddress: params.shippingAddress,
+        avatarUrl: params.avatarUrl,
+        currentPassword: params.currentPassword,
+        newPassword: params.newPassword,
+      }),
+    onSuccess: (res) => {
+      setUser(res.user)
+      setOrders(res.orders || [])
+    },
+  })
+
+  const { mutateAsync: refreshOrdersMutateAsync } = useMutation({
+    mutationFn: (email: string) =>
+      postAccountAction({
+        action: 'login',
+        email,
+      }),
+    onSuccess: (res) => {
+      setUser(res.user)
+      setOrders(res.orders || [])
+    },
+  })
+
+  // Hydrate guest cart on mount
   useEffect(() => {
     try {
       const rawCart = localStorage.getItem(GUEST_CART_STORAGE_KEY)
@@ -112,8 +308,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     } catch {}
     setHydrated(true)
-    refreshCatalog()
-  }, [refreshCatalog])
+  }, [])
 
   // Persist cart to localStorage when logged out, or sync to Payload when logged in
   useEffect(() => {
@@ -123,14 +318,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(cartItems))
       } else {
         localStorage.removeItem(GUEST_CART_STORAGE_KEY)
-        syncUserAccountViaSdk({
-          action: 'sync_cart',
+        syncCartMutate({
           email: user.email,
           cartItems,
-        }).catch(() => {})
+        })
       }
     } catch {}
-  }, [cartItems, user, hydrated])
+  }, [cartItems, user, hydrated, syncCartMutate])
 
   const totalCartCount = useMemo(
     () => cartItems.reduce((acc, item) => acc + item.quantity, 0),
@@ -256,75 +450,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       rememberMe?: boolean
       isRegister?: boolean
     }) => {
-      // Attempt Neon Managed Better Auth client first if configured
-      try {
-        if (params.isRegister) {
-          await neonAuthClient.signUp.email({
-            email: params.email,
-            password: params.password,
-            name: params.name || params.email.split('@')[0],
-          })
-        } else {
-          await neonAuthClient.signIn.email({
-            email: params.email,
-            password: params.password,
-            rememberMe: params.rememberMe,
-          })
-        }
-      } catch {
-        // Fallback seamlessly when Neon Auth baseUrl is local/unconfigured
-      }
-
-      const synced = await syncUserAccountViaSdk({
-        action: params.isRegister ? 'register' : 'login',
-        email: params.email,
-        password: params.password,
-        name: params.name,
+      const synced = await signInWithEmailMutateAsync({
+        ...params,
         cartItems,
       })
-
-      setUser(synced.user)
-      setOrders(synced.orders || [])
-      if (Array.isArray(synced.user.savedCart) && synced.user.savedCart.length > 0) {
-        setCartItems(synced.user.savedCart)
-      }
-      try {
-        localStorage.removeItem(GUEST_CART_STORAGE_KEY)
-      } catch {}
-      setIsAuthModalOpen(false)
       return synced.user
     },
-    [cartItems],
+    [cartItems, signInWithEmailMutateAsync],
   )
 
   const signInWithGoogle = useCallback(async () => {
-    try {
-      if (process.env.NEXT_PUBLIC_NEON_AUTH_BASE_URL) {
-        await neonAuthClient.signIn.social({
-          provider: 'google',
-          callbackURL: window.location.href,
-        })
-      }
-    } catch {}
-
-    const synced = await syncUserAccountViaSdk({
-      action: 'oauth_google',
-      email: 'alex.rivera@gmail.com',
-      name: 'Alex Rivera (Google)',
-      cartItems,
-    })
-
-    setUser(synced.user)
-    setOrders(synced.orders || [])
-    if (Array.isArray(synced.user.savedCart) && synced.user.savedCart.length > 0) {
-      setCartItems(synced.user.savedCart)
-    }
-    try {
-      localStorage.removeItem(GUEST_CART_STORAGE_KEY)
-    } catch {}
-    setIsAuthModalOpen(false)
+    const synced = await signInWithGoogleMutateAsync(cartItems)
     return synced.user
-  }, [cartItems])
+  }, [cartItems, signInWithGoogleMutateAsync])
 
   const signOut = useCallback(() => {
     try {
@@ -355,14 +493,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const res = await syncUserAccountViaSdk({
-        action: 'toggle_wishlist',
+      await toggleWishlistMutateAsync({
         email: user.email,
         productSlug: product.slug,
       })
-      setUser(res.user)
     },
-    [user],
+    [user, toggleWishlistMutateAsync],
   )
 
   const updateProfile = useCallback(
@@ -376,41 +512,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       newPassword?: string
     }) => {
       if (!user) return undefined
-      const res = await syncUserAccountViaSdk({
-        action: 'update_profile',
+      const res = await updateProfileMutateAsync({
         email: user.email,
-        name: params.name,
-        newEmail: params.newEmail,
-        phone: params.phone,
-        shippingAddress: params.shippingAddress,
-        avatarUrl: params.avatarUrl,
-        currentPassword: params.currentPassword,
-        newPassword: params.newPassword,
+        ...params,
       })
-      setUser(res.user)
-      setOrders(res.orders || [])
       return res.user
     },
-    [user],
+    [user, updateProfileMutateAsync],
   )
 
   const refreshUserOrders = useCallback(async () => {
     await refreshCatalog()
     if (!user) return
     try {
-      const res = await syncUserAccountViaSdk({
-        action: 'login',
-        email: user.email,
-      })
-      setUser(res.user)
-      setOrders(res.orders || [])
+      await refreshOrdersMutateAsync(user.email)
     } catch {}
-  }, [user, refreshCatalog])
+  }, [user, refreshCatalog, refreshOrdersMutateAsync])
 
   const value = useMemo(
     () => ({
       products,
       banners,
+      isCatalogLoading,
       refreshCatalog,
       cartItems,
       totalCartCount,
@@ -439,6 +562,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       products,
       banners,
+      isCatalogLoading,
       refreshCatalog,
       cartItems,
       totalCartCount,

@@ -280,15 +280,16 @@ export default function AuthModal() {
                 {loginWithEmailMutation.isPending ? 'Signing in...' : 'Sign In & Sync Account'}
               </Button>
 
-              <div className="flex items-center justify-center gap-3 pt-1 text-xs text-muted-foreground">
+              <FieldDescription className="text-xs text-center">
+                By signing in, you agree to our{' '}
                 <Link
                   href="/terms"
                   onClick={() => setIsAuthModalOpen(false)}
                   className="underline underline-offset-4 hover:text-primary transition-colors"
                 >
                   Terms of Service
-                </Link>
-                <span aria-hidden="true">&bull;</span>
+                </Link>{' '}
+                and{' '}
                 <Link
                   href="/privacy"
                   onClick={() => setIsAuthModalOpen(false)}
@@ -296,7 +297,8 @@ export default function AuthModal() {
                 >
                   Privacy Policy
                 </Link>
-              </div>
+                .
+              </FieldDescription>
             </form>
           </TabsContent>
 

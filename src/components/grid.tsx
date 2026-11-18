@@ -8,9 +8,11 @@ import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/effect-coverflow'
 import 'swiper/css/zoom'
-import { AlertTriangle, Check, Heart, Loader2, Plus, Star } from 'lucide-react'
+import { AlertTriangle, Check, Heart, Plus, SearchX, Star } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
 import { Badge } from './ui/badge'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './ui/empty'
+import { Skeleton } from './ui/skeleton'
 import { useStore } from '../context/store-context'
 import { getProductLowestAvailableVariantStock, type Product } from '../data/utils'
 import { cn } from 'cn'
@@ -46,7 +48,7 @@ const Grid = ({
   maxCompareReached,
   onToggleCompare,
 }: GridProps) => {
-  const { isWishlisted, toggleWishlist } = useStore()
+  const { isWishlisted, toggleWishlist, isCatalogLoading } = useStore()
   const gridRef = useRef<HTMLElement | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [isLoaded, setIsLoaded] = useState(false)
@@ -189,27 +191,55 @@ const Grid = ({
   }, [computeShuffleLayout])
 
   const anyVisible = products.some((p) => isProductVisible(p))
+  const showSkeleton = !isLoaded || (isCatalogLoading && products.length === 0)
 
   return (
     <section
       ref={gridRef}
-      className={cn('product-grid', !isLoaded && ' grid--loading')}
+      className={cn('product-grid', showSkeleton && 'grid--loading')}
+      aria-busy={showSkeleton}
       style={{
-        height: isLoaded ? `${layout.height}px` : undefined,
+        height: isLoaded && !showSkeleton && anyVisible ? `${layout.height}px` : undefined,
         transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <div className="grid__loader text-primary" aria-hidden="true">
-        <Loader2 className="h-10 w-10 animate-spin mx-auto" />
-      </div>
+      {showSkeleton && (
+        <div
+          className="mx-auto grid max-w-[1300px] grid-cols-1 gap-4 px-3 py-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+          role="status"
+          aria-label="Loading products"
+        >
+          {Array.from({ length: 10 }).map((_, idx) => (
+            <div
+              key={`grid-skeleton-${idx}`}
+              className="rounded-lg border border-border bg-card p-3 text-left"
+            >
+              <Skeleton className="aspect-square w-full rounded-lg" />
+              <Skeleton className="mt-3 h-4 w-3/4" />
+              <Skeleton className="mt-1.5 h-3 w-1/2" />
+              <div className="mt-2.5 flex items-center justify-between">
+                <Skeleton className="h-3.5 w-16" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid__sizer"></div>
 
-      {!anyVisible && isLoaded && (
-        <div className="mx-auto my-12 max-w-md rounded-none border border-border bg-card p-8 text-center">
-          <p className="text-base font-bold text-foreground">No matching clothing items found</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Try clearing your search term or selecting another category filter.
-          </p>
+      {isLoaded && !isCatalogLoading && !anyVisible && (
+        <div className="mx-auto my-12 max-w-md px-4">
+          <Empty className="border border-border bg-card">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchX aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>No matching clothing items found</EmptyTitle>
+              <EmptyDescription>
+                Try clearing your search term or selecting another category filter.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </div>
       )}
 
