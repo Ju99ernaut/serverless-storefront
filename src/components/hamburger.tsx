@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react'
 import { Filter } from 'lucide-react'
-import { cn } from 'cn'
+import { Button } from './ui/button'
 
 interface HamburgerProps {
   onOpen: () => void
@@ -12,19 +12,18 @@ interface HamburgerProps {
 const Hamburger = forwardRef<HTMLButtonElement, HamburgerProps>(
   ({ onOpen, className = '' }, ref) => {
     return (
-      <button
+      <Button
         ref={ref}
         type="button"
-        className={cn(
-          'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-foreground hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors cursor-pointer',
-          className,
-        )}
+        className={className}
         aria-label="Filter products by category"
         title="Filter products"
         onClick={onOpen}
+        variant="outline"
+        size="icon"
       >
         <Filter className="h-4 w-4" aria-hidden="true" />
-      </button>
+      </Button>
     )
   },
 )

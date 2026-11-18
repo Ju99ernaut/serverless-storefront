@@ -263,7 +263,7 @@ export default function ProductDetailPage() {
 
       {/* Sticky Top Navigation */}
       <header className="sticky-topbar-container">
-        <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Link className={buttonVariants({ variant: 'ghost', className: 'gap-1.5' })} href="/">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -538,9 +538,15 @@ export default function ProductDetailPage() {
                   <>
                     <ShoppingBag className="h-4 w-4" aria-hidden="true" />
                     <span>
-                      {isOutOfStock
-                        ? 'Out of Stock'
-                        : `Add to Bag: $${(displayPrice * quantity).toFixed(2)}`}
+                      {isOutOfStock ? (
+                        'Out of Stock'
+                      ) : (
+                        <>
+                          <span>Add</span>
+                          <span className="hidden md:inline">{' to Bag'}</span>
+                          <span>{`: $${(displayPrice * quantity).toFixed(2)}`}</span>
+                        </>
+                      )}
                     </span>
                   </>
                 )}

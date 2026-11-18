@@ -222,7 +222,7 @@ function AccountPortalContent() {
 
       {/* Sticky Top Navigation */}
       <header className="sticky-topbar-container">
-        <div className="sticky-topbar-inner mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Link
               className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'gap-1.5' })}

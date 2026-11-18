@@ -38,8 +38,8 @@ const NavBar = ({
   const isDark = mounted ? resolvedTheme !== 'light' : true
 
   return (
-    <div className="sticky-topbar-container">
-      <div className="sticky-topbar-inner mx-auto max-w-[1300px]">
+    <div className="sticky-topbar-container bg-background border-b border-border">
+      <div className="mx-auto max-w-[1300px]">
         <div className="flex items-center justify-between gap-2.5 sm:gap-4 px-4 py-3 sm:px-6">
           <Hamburger ref={hamburgerRef} onOpen={onOpenMenu} />
 
@@ -59,11 +59,11 @@ const NavBar = ({
               />
             </div>
 
-            <div className="hidden lg:block w-44 shrink-0">
+            <div className="hidden lg:block">
               <Select value={sortBy} onValueChange={(val) => onSortChange(val as SortOption)}>
                 <SelectTrigger
                   aria-label="Sort products"
-                  className="h-10 w-full border-border bg-secondary text-sm font-medium text-foreground cursor-pointer"
+                  className="h-10 border-border bg-secondary text-sm font-medium text-foreground cursor-pointer"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <ArrowUpDown

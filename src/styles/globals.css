@@ -212,14 +212,6 @@ body {
 button {
   cursor: pointer;
 }
-
-/** Product grid **/
-.view {
-  overflow-anchor: none;
-  padding-bottom: 96px;
-  transition: transform 0.4s ease-in-out;
-}
-
 /* Sticky top bar with named scroll-state container */
 .overflow-anchor-parent {
   overflow-anchor: none;
@@ -232,8 +224,6 @@ button {
   container-type: scroll-state;
   container-name: site-topbar;
   width: 100%;
-  background: var(--surface-drawer);
-  border-bottom: 1px solid var(--border-color);
 }
 
 /* Scroll-position-aware back-to-top button */
@@ -274,6 +264,13 @@ button {
   visibility: visible;
   opacity: 1;
   translate: 0 0;
+}
+
+/** Product grid **/
+.view {
+  overflow-anchor: none;
+  padding-bottom: 96px;
+  transition: transform 0.4s ease-in-out;
 }
 
 .product-grid {
@@ -325,9 +322,6 @@ button {
 /* Gallery */
 .slider {
   padding: 1.25em 0 0;
-  border-radius: 0;
-  background: var(--surface-card);
-  border: 1px solid var(--border-color);
   transition:
     box-shadow 0.2s ease,
     border-color 0.2s ease;
@@ -755,141 +749,6 @@ button {
   transition-delay: 0.2s;
 }
 
-/** Bottom Bar **/
-.bar {
-  position: fixed;
-  z-index: 100;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  padding: 1.15em 5em;
-  text-align: center;
-  background: var(--surface-bar);
-  border-top: 1px solid var(--border-color);
-  backdrop-filter: blur(12px);
-  transform: translate3d(0, 0, 0);
-}
-
-.filter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.filter__label {
-  font-size: 0.82em;
-  display: inline-block;
-  margin-right: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--fg-muted);
-}
-
-.filter__item {
-  font-weight: 600;
-  margin: 0 0.5%;
-  padding: 0.45em 0.85em;
-  vertical-align: middle;
-  color: var(--fg-muted);
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  transition: all 0.2s ease;
-}
-
-.filter__item:hover {
-  color: var(--fg-heading);
-  background: var(--surface-elevated);
-}
-
-.filter__item--selected {
-  color: #5c5edc;
-  border-color: #5c5edc;
-  background: rgba(92, 94, 220, 0.12);
-}
-
-/* Shopping cart button in bottom bar */
-.cart {
-  font-size: 1.35em;
-  position: absolute;
-  top: 0;
-  right: 0;
-  overflow: hidden;
-  height: 100%;
-  padding: 0 1.35em;
-  cursor: pointer;
-  color: var(--fg-heading);
-  border: none;
-  border-left: 1px solid var(--border-color);
-  background-color: var(--surface-drawer);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.no-touch .cart:focus,
-.no-touch .cart:hover {
-  color: #5c5edc;
-  outline: none;
-}
-
-.cart--animate .cart__icon {
-  animation: cartAnim 0.4s forwards;
-}
-
-@keyframes cartAnim {
-  50% {
-    opacity: 0;
-    transform: translate3d(50px, 0, 0);
-  }
-  51% {
-    opacity: 0;
-    transform: translate3d(-50px, 0, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-.cart__count {
-  font-size: 10px;
-  font-weight: bold;
-  line-height: 18px;
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  margin: -18px 0 0 0;
-  text-align: center;
-  color: #fff;
-  border-radius: 0;
-  background: #5c5edc;
-}
-
-.cart--animate .cart__count {
-  animation: countAnim 0.4s forwards;
-}
-
-@keyframes countAnim {
-  50% {
-    opacity: 0;
-    transform: translate3d(0, 80px, 0);
-  }
-  51% {
-    opacity: 0;
-    transform: translate3d(0, -80px, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
 @media screen and (max-width: 65em) {
   .grid__sizer,
   .grid__item,
@@ -903,40 +762,6 @@ button {
   .grid__item,
   .grid__item--size-a {
     width: 50%;
-  }
-
-  .bar {
-    padding-left: 0.5em;
-    text-align: left;
-  }
-}
-
-@media screen and (max-width: 40em) {
-  .bp-header h1 {
-    font-size: 1.65em;
-  }
-
-  .bar {
-    padding: 0.5em 4.5em 0.5em 0.25em;
-  }
-
-  .filter {
-    justify-content: space-around;
-  }
-
-  .filter__item {
-    height: 100%;
-    padding: 0.5em 0.4em;
-    border: none;
-  }
-
-  .filter__label,
-  .bar .action__text {
-    display: none;
-  }
-
-  .cart {
-    padding: 0 1em;
   }
 }
 

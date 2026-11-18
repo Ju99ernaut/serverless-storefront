@@ -192,7 +192,7 @@ const Grid = ({
   return (
     <section
       ref={gridRef}
-      className={`product-grid${!isLoaded ? ' grid--loading' : ''}`}
+      className={cn('product-grid', !isLoaded && ' grid--loading')}
       style={{
         height: isLoaded ? `${layout.height}px` : undefined,
         transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1)',
@@ -282,7 +282,10 @@ const Grid = ({
               ) : null}
 
               <Swiper
-                className={cn('swiper-container slider', isCompared && ' product--selected')}
+                className={cn(
+                  'swiper-container slider bg-card border border-border rounded-md',
+                  isCompared && ' product--selected',
+                )}
                 modules={[Pagination, EffectCoverflow, Zoom]}
                 effect="coverflow"
                 grabCursor={true}
