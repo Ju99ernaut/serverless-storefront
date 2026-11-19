@@ -1,31 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getOrderByOrderId, getOrdersByUser } from '@/lib/payload-sdk';
+import { NextRequest, NextResponse } from 'next/server'
+import { getOrderByOrderId } from '@/lib/payload-sdk'
 import {
   getOrderFulfillmentHookToken,
   getOrderPaymentHookToken,
   orderFulfillmentHook,
   orderPaymentHook,
-} from '@/workflows/checkoutWorkflow';
-import { executeOrderStatusUpdateWorkflow } from '@/workflows/orderStatusWorkflow';
-
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const email = (searchParams.get('email') || '').trim().toLowerCase();
-  const neonUserId = (searchParams.get('neonUserId') || '').trim();
-  const orderId = (searchParams.get('orderId') || '').trim();
-
-  if (orderId) {
-    const order = await getOrderByOrderId(orderId);
-    return NextResponse.json({ orders: order ? [order] : [] });
-  }
-
-  const orders = await getOrdersByUser({ neonUserId, email });
-  return NextResponse.json({ orders });
-}
+} from '@/workflows/checkoutWorkflow'
+import { executeOrderStatusUpdateWorkflow } from '@/workflows/orderStatusWorkflow'
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json()
     const {
       action,
       orderId,
@@ -37,13 +22,10 @@ export async function PATCH(request: NextRequest) {
       cardholderName,
       simulatePaymentFailure,
       error: paymentError,
-    } = body || {};
+    } = body || {}
 
     if (!orderId) {
-      return NextResponse.json(
-        { error: 'orderId is required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'orderId is required.' }, { status: 400 })
     }
 
     if (action === 'payment') {
@@ -53,52 +35,48 @@ export async function PATCH(request: NextRequest) {
         cardholderName,
         simulatePaymentFailure: Boolean(simulatePaymentFailure),
         error: paymentError,
-      });
+      })
       return NextResponse.json({
         success: true,
         resumed: 'payment',
         orderId,
-      });
+      })
     }
 
     if (!nextStatus && !deliveryFailed) {
-      return NextResponse.json(
-        { error: 'orderId and nextStatus are required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'orderId and nextStatus are required.' }, { status: 400 })
     }
 
-    const resolvedStatus = deliveryFailed ? 'CANCELLED' : nextStatus;
+    const resolvedStatus = deliveryFailed ? 'CANCELLED' : nextStatus
 
     try {
       await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(orderId), {
         nextStatus: resolvedStatus,
         note,
         deliveryFailed: Boolean(deliveryFailed),
-      });
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      const updatedOrder = await getOrderByOrderId(orderId);
+      })
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      const updatedOrder = await getOrderByOrderId(orderId)
       return NextResponse.json({
         order: updatedOrder,
         emailDispatched: true,
         resumed: 'fulfillment',
-      });
+      })
     } catch {
       const result = await executeOrderStatusUpdateWorkflow({
         orderId,
         nextStatus: resolvedStatus,
         note,
         deliveryFailed: Boolean(deliveryFailed),
-      });
-      return NextResponse.json(result);
+      })
+      return NextResponse.json(result)
     }
   } catch (err: unknown) {
     return NextResponse.json(
       {
-        error:
-          err instanceof Error ? err.message : 'Failed to update order status',
+        error: err instanceof Error ? err.message : 'Failed to update order status',
       },
-      { status: 500 }
-    );
+      { status: 500 },
+    )
   }
 }

@@ -1,116 +1,102 @@
-import { PayloadSDK } from '@payloadcms/sdk';
-import type { Where } from 'payload';
-import type {
-  Banner,
-  BillingDetail,
-  Cart,
-  Config,
-  Order,
-  Product,
-  Review,
-  StockReservation,
-  Wishlist,
-} from '../payload-types';
-import type { CartLineItem, ProductVariant } from '../data/utils';
+import { PayloadSDK } from '@payloadcms/sdk'
+import type { Where } from 'payload'
+import type { Order, Product, StockReservation, Wishlist } from '../payload-types'
+import type { CartLineItem } from '../data/utils'
 
 const getBaseURL = () => {
   if (typeof window !== 'undefined') {
-    return '/api';
+    return '/api'
   }
-  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
-  return `${serverUrl}/api`;
-};
-
-export const sdk = new PayloadSDK<Config>({
-  baseURL: getBaseURL(),
-  fetch: (input, init) => globalThis.fetch(input, init),
-});
-
-const inventoryLockChains = new Map<string, Promise<void>>();
-
-async function acquireSingleLock(key: string): Promise<() => void> {
-  const prev = inventoryLockChains.get(key) ?? Promise.resolve();
-  let releaseFn!: () => void;
-  const current = new Promise<void>((resolve) => {
-    releaseFn = resolve;
-  });
-  const nextChain = prev.then(() => current);
-  inventoryLockChains.set(key, nextChain);
-  await prev;
-  return () => {
-    releaseFn();
-    if (inventoryLockChains.get(key) === nextChain) {
-      inventoryLockChains.delete(key);
-    }
-  };
+  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  return `${serverUrl}/api`
 }
 
-async function withInventoryLock<T>(
-  keys: string[],
-  fn: () => Promise<T>
-): Promise<T> {
-  const sortedUniqueKeys = Array.from(
-    new Set(['__inventory_root__', ...keys])
-  ).sort();
-  const releases: Array<() => void> = [];
+export const sdk = new PayloadSDK({
+  baseURL: getBaseURL(),
+  fetch: (input, init) => globalThis.fetch(input, init),
+})
+
+const inventoryLockChains = new Map<string, Promise<void>>()
+
+async function acquireSingleLock(key: string): Promise<() => void> {
+  const prev = inventoryLockChains.get(key) ?? Promise.resolve()
+  let releaseFn!: () => void
+  const current = new Promise<void>((resolve) => {
+    releaseFn = resolve
+  })
+  const nextChain = prev.then(() => current)
+  inventoryLockChains.set(key, nextChain)
+  await prev
+  return () => {
+    releaseFn()
+    if (inventoryLockChains.get(key) === nextChain) {
+      inventoryLockChains.delete(key)
+    }
+  }
+}
+
+async function withInventoryLock<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
+  const sortedUniqueKeys = Array.from(new Set(['__inventory_root__', ...keys])).sort()
+  const releases: Array<() => void> = []
   try {
     for (const key of sortedUniqueKeys) {
-      releases.push(await acquireSingleLock(key));
+      releases.push(await acquireSingleLock(key))
     }
-    return await fn();
+    return await fn()
   } finally {
     for (let i = releases.length - 1; i >= 0; i--) {
-      releases[i]();
+      releases[i]()
     }
   }
 }
 
 export function parseWorkflowDurationMs(
   duration: string | number | undefined,
-  fallbackMs: number
+  fallbackMs: number,
 ): number {
   if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
-    return duration;
+    return duration
   }
   if (typeof duration === 'string') {
-    const trimmed = duration.trim().toLowerCase();
-    const match = /^(\d+(?:\.\d+)?)\s*(ms|s|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?$/.exec(
-      trimmed
-    );
+    const trimmed = duration.trim().toLowerCase()
+    const match =
+      /^(\d+(?:\.\d+)?)\s*(ms|s|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?$/.exec(
+        trimmed,
+      )
     if (match) {
-      const value = Number(match[1]);
-      const unit = match[2] || 'ms';
+      const value = Number(match[1])
+      const unit = match[2] || 'ms'
       if (Number.isFinite(value) && value > 0) {
-        if (unit === 'ms') return value;
-        if (unit === 's') return value * 1000;
-        if (unit === 'm' || unit.startsWith('min')) return value * 60 * 1000;
+        if (unit === 'ms') return value
+        if (unit === 's') return value * 1000
+        if (unit === 'm' || unit.startsWith('min')) return value * 60 * 1000
         if (unit === 'h' || unit.startsWith('hr') || unit.startsWith('hour')) {
-          return value * 60 * 60 * 1000;
+          return value * 60 * 60 * 1000
         }
         if (unit === 'd' || unit.startsWith('day')) {
-          return value * 24 * 60 * 60 * 1000;
+          return value * 24 * 60 * 60 * 1000
         }
       }
     }
   }
-  return fallbackMs;
+  return fallbackMs
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts() {
   try {
     const res = await sdk.find({
       collection: 'products',
       limit: 100,
       sort: 'id',
-    });
-    return res.docs || [];
+    })
+    return res.docs || []
   } catch (error) {
-    console.error('Failed to fetch products from Payload:', error);
-    return [];
+    console.error('Failed to fetch products from Payload:', error)
+    return []
   }
 }
 
-export async function getBanners(): Promise<Banner[]> {
+export async function getBanners() {
   try {
     const res = await sdk.find({
       collection: 'banners',
@@ -121,23 +107,20 @@ export async function getBanners(): Promise<Banner[]> {
       },
       sort: 'sortOrder',
       limit: 20,
-    });
-    return res.docs || [];
+    })
+    return res.docs || []
   } catch (error) {
-    console.error('Failed to fetch banners from Payload:', error);
-    return [];
+    console.error('Failed to fetch banners from Payload:', error)
+    return []
   }
 }
 
-export async function getCatalogData(): Promise<{
-  products: Product[];
-  banners: Banner[];
-}> {
-  const [products, banners] = await Promise.all([getProducts(), getBanners()]);
-  return { products, banners };
+export async function getCatalogData() {
+  const [products, banners] = await Promise.all([getProducts(), getBanners()])
+  return { products, banners }
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
+export async function getProductBySlug(slug: string) {
   try {
     const res = await sdk.find({
       collection: 'products',
@@ -145,18 +128,15 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
         slug: { equals: slug },
       },
       limit: 1,
-    });
-    return res.docs?.[0] || null;
+    })
+    return res.docs?.[0] || null
   } catch (error) {
-    console.error(`Failed to fetch product with slug "${slug}":`, error);
-    return null;
+    console.error(`Failed to fetch product with slug "${slug}":`, error)
+    return null
   }
 }
 
-export async function getRelatedProducts(
-  category: Product['category'],
-  excludeSlug: string
-): Promise<Product[]> {
+export async function getRelatedProducts(category: Product['category'], excludeSlug: string) {
   try {
     const res = await sdk.find({
       collection: 'products',
@@ -169,17 +149,15 @@ export async function getRelatedProducts(
         },
       },
       limit: 4,
-    });
-    return res.docs || [];
+    })
+    return res.docs || []
   } catch (error) {
-    console.error('Failed to fetch related products from Payload:', error);
-    return [];
+    console.error('Failed to fetch related products from Payload:', error)
+    return []
   }
 }
 
-export async function getReviewsByProductSlug(
-  productSlug: string
-): Promise<Review[]> {
+export async function getReviewsByProductSlug(productSlug: string) {
   try {
     const res = await sdk.find({
       collection: 'reviews',
@@ -190,50 +168,46 @@ export async function getReviewsByProductSlug(
       },
       sort: '-createdAt',
       limit: 100,
-    });
-    return res.docs || [];
+    })
+    return res.docs || []
   } catch (error) {
-    console.error(`Failed to fetch reviews for "${productSlug}":`, error);
-    return [];
+    console.error(`Failed to fetch reviews for "${productSlug}":`, error)
+    return []
   }
 }
 
-export async function fetchProductBySlugWithReviews(slug: string): Promise<{
-  product: Product;
-  reviews: Review[];
-  relatedProducts: Product[];
-}> {
-  const product = await getProductBySlug(slug);
+export async function fetchProductBySlugWithReviews(slug: string) {
+  const product = await getProductBySlug(slug)
   if (!product) {
-    throw new Error(`Product "${slug}" not found`);
+    throw new Error(`Product "${slug}" not found`)
   }
   const [reviews, relatedProducts] = await Promise.all([
     getReviewsByProductSlug(product.slug),
     getRelatedProducts(product.category, product.slug),
-  ]);
+  ])
 
   return {
     product,
     reviews,
     relatedProducts,
-  };
+  }
 }
 
 export async function getOrdersByUser(params: {
-  neonUserId?: string | null;
-  email?: string | null;
-}): Promise<Order[]> {
-  const neonUserId = params.neonUserId?.trim();
-  const email = params.email?.trim().toLowerCase();
-  if (!neonUserId && !email) return [];
+  neonUserId?: string | null
+  email?: string | null
+}) {
+  const neonUserId = params.neonUserId?.trim()
+  const email = params.email?.trim().toLowerCase()
+  if (!neonUserId && !email) return []
 
   try {
-    const orConditions: Where[] = [];
+    const orConditions: Where[] = []
     if (neonUserId) {
-      orConditions.push({ neonUserId: { equals: neonUserId } });
+      orConditions.push({ neonUserId: { equals: neonUserId } })
     }
     if (email) {
-      orConditions.push({ customerEmail: { equals: email } });
+      orConditions.push({ customerEmail: { equals: email } })
     }
 
     const res = await sdk.find({
@@ -241,16 +215,16 @@ export async function getOrdersByUser(params: {
       where: orConditions.length === 1 ? orConditions[0] : { or: orConditions },
       sort: '-createdAt',
       limit: 100,
-    });
-    return res.docs || [];
+    })
+    return res.docs || []
   } catch (error) {
-    console.error('Failed to fetch orders from Payload:', error);
-    return [];
+    console.error('Failed to fetch orders from Payload:', error)
+    return []
   }
 }
 
-export async function getOrderByOrderId(orderId: string): Promise<Order | null> {
-  if (!orderId) return null;
+export async function getOrderByOrderId(orderId: string) {
+  if (!orderId) return null
   try {
     const res = await sdk.find({
       collection: 'orders',
@@ -260,54 +234,47 @@ export async function getOrderByOrderId(orderId: string): Promise<Order | null> 
         },
       },
       limit: 1,
-    });
-    return res.docs?.[0] || null;
+    })
+    return res.docs?.[0] || null
   } catch (error) {
-    console.error(`Failed to fetch order "${orderId}":`, error);
-    return null;
+    console.error(`Failed to fetch order "${orderId}":`, error)
+    return null
   }
 }
 
 export async function createProductReview(payload: {
-  productId?: number;
-  productSlug: string;
-  neonUserId?: string;
-  authorName: string;
-  authorEmail?: string;
-  rating: number;
-  title: string;
-  comment: string;
-  variantSize?: string;
-  variantColor?: string;
-}): Promise<{
-  review: Review;
-  product: Product;
-}> {
-  const product = await getProductBySlug(payload.productSlug);
+  productId?: number
+  productSlug: string
+  neonUserId?: string
+  authorName: string
+  authorEmail?: string
+  rating: number
+  title: string
+  comment: string
+  variantSize?: string
+  variantColor?: string
+}) {
+  const product = await getProductBySlug(payload.productSlug)
   if (!product) {
-    throw new Error(`Product "${payload.productSlug}" not found`);
+    throw new Error(`Product "${payload.productSlug}" not found`)
   }
 
-  const rating = Math.min(5, Math.max(1, Number(payload.rating) || 5));
-  const title = payload.title.trim();
-  const comment = payload.comment.trim();
+  const rating = Math.min(5, Math.max(1, Number(payload.rating) || 5))
+  const title = payload.title.trim()
+  const comment = payload.comment.trim()
   if (!title || !comment) {
-    throw new Error('Please provide both a review headline and your feedback.');
+    throw new Error('Please provide both a review headline and your feedback.')
   }
 
-  let verifiedPurchase = false;
+  let verifiedPurchase = false
   if (payload.neonUserId || payload.authorEmail) {
     const userOrders = await getOrdersByUser({
       neonUserId: payload.neonUserId,
       email: payload.authorEmail,
-    });
+    })
     verifiedPurchase = userOrders.some((o) =>
-      o.items?.some(
-        (i) =>
-          i.productSlug === product.slug ||
-          i.productId === String(product.id)
-      )
-    );
+      o.items?.some((i) => i.productSlug === product.slug || i.productId === String(product.id)),
+    )
   }
 
   const review = await sdk.create({
@@ -322,18 +289,15 @@ export async function createProductReview(payload: {
       title,
       comment,
       variantSize: payload.variantSize || 'M',
-      variantColor:
-        payload.variantColor || product.variants?.[0]?.color || 'Signature',
+      variantColor: payload.variantColor || product.variants?.[0]?.color || 'Signature',
       verifiedPurchase,
     },
-  });
+  })
 
-  const currentCount = product.reviewCount ?? 0;
-  const currentAvg = product.averageRating ?? 4.8;
-  const totalCount = currentCount + 1;
-  const nextAvg = Number(
-    ((currentAvg * currentCount + rating) / totalCount).toFixed(1)
-  );
+  const currentCount = product.reviewCount ?? 0
+  const currentAvg = product.averageRating ?? 4.8
+  const totalCount = currentCount + 1
+  const nextAvg = Number(((currentAvg * currentCount + rating) / totalCount).toFixed(1))
 
   const updatedProduct = await sdk.update({
     collection: 'products',
@@ -342,18 +306,16 @@ export async function createProductReview(payload: {
       reviewCount: totalCount,
       averageRating: nextAvg,
     },
-  });
+  })
 
   return {
     review,
     product: updatedProduct,
-  };
+  }
 }
 
-export async function getBillingDetails(
-  neonUserId: string
-): Promise<BillingDetail | null> {
-  if (!neonUserId) return null;
+export async function getBillingDetails(neonUserId: string) {
+  if (!neonUserId) return null
   try {
     const res = await sdk.find({
       collection: 'billing-details',
@@ -363,30 +325,29 @@ export async function getBillingDetails(
         },
       },
       limit: 1,
-    });
-    return res.docs?.[0] || null;
+    })
+    return res.docs?.[0] || null
   } catch (error) {
-    console.error('Failed to fetch billing details from Payload:', error);
-    return null;
+    console.error('Failed to fetch billing details from Payload:', error)
+    return null
   }
 }
 
 export async function upsertBillingDetails(params: {
-  neonUserId: string;
-  phone?: string | null;
-  shippingAddress?: string | null;
-}): Promise<BillingDetail> {
-  const existing = await getBillingDetails(params.neonUserId);
+  neonUserId: string
+  phone?: string | null
+  shippingAddress?: string | null
+}) {
+  const existing = await getBillingDetails(params.neonUserId)
   if (existing) {
     return sdk.update({
       collection: 'billing-details',
       id: existing.id,
       data: {
         phone: params.phone ?? existing.phone ?? '',
-        shippingAddress:
-          params.shippingAddress ?? existing.shippingAddress ?? '',
+        shippingAddress: params.shippingAddress ?? existing.shippingAddress ?? '',
       },
-    });
+    })
   }
 
   return sdk.create({
@@ -396,7 +357,7 @@ export async function upsertBillingDetails(params: {
       phone: params.phone ?? '',
       shippingAddress: params.shippingAddress ?? '',
     },
-  });
+  })
 }
 
 function normalizeCartItemsForPayload(items: CartLineItem[]): CartLineItem[] {
@@ -420,13 +381,11 @@ function normalizeCartItemsForPayload(items: CartLineItem[]): CartLineItem[] {
     quantity: item.quantity,
     maxAvailableStock: item.maxAvailableStock,
     imageUrl: item.imageUrl ?? undefined,
-  }));
+  }))
 }
 
-export async function getCartByNeonUserId(
-  neonUserId: string
-): Promise<Cart | null> {
-  if (!neonUserId) return null;
+export async function getCartByNeonUserId(neonUserId: string) {
+  if (!neonUserId) return null
   try {
     const res = await sdk.find({
       collection: 'carts',
@@ -436,20 +395,17 @@ export async function getCartByNeonUserId(
         },
       },
       limit: 1,
-    });
-    return res.docs?.[0] || null;
+    })
+    return res.docs?.[0] || null
   } catch (error) {
-    console.error('Failed to fetch cart from Payload:', error);
-    return null;
+    console.error('Failed to fetch cart from Payload:', error)
+    return null
   }
 }
 
-export async function syncCartWithPayload(
-  neonUserId: string,
-  items: CartLineItem[]
-): Promise<Cart> {
-  const normalizedItems = normalizeCartItemsForPayload(items);
-  const existing = await getCartByNeonUserId(neonUserId);
+export async function syncCartWithPayload(neonUserId: string, items: CartLineItem[]) {
+  const normalizedItems = normalizeCartItemsForPayload(items)
+  const existing = await getCartByNeonUserId(neonUserId)
   if (existing) {
     return sdk.update({
       collection: 'carts',
@@ -457,7 +413,7 @@ export async function syncCartWithPayload(
       data: {
         items: normalizedItems,
       },
-    });
+    })
   }
 
   return sdk.create({
@@ -466,11 +422,11 @@ export async function syncCartWithPayload(
       neonUserId,
       items: normalizedItems,
     },
-  });
+  })
 }
 
 function normalizeWishlistItemsForPayload(
-  items: NonNullable<Wishlist['items']>
+  items: NonNullable<Wishlist['items']>,
 ): NonNullable<Wishlist['items']> {
   return items.map((item) => ({
     product:
@@ -478,13 +434,11 @@ function normalizeWishlistItemsForPayload(
         ? item.product.id
         : (item.product ?? undefined),
     productSlug: item.productSlug,
-  }));
+  }))
 }
 
-export async function getWishlistByNeonUserId(
-  neonUserId: string
-): Promise<Wishlist | null> {
-  if (!neonUserId) return null;
+export async function getWishlistByNeonUserId(neonUserId: string) {
+  if (!neonUserId) return null
   try {
     const res = await sdk.find({
       collection: 'wishlists',
@@ -494,20 +448,20 @@ export async function getWishlistByNeonUserId(
         },
       },
       limit: 1,
-    });
-    return res.docs?.[0] || null;
+    })
+    return res.docs?.[0] || null
   } catch (error) {
-    console.error('Failed to fetch wishlist from Payload:', error);
-    return null;
+    console.error('Failed to fetch wishlist from Payload:', error)
+    return null
   }
 }
 
 export async function syncWishlistWithPayload(
   neonUserId: string,
-  items: NonNullable<Wishlist['items']>
-): Promise<Wishlist> {
-  const normalizedItems = normalizeWishlistItemsForPayload(items);
-  const existing = await getWishlistByNeonUserId(neonUserId);
+  items: NonNullable<Wishlist['items']>,
+) {
+  const normalizedItems = normalizeWishlistItemsForPayload(items)
+  const existing = await getWishlistByNeonUserId(neonUserId)
   if (existing) {
     return sdk.update({
       collection: 'wishlists',
@@ -515,7 +469,7 @@ export async function syncWishlistWithPayload(
       data: {
         items: normalizedItems,
       },
-    });
+    })
   }
 
   return sdk.create({
@@ -524,49 +478,42 @@ export async function syncWishlistWithPayload(
       neonUserId,
       items: normalizedItems,
     },
-  });
+  })
 }
 
 export async function toggleWishlistItemInPayload(
   neonUserId: string,
-  product: Pick<Product, 'id' | 'slug'>
-): Promise<Wishlist> {
-  const existing = await getWishlistByNeonUserId(neonUserId);
-  const currentItems = existing?.items ?? [];
-  const alreadySaved = currentItems.some(
-    (item) => item.productSlug === product.slug
-  );
+  product: Pick<Product, 'id' | 'slug'>,
+) {
+  const existing = await getWishlistByNeonUserId(neonUserId)
+  const currentItems = existing?.items ?? []
+  const alreadySaved = currentItems.some((item) => item.productSlug === product.slug)
   const nextItems = alreadySaved
     ? currentItems.filter((item) => item.productSlug !== product.slug)
-    : [...currentItems, { product: product.id, productSlug: product.slug }];
+    : [...currentItems, { product: product.id, productSlug: product.slug }]
 
-  return syncWishlistWithPayload(neonUserId, nextItems);
+  return syncWishlistWithPayload(neonUserId, nextItems)
 }
 
 export async function updateOrderStatusViaSdk(payload: {
-  orderId: string;
-  nextStatus: Order['orderStatus'];
-  note?: string;
-  deliveryFailed?: boolean;
-}): Promise<{
-  order: Order;
-  emailDispatched: boolean;
-}> {
+  orderId: string
+  nextStatus: Order['orderStatus']
+  note?: string
+  deliveryFailed?: boolean
+}) {
   const res = await sdk.request({
     method: 'PATCH',
     path: '/storefront/orders',
     json: payload,
-  });
-  const data = await res.json();
+  })
+  const data = await res.json()
   if (!res.ok) {
-    throw new Error(data.error || 'Failed to update order status');
+    throw new Error(data.error || 'Failed to update order status')
   }
-  return data;
+  return data
 }
 
-function stripVariantIds(
-  variants: NonNullable<Product['variants']>
-): ProductVariant[] {
+function stripVariantIds(variants: NonNullable<Product['variants']>) {
   return variants.map((v) => ({
     sku: v.sku,
     size: v.size,
@@ -577,15 +524,15 @@ function stripVariantIds(
     reservedStock: v.reservedStock,
     lowStockThreshold: v.lowStockThreshold,
     imageUrl: v.imageUrl,
-  }));
+  }))
 }
 
 async function applyVariantInventoryAdjustments(
   items: Array<{ productSlug: string; variantSku: string; quantity: number }>,
-  mode: 'reserve' | 'release_reserved' | 'release_committed' | 'commit'
+  mode: 'reserve' | 'release_reserved' | 'release_committed' | 'commit',
 ) {
-  const uniqueSlugs = Array.from(new Set(items.map((i) => i.productSlug)));
-  if (uniqueSlugs.length === 0) return;
+  const uniqueSlugs = Array.from(new Set(items.map((i) => i.productSlug)))
+  if (uniqueSlugs.length === 0) return
 
   const productsRes = await sdk.find({
     collection: 'products',
@@ -593,35 +540,33 @@ async function applyVariantInventoryAdjustments(
       slug: { in: uniqueSlugs },
     },
     limit: 100,
-  });
+  })
 
-  const products = productsRes.docs || [];
+  const products = productsRes.docs || []
   for (const product of products) {
-    const matchingItems = items.filter((i) => i.productSlug === product.slug);
-    if (matchingItems.length === 0 || !product.variants) continue;
+    const matchingItems = items.filter((i) => i.productSlug === product.slug)
+    if (matchingItems.length === 0 || !product.variants) continue
 
-    const updatedVariants = stripVariantIds(product.variants);
-    let dirty = false;
+    const updatedVariants = stripVariantIds(product.variants)
+    let dirty = false
 
     for (const item of matchingItems) {
-      const variant =
-        updatedVariants.find((v) => v.sku === item.variantSku) ||
-        updatedVariants[0];
-      if (!variant) continue;
+      const variant = updatedVariants.find((v) => v.sku === item.variantSku) || updatedVariants[0]
+      if (!variant) continue
 
       if (mode === 'reserve') {
-        variant.reservedStock += item.quantity;
-        dirty = true;
+        variant.reservedStock += item.quantity
+        dirty = true
       } else if (mode === 'release_reserved') {
-        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity);
-        dirty = true;
+        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity)
+        dirty = true
       } else if (mode === 'release_committed') {
-        variant.stock += item.quantity;
-        dirty = true;
+        variant.stock += item.quantity
+        dirty = true
       } else if (mode === 'commit') {
-        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity);
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-        dirty = true;
+        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity)
+        variant.stock = Math.max(0, variant.stock - item.quantity)
+        dirty = true
       }
     }
 
@@ -632,14 +577,14 @@ async function applyVariantInventoryAdjustments(
         data: {
           variants: updatedVariants,
         },
-      });
+      })
     }
   }
 }
 
-async function expireStaleReservationsUnlocked(): Promise<void> {
+async function expireStaleReservationsUnlocked() {
   try {
-    const nowIso = new Date().toISOString();
+    const nowIso = new Date().toISOString()
     const res = await sdk.find({
       collection: 'stock-reservations',
       where: {
@@ -647,54 +592,52 @@ async function expireStaleReservationsUnlocked(): Promise<void> {
         expiresAt: { less_than_equal: nowIso },
       },
       limit: 50,
-    });
+    })
 
     for (const reservation of res.docs || []) {
       const items = (reservation.items || []).map((i) => ({
         productSlug: i.productSlug,
         variantSku: i.variantSku,
         quantity: i.quantity,
-      }));
-      await applyVariantInventoryAdjustments(items, 'release_reserved');
+      }))
+      await applyVariantInventoryAdjustments(items, 'release_reserved')
       await sdk.update({
         collection: 'stock-reservations',
         id: reservation.id,
         data: { status: 'EXPIRED' },
-      });
+      })
     }
   } catch (error) {
-    console.error('Failed to expire stale reservations:', error);
+    console.error('Failed to expire stale reservations:', error)
   }
 }
 
-export async function expireStaleReservationsViaSdk(): Promise<void> {
-  return withInventoryLock(['__expire__'], () =>
-    expireStaleReservationsUnlocked()
-  );
+export async function expireStaleReservationsViaSdk() {
+  return withInventoryLock(['__expire__'], () => expireStaleReservationsUnlocked())
 }
 
 export async function reserveVariantStockViaSdk(params: {
-  reservationKey: string;
-  orderId: string;
-  ttlMs?: number;
+  reservationKey: string
+  orderId: string
+  ttlMs?: number
   items: Array<{
-    productSlug: string;
-    variantSku: string;
-    quantity: number;
-  }>;
+    productSlug: string
+    variantSku: string
+    quantity: number
+  }>
 }): Promise<{
-  success: boolean;
-  error?: string;
-  reservation?: StockReservation;
+  success: boolean
+  error?: string
+  reservation?: StockReservation
   insufficientItems?: Array<{
-    variantSku: string;
-    requested: number;
-    available: number;
-  }>;
+    variantSku: string
+    requested: number
+    available: number
+  }>
 }> {
-  const productSlugs = params.items.map((i) => i.productSlug);
+  const productSlugs = params.items.map((i) => i.productSlug)
   return withInventoryLock(productSlugs, async () => {
-    await expireStaleReservationsUnlocked();
+    await expireStaleReservationsUnlocked()
 
     const existingRes = await sdk.find({
       collection: 'stock-reservations',
@@ -702,14 +645,14 @@ export async function reserveVariantStockViaSdk(params: {
         reservationKey: { equals: params.reservationKey },
       },
       limit: 1,
-    });
-    const existing = existingRes.docs?.[0];
+    })
+    const existing = existingRes.docs?.[0]
     if (existing && existing.status === 'RESERVED') {
-      return { success: true, reservation: existing };
+      return { success: true, reservation: existing }
     }
 
-    const nowIso = new Date().toISOString();
-    const uniqueSlugs = Array.from(new Set(productSlugs));
+    const nowIso = new Date().toISOString()
+    const uniqueSlugs = Array.from(new Set(productSlugs))
     const [productsRes, activeReservationsRes] = await Promise.all([
       sdk.find({
         collection: 'products',
@@ -726,98 +669,90 @@ export async function reserveVariantStockViaSdk(params: {
         },
         limit: 200,
       }),
-    ]);
+    ])
 
-    const products = productsRes.docs || [];
-    const activeReservedBySku = new Map<string, number>();
+    const products = productsRes.docs || []
+    const activeReservedBySku = new Map<string, number>()
     for (const resDoc of activeReservationsRes.docs || []) {
       for (const resItem of resDoc.items || []) {
         activeReservedBySku.set(
           resItem.variantSku,
-          (activeReservedBySku.get(resItem.variantSku) ?? 0) +
-            (Number(resItem.quantity) || 0)
-        );
+          (activeReservedBySku.get(resItem.variantSku) ?? 0) + (Number(resItem.quantity) || 0),
+        )
       }
     }
 
     const insufficient: Array<{
-      variantSku: string;
-      requested: number;
-      available: number;
-    }> = [];
+      variantSku: string
+      requested: number
+      available: number
+    }> = []
 
     const resolvedItems: Array<{
-      productSlug: string;
-      variantSku: string;
-      quantity: number;
-    }> = [];
+      productSlug: string
+      variantSku: string
+      quantity: number
+    }> = []
 
-    const pendingSkuQty = new Map<string, number>();
+    const pendingSkuQty = new Map<string, number>()
 
     for (const reqItem of params.items) {
-      const product = products.find((p) => p.slug === reqItem.productSlug);
+      const product = products.find((p) => p.slug === reqItem.productSlug)
       if (!product) {
         return {
           success: false,
           error: `Product "${reqItem.productSlug}" not found.`,
-        };
+        }
       }
 
       const variant =
-        product.variants?.find((v) => v.sku === reqItem.variantSku) ||
-        product.variants?.[0];
+        product.variants?.find((v) => v.sku === reqItem.variantSku) || product.variants?.[0]
 
       if (!variant) {
         return {
           success: false,
           error: `Variant "${reqItem.variantSku}" not found for ${product.title}.`,
-        };
+        }
       }
 
-      const activeReservedFromLedger = activeReservedBySku.get(variant.sku) ?? 0;
-      const alreadyQueuedQty = pendingSkuQty.get(variant.sku) ?? 0;
+      const activeReservedFromLedger = activeReservedBySku.get(variant.sku) ?? 0
+      const alreadyQueuedQty = pendingSkuQty.get(variant.sku) ?? 0
       const effectiveReserved =
-        Math.max(variant.reservedStock, activeReservedFromLedger) +
-        alreadyQueuedQty;
-      const available = Math.max(0, variant.stock - effectiveReserved);
+        Math.max(variant.reservedStock, activeReservedFromLedger) + alreadyQueuedQty
+      const available = Math.max(0, variant.stock - effectiveReserved)
 
       if (available < reqItem.quantity) {
         insufficient.push({
           variantSku: variant.sku,
           requested: reqItem.quantity,
           available,
-        });
+        })
       } else {
-        pendingSkuQty.set(variant.sku, alreadyQueuedQty + reqItem.quantity);
+        pendingSkuQty.set(variant.sku, alreadyQueuedQty + reqItem.quantity)
         resolvedItems.push({
           productSlug: product.slug,
           variantSku: variant.sku,
           quantity: reqItem.quantity,
-        });
+        })
       }
     }
 
     if (insufficient.length > 0) {
       const detail = insufficient
-        .map(
-          (i) =>
-            `${i.variantSku} (requested ${i.requested}, only ${i.available} available)`
-        )
-        .join(', ');
+        .map((i) => `${i.variantSku} (requested ${i.requested}, only ${i.available} available)`)
+        .join(', ')
       return {
         success: false,
         error: `Insufficient stock for: ${detail}`,
         insufficientItems: insufficient,
-      };
+      }
     }
 
     const ttlMs =
-      typeof params.ttlMs === 'number' && params.ttlMs > 0
-        ? params.ttlMs
-        : 30 * 60 * 1000;
-    const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+      typeof params.ttlMs === 'number' && params.ttlMs > 0 ? params.ttlMs : 30 * 60 * 1000
+    const expiresAt = new Date(Date.now() + ttlMs).toISOString()
 
-    let reservation: StockReservation;
+    let reservation: StockReservation
     try {
       reservation = await sdk.create({
         collection: 'stock-reservations',
@@ -828,7 +763,7 @@ export async function reserveVariantStockViaSdk(params: {
           expiresAt,
           items: resolvedItems,
         },
-      });
+      })
     } catch (error) {
       return {
         success: false,
@@ -836,11 +771,11 @@ export async function reserveVariantStockViaSdk(params: {
           error instanceof Error
             ? error.message
             : 'Unable to reserve inventory due to a concurrent checkout.',
-      };
+      }
     }
 
     try {
-      await applyVariantInventoryAdjustments(resolvedItems, 'reserve');
+      await applyVariantInventoryAdjustments(resolvedItems, 'reserve')
     } catch (error) {
       await sdk
         .update({
@@ -848,24 +783,19 @@ export async function reserveVariantStockViaSdk(params: {
           id: reservation.id,
           data: {
             status: 'RELEASED',
-            failureReason:
-              error instanceof Error
-                ? error.message
-                : 'Inventory adjustment failed',
+            failureReason: error instanceof Error ? error.message : 'Inventory adjustment failed',
           },
         })
-        .catch(() => undefined);
-      throw error;
+        .catch(() => undefined)
+      throw error
     }
 
-    return { success: true, reservation };
-  });
+    return { success: true, reservation }
+  })
 }
 
-async function findStockReservation(
-  reservationKeyOrOrderId: string
-): Promise<StockReservation | null> {
-  const normalizedOrderId = reservationKeyOrOrderId.replace(/^res_/, '');
+async function findStockReservation(reservationKeyOrOrderId: string) {
+  const normalizedOrderId = reservationKeyOrOrderId.replace(/^res_/, '')
   const existingRes = await sdk.find({
     collection: 'stock-reservations',
     where: {
@@ -875,26 +805,26 @@ async function findStockReservation(
       ],
     },
     limit: 1,
-  });
-  return existingRes.docs?.[0] || null;
+  })
+  return existingRes.docs?.[0] || null
 }
 
 export async function releaseVariantStockViaSdk(
   reservationKey: string,
-  reason = 'Transaction failed or cancelled'
-): Promise<StockReservation | null> {
+  reason = 'Transaction failed or cancelled',
+) {
   return withInventoryLock(['__release__', reservationKey], async () => {
-    const reservation = await findStockReservation(reservationKey);
-    if (!reservation) return null;
+    const reservation = await findStockReservation(reservationKey)
+    if (!reservation) return null
 
     const items = (reservation.items || []).map((i) => ({
       productSlug: i.productSlug,
       variantSku: i.variantSku,
       quantity: i.quantity,
-    }));
+    }))
 
     if (reservation.status === 'RESERVED') {
-      await applyVariantInventoryAdjustments(items, 'release_reserved');
+      await applyVariantInventoryAdjustments(items, 'release_reserved')
       return sdk.update({
         collection: 'stock-reservations',
         id: reservation.id,
@@ -902,11 +832,11 @@ export async function releaseVariantStockViaSdk(
           status: 'RELEASED',
           failureReason: reason,
         },
-      });
+      })
     }
 
     if (reservation.status === 'COMMITTED') {
-      await applyVariantInventoryAdjustments(items, 'release_committed');
+      await applyVariantInventoryAdjustments(items, 'release_committed')
       return sdk.update({
         collection: 'stock-reservations',
         id: reservation.id,
@@ -914,36 +844,34 @@ export async function releaseVariantStockViaSdk(
           status: 'RELEASED',
           failureReason: reason,
         },
-      });
+      })
     }
 
-    return reservation;
-  });
+    return reservation
+  })
 }
 
-export async function commitVariantStockViaSdk(
-  reservationKey: string
-): Promise<StockReservation | null> {
+export async function commitVariantStockViaSdk(reservationKey: string) {
   return withInventoryLock(['__commit__', reservationKey], async () => {
-    const reservation = await findStockReservation(reservationKey);
-    if (!reservation) return null;
+    const reservation = await findStockReservation(reservationKey)
+    if (!reservation) return null
 
     if (reservation.status === 'RESERVED') {
       const items = (reservation.items || []).map((i) => ({
         productSlug: i.productSlug,
         variantSku: i.variantSku,
         quantity: i.quantity,
-      }));
-      await applyVariantInventoryAdjustments(items, 'commit');
+      }))
+      await applyVariantInventoryAdjustments(items, 'commit')
       return sdk.update({
         collection: 'stock-reservations',
         id: reservation.id,
         data: {
           status: 'COMMITTED',
         },
-      });
+      })
     }
 
-    return reservation;
-  });
+    return reservation
+  })
 }
