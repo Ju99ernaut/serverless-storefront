@@ -10,7 +10,11 @@ import 'swiper/css/effect-coverflow'
 import 'swiper/css/zoom'
 import { AlertTriangle, Check, Heart, Plus, Star } from 'lucide-react'
 import { cn } from 'cn'
-import { getProductImages, getProductLowestAvailableVariantStock, type Product } from '../../data/utils'
+import {
+  getProductImages,
+  getProductLowestAvailableVariantStock,
+  type Product,
+} from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { OptimizedImage } from '../ui/optimized-image'

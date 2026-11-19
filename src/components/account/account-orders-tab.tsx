@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { CheckCircle2, Clock, ExternalLink, FileText, Mail, Package, Truck } from 'lucide-react'
-import type { Order } from '@/data/utils'
+import type { Order } from '@/lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'

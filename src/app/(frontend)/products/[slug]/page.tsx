@@ -12,7 +12,7 @@ import {
   useWishlist,
 } from '@/context'
 import { fetchProductBySlugWithReviews } from '@/lib/payload-sdk'
-import { getProductImages, type Product, type ProductVariant } from '@/data/utils'
+import { getProductImages, type Product, type ProductVariant } from '@/lib/utils/data'
 import {
   ProductDetailSkeleton,
   ProductImageGallery,
@@ -62,14 +62,9 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const variants = product?.variants
     if (!variants || variants.length === 0) return
-    const firstInStock =
-      variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || variants[0]
-    setSelectedColor((prev) =>
-      variants.some((v) => v.color === prev) ? prev : firstInStock.color,
-    )
-    setSelectedSize((prev) =>
-      variants.some((v) => v.size === prev) ? prev : firstInStock.size,
-    )
+    const firstInStock = variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || variants[0]
+    setSelectedColor((prev) => (variants.some((v) => v.color === prev) ? prev : firstInStock.color))
+    setSelectedSize((prev) => (variants.some((v) => v.size === prev) ? prev : firstInStock.size))
   }, [product])
 
   const uniqueColors = useMemo(() => {

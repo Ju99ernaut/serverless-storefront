@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Product, Wishlist } from '../data/utils'
+import type { Product, Wishlist } from '../lib/utils/data'
 import {
   getWishlistByNeonUserId,
   syncWishlistWithPayload,
@@ -87,10 +87,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, [user?.id])
 
   const wishlistSlugs = useMemo(
-    () =>
-      user
-        ? (payloadWishlist?.items ?? []).map((item) => item.productSlug)
-        : guestWishlist,
+    () => (user ? (payloadWishlist?.items ?? []).map((item) => item.productSlug) : guestWishlist),
     [user, payloadWishlist, guestWishlist],
   )
 

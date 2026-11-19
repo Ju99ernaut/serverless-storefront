@@ -14,16 +14,11 @@ import {
   sdk,
   syncCartWithPayload,
 } from '../lib/payload-sdk'
-import { PAYMENT_OPTIONS, type Order, type PaymentOptionType } from '../data/utils'
+import { PAYMENT_OPTIONS, type Order, type PaymentOptionType } from '../lib/utils/data'
 import { applyOrderStatusStep } from './orderStatusWorkflow'
 
 export type WorkflowTimeoutValue =
-  | number
-  | `${number}ms`
-  | `${number}s`
-  | `${number}m`
-  | `${number}h`
-  | `${number}d`
+  number | `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`
 
 export const WORKFLOW_TIMEOUT_DEFAULTS = {
   paymentWaitTimeout: (process.env.WORKFLOW_PAYMENT_WAIT_TIMEOUT || '30m') as WorkflowTimeoutValue,
@@ -414,11 +409,11 @@ async function runOrderFulfillmentLoop(params: {
 
   const iterator = fulfillmentHook[Symbol.asyncIterator]()
   while (true) {
-    const nextPromise = iterator.next().then((res) =>
-      res.done
-        ? ({ timedOut: true as const })
-        : ({ timedOut: false as const, event: res.value }),
-    )
+    const nextPromise = iterator
+      .next()
+      .then((res) =>
+        res.done ? { timedOut: true as const } : { timedOut: false as const, event: res.value },
+      )
 
     const outcome = deadlinePromise
       ? await Promise.race([nextPromise, deadlinePromise])

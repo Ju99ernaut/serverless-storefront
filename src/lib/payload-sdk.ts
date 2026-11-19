@@ -1,7 +1,7 @@
 import { PayloadSDK } from '@payloadcms/sdk'
 import type { Where } from 'payload'
 import type { Order, Product, StockReservation, Wishlist } from '../payload-types'
-import type { CartLineItem } from '../data/utils'
+import type { CartLineItem } from './utils/data'
 
 const getBaseURL = () => {
   if (typeof window !== 'undefined') {

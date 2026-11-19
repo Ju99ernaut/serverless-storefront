@@ -1,7 +1,7 @@
 'use client'
 
 import { Lock } from 'lucide-react'
-import type { CartLineItem } from '../../data/utils'
+import type { CartLineItem } from '../../lib/utils/data'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 import { DrawerFooter, DrawerHeader, DrawerTitle } from '../ui/drawer'

@@ -12,7 +12,7 @@ import Grid from '../../components/grid'
 import CompareBasket from '../../components/compare-basket'
 import CompareWrapper from '../../components/compare-wrapper'
 import { CACHE_TIMES, fetchCatalogData, storefrontQueryKeys, useCart } from '../../context'
-import { getFilterDisplayName, type Product } from '../../data/utils'
+import { getFilterDisplayName, type Product } from '../../lib/utils/data'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 

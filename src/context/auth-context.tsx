@@ -12,7 +12,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { NeonUser } from '../data/utils'
+import type { NeonUser } from '../lib/utils/data'
 import { neonAuthClient } from '../lib/auth-client'
 import type { AuthModalIntent } from './query-keys'
 

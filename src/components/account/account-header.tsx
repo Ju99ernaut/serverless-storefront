@@ -1,6 +1,6 @@
 'use client'
 
-import type { NeonUser } from '@/data/utils'
+import type { NeonUser } from '@/lib/utils/data'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { getUserInitials } from '../user-menu'
 

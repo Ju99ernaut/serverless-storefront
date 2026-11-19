@@ -13,7 +13,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getProductImages, type CartLineItem, type Product } from '../data/utils'
+import { getProductImages, type CartLineItem, type Product } from '../lib/utils/data'
 import { getCartByNeonUserId, syncCartWithPayload } from '../lib/payload-sdk'
 import { useAuth } from './auth-context'
 import {

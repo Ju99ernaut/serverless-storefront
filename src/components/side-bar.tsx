@@ -2,7 +2,7 @@
 
 import { useState, useEffect, MouseEvent, Fragment } from 'react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
-import { CATEGORY_MENUS, CategoryMenuItem } from '../data/utils'
+import { CATEGORY_MENUS, CategoryMenuItem } from '../lib/utils/data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { Drawer, DrawerContent, DrawerHeader } from './ui/drawer'
 import { Button } from './ui/button'

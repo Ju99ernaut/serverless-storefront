@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getProductImages, type Product } from '@/data/utils'
+import { getProductImages, type Product } from '@/lib/utils/data'
 import { OptimizedImage } from '../ui/optimized-image'
 
 interface RelatedProductsSectionProps {

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { ShoppingCart, Star, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import { getProductImages, getProductTotalAvailableStock, type Product } from '../data/utils'
+import { getProductImages, getProductTotalAvailableStock, type Product } from '../lib/utils/data'
 import { Button } from './ui/button'
 
 interface CompareWrapperProps {

@@ -4,9 +4,9 @@ import {
   ProductVariant,
   Review,
   slugifyProductTitle,
-} from './utils';
+} from '../../src/lib/utils/data'
 
-const SEED_TIMESTAMP = '2026-10-01T10:00:00.000Z';
+const SEED_TIMESTAMP = '2026-10-01T10:00:00.000Z'
 
 export const HOME_BANNERS: Banner[] = [
   {
@@ -73,12 +73,9 @@ export const HOME_BANNERS: Banner[] = [
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
   },
-];
+]
 
-const COLOR_PALETTES: Record<
-  Product['category'],
-  Array<{ name: string; hex: string }>
-> = {
+const COLOR_PALETTES: Record<Product['category'], Array<{ name: string; hex: string }>> = {
   jackets: [
     { name: 'Obsidian Black', hex: '#1B1C20' },
     { name: 'Espresso Cognac', hex: '#5C3A28' },
@@ -104,33 +101,30 @@ const COLOR_PALETTES: Record<
     { name: 'Milanese Black', hex: '#1F2024' },
     { name: 'Suede Stone', hex: '#8B857B' },
   ],
-};
+}
 
 function buildDummyVariantsForProduct(
   id: string,
   category: Product['category'],
   imageUrl: string,
-  isLowStockItem: boolean
+  isLowStockItem: boolean,
 ): ProductVariant[] {
-  const sizes =
-    category === 'shoes'
-      ? ['40', '41', '42', '43', '44']
-      : ['XS', 'S', 'M', 'L', 'XL'];
-  const colors = COLOR_PALETTES[category];
-  const variants: ProductVariant[] = [];
+  const sizes = category === 'shoes' ? ['40', '41', '42', '43', '44'] : ['XS', 'S', 'M', 'L', 'XL']
+  const colors = COLOR_PALETTES[category]
+  const variants: ProductVariant[] = []
 
   colors.forEach((c, cIdx) => {
     sizes.forEach((sz, sIdx) => {
-      const cleanColor = c.name.split(' ').pop()?.toUpperCase() || 'STD';
-      const sku = `${id.toUpperCase()}-${cleanColor}-${sz}`;
-      let stock = 12 - ((cIdx * 2 + sIdx) % 7);
+      const cleanColor = c.name.split(' ').pop()?.toUpperCase() || 'STD'
+      const sku = `${id.toUpperCase()}-${cleanColor}-${sz}`
+      let stock = 12 - ((cIdx * 2 + sIdx) % 7)
       if (isLowStockItem) {
-        if (cIdx === 0 && sIdx === 1) stock = 2;
-        else if (cIdx === 0 && sIdx === 2) stock = 3;
-        else if (cIdx === 1 && sIdx === 0) stock = 0;
-        else stock = 4;
+        if (cIdx === 0 && sIdx === 1) stock = 2
+        else if (cIdx === 0 && sIdx === 2) stock = 3
+        else if (cIdx === 1 && sIdx === 0) stock = 0
+        else stock = 4
       } else if (cIdx === 2 && sIdx === 4) {
-        stock = 3;
+        stock = 3
       }
 
       variants.push({
@@ -142,31 +136,31 @@ function buildDummyVariantsForProduct(
         reservedStock: 0,
         lowStockThreshold: 5,
         imageUrl,
-      });
-    });
-  });
+      })
+    })
+  })
 
-  return variants;
+  return variants
 }
 
 interface RawSeedProduct {
-  id: string;
-  title: string;
-  brand: string;
-  price: number;
-  compareAtPrice?: number;
-  category: Product['category'];
-  subcategory: string;
-  tags: string[];
-  images: string[];
-  size: NonNullable<Product['size']>;
-  material: string;
-  fit: string;
-  care: string;
-  lowStockDemo?: boolean;
-  rating: number;
-  reviews: number;
-  description: string;
+  id: string
+  title: string
+  brand: string
+  price: number
+  compareAtPrice?: number
+  category: Product['category']
+  subcategory: string
+  tags: string[]
+  images: string[]
+  size: NonNullable<Product['size']>
+  material: string
+  fit: string
+  care: string
+  lowStockDemo?: boolean
+  rating: number
+  reviews: number
+  description: string
 }
 
 const RAW_PRODUCTS: RawSeedProduct[] = [
@@ -594,10 +588,10 @@ const RAW_PRODUCTS: RawSeedProduct[] = [
     description:
       'Sartorial high-waisted trousers cut from Vitale Barberis Canonico wool flannel with side-tab waist adjusters and cupro knee lining.',
   },
-];
+]
 
 export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item, idx) => {
-  const slug = slugifyProductTitle(item.title);
+  const slug = slugifyProductTitle(item.title)
   return {
     id: idx + 1,
     slug,
@@ -621,14 +615,14 @@ export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item, idx) => {
       item.id,
       item.category,
       item.images[0],
-      Boolean(item.lowStockDemo)
+      Boolean(item.lowStockDemo),
     ),
     averageRating: item.rating,
     reviewCount: item.reviews,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
-  };
-});
+  }
+})
 
 export const INITIAL_REVIEWS: Review[] = [
   {
@@ -693,12 +687,11 @@ export const INITIAL_REVIEWS: Review[] = [
     authorName: 'Devon Brooks',
     rating: 4,
     title: 'Zero break-in period required',
-    comment:
-      'Calfskin is supple right out of the box. Runs true to European sizing.',
+    comment: 'Calfskin is supple right out of the box. Runs true to European sizing.',
     variantSize: '42',
     variantColor: 'Milanese Black',
     verifiedPurchase: true,
     createdAt: '2026-11-12T11:30:00.000Z',
     updatedAt: '2026-11-12T11:30:00.000Z',
   },
-];
+]

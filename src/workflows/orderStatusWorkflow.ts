@@ -9,7 +9,7 @@ import {
   releaseVariantStockViaSdk,
   sdk,
 } from '../lib/payload-sdk'
-import type { Order } from '../data/utils'
+import type { Order } from '../lib/utils/data'
 
 const STATUS_LABELS: Record<Order['orderStatus'], string> = {
   PENDING: 'Order Pending',
@@ -50,8 +50,7 @@ export async function applyOrderStatusStep(input: {
   const shouldCommitStock =
     input.commitStock !== false &&
     (effectiveStatus === 'COMPLETED' ||
-      (order.paymentOption === 'pay_then_collect' &&
-        effectiveStatus === 'READY_FOR_COLLECTION'))
+      (order.paymentOption === 'pay_then_collect' && effectiveStatus === 'READY_FOR_COLLECTION'))
 
   if (shouldCommitStock) {
     await commitVariantStockViaSdk(`res_${order.orderId}`)

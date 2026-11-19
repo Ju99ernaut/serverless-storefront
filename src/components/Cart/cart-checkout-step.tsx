@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Clock, CreditCard, Loader2, Store, Truck } from 'lucide-react'
 import { Controller, type UseFormReturn } from 'react-hook-form'
-import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../data/utils'
+import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'

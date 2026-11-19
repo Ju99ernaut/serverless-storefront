@@ -1,13 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import axios from 'axios';
-import { start } from 'workflow/api';
-import { NextRequest } from 'next/server';
-import { POST as postCheckout } from '@/app/(frontend)/api/checkout/route';
-import {
-  GET as getOrdersRoute,
-  PATCH as patchOrderRoute,
-} from '@/app/(frontend)/api/storefront/orders/route';
-import { GET as getDocument } from '@/app/(frontend)/api/storefront/documents/[orderId]/route';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import axios from 'axios'
+import { start } from 'workflow/api'
+import { NextRequest } from 'next/server'
+import { POST as postCheckout } from '@/app/(frontend)/api/checkout/route'
+import { PATCH as patchOrderRoute } from '@/app/(frontend)/api/storefront/orders/route'
+import { GET as getDocument } from '@/app/(frontend)/api/storefront/documents/[orderId]/route'
 import {
   createProductReview,
   fetchProductBySlugWithReviews,
@@ -23,7 +20,7 @@ import {
   syncWishlistWithPayload,
   toggleWishlistItemInPayload,
   upsertBillingDetails,
-} from '@/lib/payload-sdk';
+} from '@/lib/payload-sdk'
 import {
   WORKFLOW_TIMEOUT_DEFAULTS,
   executeDurableCheckoutWorkflow,
@@ -31,134 +28,127 @@ import {
   getOrderPaymentHookToken,
   orderFulfillmentHook,
   orderPaymentHook,
-} from '@/workflows/checkoutWorkflow';
-import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from '@/data/products';
+} from '@/workflows/checkoutWorkflow'
+import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from './products'
 import {
   getProductLowestAvailableVariantStock,
   type Order,
   type Product,
   type Review,
-} from '@/data/utils';
+} from '@/lib/utils/data'
 
 type MockRecord = Record<string, unknown> & {
-  id: number;
-  createdAt?: string;
-  updatedAt?: string;
-};
+  id: number
+  createdAt?: string
+  updatedAt?: string
+}
 
 function parseBracketQuery(search: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const params = new URLSearchParams(search);
+  const result: Record<string, unknown> = {}
+  const params = new URLSearchParams(search)
   for (const [rawKey, value] of params.entries()) {
     const parts = rawKey
       .replace(/\]/g, '')
       .split('[')
-      .filter((p) => p.length > 0);
-    if (parts.length === 0) continue;
+      .filter((p) => p.length > 0)
+    if (parts.length === 0) continue
 
-    let current: Record<string, unknown> | unknown[] = result;
+    let current: Record<string, unknown> | unknown[] = result
     for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      const nextIsIndex = !isLast && /^\d+$/.test(parts[i + 1]);
+      const part = parts[i]
+      const isLast = i === parts.length - 1
+      const nextIsIndex = !isLast && /^\d+$/.test(parts[i + 1])
 
       if (Array.isArray(current)) {
-        const idx = Number(part);
+        const idx = Number(part)
         if (isLast) {
-          current[idx] = value;
+          current[idx] = value
         } else {
           if (!current[idx] || typeof current[idx] !== 'object') {
-            current[idx] = nextIsIndex ? [] : {};
+            current[idx] = nextIsIndex ? [] : {}
           }
-          current = current[idx] as Record<string, unknown> | unknown[];
+          current = current[idx] as Record<string, unknown> | unknown[]
         }
       } else {
         if (isLast) {
-          current[part] = value;
+          current[part] = value
         } else {
           if (!current[part] || typeof current[part] !== 'object') {
-            current[part] = nextIsIndex ? [] : {};
+            current[part] = nextIsIndex ? [] : {}
           }
-          current = current[part] as Record<string, unknown> | unknown[];
+          current = current[part] as Record<string, unknown> | unknown[]
         }
       }
     }
   }
-  return result;
+  return result
 }
 
 function matchesWhere(doc: MockRecord, where: unknown): boolean {
-  if (!where || typeof where !== 'object') return true;
-  const w = where as Record<string, unknown>;
+  if (!where || typeof where !== 'object') return true
+  const w = where as Record<string, unknown>
 
   if (Array.isArray(w.or)) {
-    return w.or.some((sub) => matchesWhere(doc, sub));
+    return w.or.some((sub) => matchesWhere(doc, sub))
   }
   if (Array.isArray(w.and)) {
-    return w.and.every((sub) => matchesWhere(doc, sub));
+    return w.and.every((sub) => matchesWhere(doc, sub))
   }
 
   for (const [field, cond] of Object.entries(w)) {
-    if (field === 'or' || field === 'and') continue;
-    if (!cond || typeof cond !== 'object') continue;
-    const op = cond as Record<string, unknown>;
-    const val = doc[field];
+    if (field === 'or' || field === 'and') continue
+    if (!cond || typeof cond !== 'object') continue
+    const op = cond as Record<string, unknown>
+    const val = doc[field]
 
     if ('equals' in op) {
-      const target = op.equals;
-      const normalizedTarget =
-        target === 'true' ? true : target === 'false' ? false : target;
+      const target = op.equals
+      const normalizedTarget = target === 'true' ? true : target === 'false' ? false : target
       if (val !== normalizedTarget && String(val) !== String(target)) {
-        return false;
+        return false
       }
     }
     if ('not_equals' in op) {
       if (val === op.not_equals || String(val) === String(op.not_equals)) {
-        return false;
+        return false
       }
     }
     if ('in' in op) {
-      const list = Array.isArray(op.in)
-        ? op.in
-        : typeof op.in === 'string'
-          ? op.in.split(',')
-          : [];
+      const list = Array.isArray(op.in) ? op.in : typeof op.in === 'string' ? op.in.split(',') : []
       if (!list.some((item) => item === val || String(item) === String(val))) {
-        return false;
+        return false
       }
     }
     if ('less_than_equal' in op) {
       if (String(val ?? '') > String(op.less_than_equal ?? '')) {
-        return false;
+        return false
       }
     }
     if ('greater_than' in op) {
       if (String(val ?? '') <= String(op.greater_than ?? '')) {
-        return false;
+        return false
       }
     }
   }
 
-  return true;
+  return true
 }
 
 const waitForWorkflowHook = (token: string) =>
   (
     globalThis as unknown as {
-      __waitForWorkflowHook__: (token: string, timeoutMs?: number) => Promise<void>;
+      __waitForWorkflowHook__: (token: string, timeoutMs?: number) => Promise<void>
     }
-  ).__waitForWorkflowHook__(token);
+  ).__waitForWorkflowHook__(token)
 
 describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () => {
-  let collectionsStore: Record<string, MockRecord[]>;
-  let nextIds: Record<string, number>;
+  let collectionsStore: Record<string, MockRecord[]>
+  let nextIds: Record<string, number>
 
   const getLiveVariant = (slug: string, sku: string) => {
-    const prod = (collectionsStore.products as unknown as Product[]).find(
-      (p) => p.slug === slug
-    )!;
-    return prod.variants!.find((v) => v.sku === sku)!;
-  };
+    const prod = (collectionsStore.products as unknown as Product[]).find((p) => p.slug === slug)!
+    return prod.variants!.find((v) => v.sku === sku)!
+  }
 
   beforeAll(() => {
     collectionsStore = {
@@ -170,7 +160,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       wishlists: [],
       orders: [],
       'stock-reservations': [],
-    };
+    }
     nextIds = {
       products: PRODUCTS.length + 1,
       banners: HOME_BANNERS.length + 1,
@@ -180,18 +170,17 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       wishlists: 1,
       orders: 1,
       'stock-reservations': 1,
-    };
+    }
 
     const buildMockComposeItResponse = (parsed: {
-      formats?: string[];
-      data?: { orderId?: string; documentType?: string };
+      formats?: string[]
+      data?: { orderId?: string; documentType?: string }
     }) => {
-      const orderId = parsed.data?.orderId || 'ORD-TEST';
-      const docType =
-        parsed.data?.documentType === 'RECEIPT' ? 'receipt' : 'invoice';
-      const wantsPdf = !parsed.formats || parsed.formats.includes('pdf');
-      const wantsHtml = !parsed.formats || parsed.formats.includes('html');
-      const htmlDocument = `<!DOCTYPE html><html><body><h1>Order ${orderId}</h1></body></html>`;
+      const orderId = parsed.data?.orderId || 'ORD-TEST'
+      const docType = parsed.data?.documentType === 'RECEIPT' ? 'receipt' : 'invoice'
+      const wantsPdf = !parsed.formats || parsed.formats.includes('pdf')
+      const wantsHtml = !parsed.formats || parsed.formats.includes('html')
+      const htmlDocument = `<!DOCTYPE html><html><body><h1>Order ${orderId}</h1></body></html>`
 
       return {
         ...(wantsPdf
@@ -215,69 +204,63 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
               },
             }
           : {}),
-      };
-    };
-
-    vi.spyOn(axios, 'post').mockImplementation(
-      async (_url: string, data?: unknown) => {
-        const parsed =
-          data && typeof data === 'object'
-            ? (data as {
-                formats?: string[];
-                data?: { orderId?: string; documentType?: string };
-              })
-            : {};
-        return { data: buildMockComposeItResponse(parsed) };
       }
-    );
+    }
+
+    vi.spyOn(axios, 'post').mockImplementation(async (_url: string, data?: unknown) => {
+      const parsed =
+        data && typeof data === 'object'
+          ? (data as {
+              formats?: string[]
+              data?: { orderId?: string; documentType?: string }
+            })
+          : {}
+      return { data: buildMockComposeItResponse(parsed) }
+    })
 
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         const rawUrl =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.toString()
-              : input.url;
-        const method = (init?.method || 'GET').toUpperCase();
-        const urlObj = new URL(rawUrl, 'http://localhost:3000');
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        const method = (init?.method || 'GET').toUpperCase()
+        const urlObj = new URL(rawUrl, 'http://localhost:3000')
 
         if (urlObj.pathname.startsWith('/api/')) {
-          const rest = urlObj.pathname.slice('/api/'.length);
-          const [collection, idSegment] = rest.split('/');
+          const rest = urlObj.pathname.slice('/api/'.length)
+          const [collection, idSegment] = rest.split('/')
 
           if (collection && collectionsStore[collection]) {
-            const docs = collectionsStore[collection];
+            const docs = collectionsStore[collection]
             const query = parseBracketQuery(urlObj.search) as {
-              where?: unknown;
-              sort?: string;
-              limit?: string;
-            };
+              where?: unknown
+              sort?: string
+              limit?: string
+            }
 
             if (method === 'GET') {
               if (idSegment) {
-                const found = docs.find((d) => String(d.id) === idSegment);
+                const found = docs.find((d) => String(d.id) === idSegment)
                 return new Response(JSON.stringify(found || null), {
                   status: found ? 200 : 404,
                   headers: { 'Content-Type': 'application/json' },
-                });
+                })
               }
 
-              let filtered = docs.filter((d) => matchesWhere(d, query.where));
+              let filtered = docs.filter((d) => matchesWhere(d, query.where))
               if (query.sort) {
-                const desc = query.sort.startsWith('-');
-                const sortField = desc ? query.sort.slice(1) : query.sort;
+                const desc = query.sort.startsWith('-')
+                const sortField = desc ? query.sort.slice(1) : query.sort
                 filtered = [...filtered].sort((a, b) => {
-                  const av = a[sortField];
-                  const bv = b[sortField];
-                  if (av === bv) return 0;
-                  const cmp = String(av ?? '') < String(bv ?? '') ? -1 : 1;
-                  return desc ? -cmp : cmp;
-                });
+                  const av = a[sortField]
+                  const bv = b[sortField]
+                  if (av === bv) return 0
+                  const cmp = String(av ?? '') < String(bv ?? '') ? -1 : 1
+                  return desc ? -cmp : cmp
+                })
               }
-              const limit = Number(query.limit) || 10;
-              const sliced = filtered.slice(0, limit);
+              const limit = Number(query.limit) || 10
+              const sliced = filtered.slice(0, limit)
               return new Response(
                 JSON.stringify({
                   docs: sliced,
@@ -288,60 +271,55 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
                   hasNextPage: false,
                   hasPrevPage: false,
                 }),
-                { status: 200, headers: { 'Content-Type': 'application/json' } }
-              );
+                { status: 200, headers: { 'Content-Type': 'application/json' } },
+              )
             }
 
             if (method === 'POST') {
-              const payloadData =
-                typeof init?.body === 'string' ? JSON.parse(init.body) : {};
-              const now = new Date().toISOString();
+              const payloadData = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
+              const now = new Date().toISOString()
               const newDoc: MockRecord = {
                 ...payloadData,
                 id: nextIds[collection]++,
                 createdAt: now,
                 updatedAt: now,
-              };
-              docs.push(newDoc);
+              }
+              docs.push(newDoc)
               return new Response(JSON.stringify({ doc: newDoc }), {
                 status: 201,
                 headers: { 'Content-Type': 'application/json' },
-              });
+              })
             }
 
             if (method === 'PATCH' && idSegment) {
-              const patchData =
-                typeof init?.body === 'string' ? JSON.parse(init.body) : {};
-              const idx = docs.findIndex((d) => String(d.id) === idSegment);
+              const patchData = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
+              const idx = docs.findIndex((d) => String(d.id) === idSegment)
               if (idx < 0) {
-                return new Response(
-                  JSON.stringify({ errors: [{ message: 'Not found' }] }),
-                  {
-                    status: 404,
-                    headers: { 'Content-Type': 'application/json' },
-                  }
-                );
+                return new Response(JSON.stringify({ errors: [{ message: 'Not found' }] }), {
+                  status: 404,
+                  headers: { 'Content-Type': 'application/json' },
+                })
               }
               const updated: MockRecord = {
                 ...docs[idx],
                 ...patchData,
                 id: docs[idx].id,
                 updatedAt: new Date().toISOString(),
-              };
-              docs[idx] = updated;
+              }
+              docs[idx] = updated
               return new Response(JSON.stringify({ doc: updated }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
-              });
+              })
             }
 
             if (method === 'DELETE' && idSegment) {
-              const idx = docs.findIndex((d) => String(d.id) === idSegment);
-              const deleted = idx >= 0 ? docs.splice(idx, 1)[0] : null;
+              const idx = docs.findIndex((d) => String(d.id) === idSegment)
+              const deleted = idx >= 0 ? docs.splice(idx, 1)[0] : null
               return new Response(JSON.stringify({ doc: deleted }), {
                 status: deleted ? 200 : 404,
                 headers: { 'Content-Type': 'application/json' },
-              });
+              })
             }
           }
         }
@@ -349,58 +327,51 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         const parsed =
           typeof init?.body === 'string'
             ? (JSON.parse(init.body) as {
-                formats?: string[];
-                data?: { orderId?: string; documentType?: string };
+                formats?: string[]
+                data?: { orderId?: string; documentType?: string }
               })
-            : {};
+            : {}
 
-        return new Response(
-          JSON.stringify(buildMockComposeItResponse(parsed)),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      })
-    );
-  });
+        return new Response(JSON.stringify(buildMockComposeItResponse(parsed)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+  })
 
   afterAll(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-  });
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it('fetches catalog products and banners via Payload SDK and detects low-stock variants', async () => {
-    const catalog = await getCatalogData();
+    const catalog = await getCatalogData()
 
-    expect(Array.isArray(catalog.products)).toBe(true);
-    expect(catalog.products.length).toBeGreaterThan(0);
-    expect(Array.isArray(catalog.banners)).toBe(true);
-    expect(catalog.banners.length).toBeGreaterThan(0);
+    expect(Array.isArray(catalog.products)).toBe(true)
+    expect(catalog.products.length).toBeGreaterThan(0)
+    expect(Array.isArray(catalog.banners)).toBe(true)
+    expect(catalog.banners.length).toBeGreaterThan(0)
 
-    const oxford = catalog.products.find(
-      (p: Product) => p.slug === 'classic-oxford-button-down'
-    );
-    expect(oxford).toBeDefined();
+    const oxford = catalog.products.find((p: Product) => p.slug === 'classic-oxford-button-down')
+    expect(oxford).toBeDefined()
 
-    const stockInfo = getProductLowestAvailableVariantStock(oxford!);
-    expect(stockInfo.hasLowStockVariant).toBe(true);
-    expect(stockInfo.minAvailable).toBeLessThanOrEqual(5);
+    const stockInfo = getProductLowestAvailableVariantStock(oxford!)
+    expect(stockInfo.hasLowStockVariant).toBe(true)
+    expect(stockInfo.minAvailable).toBeLessThanOrEqual(5)
 
-    const detail = await fetchProductBySlugWithReviews('classic-oxford-button-down');
-    expect(detail.product.slug).toBe('classic-oxford-button-down');
-    expect(detail.reviews.length).toBeGreaterThan(0);
-    expect(detail.relatedProducts.length).toBeGreaterThan(0);
-  });
+    const detail = await fetchProductBySlugWithReviews('classic-oxford-button-down')
+    expect(detail.product.slug).toBe('classic-oxford-button-down')
+    expect(detail.reviews.length).toBeGreaterThan(0)
+    expect(detail.relatedProducts.length).toBeGreaterThan(0)
+  })
 
   it('prevents double allocation under concurrent reservations and releases stock on failed payment', async () => {
-    const products = collectionsStore.products as unknown as Product[];
-    const oxford = products.find(
-      (p) => p.slug === 'classic-oxford-button-down'
-    )!;
-    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!;
-    const initialStock = variant.stock;
-    expect(initialStock).toBe(2);
+    const products = collectionsStore.products as unknown as Product[]
+    const oxford = products.find((p) => p.slug === 'classic-oxford-button-down')!
+    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!
+    const initialStock = variant.stock
+    expect(initialStock).toBe(2)
 
     // 1. Simulate failed payment checkout -> Workflow reserves then compensates/releases stock
     const failedReq = new NextRequest('http://localhost:3000/api/checkout', {
@@ -437,14 +408,14 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-    });
+    })
 
-    const failedRes = await postCheckout(failedReq);
-    expect(failedRes.status).toBe(402);
-    const failedBody = await failedRes.json();
-    expect(failedBody.stockReleased).toBe(true);
-    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(initialStock);
+    const failedRes = await postCheckout(failedReq)
+    expect(failedRes.status).toBe(402)
+    const failedBody = await failedRes.json()
+    expect(failedBody.stockReleased).toBe(true)
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(initialStock)
 
     // 2. True concurrent race-condition check via Promise.all on same SKU (stock = 2)
     const [r1, r2] = await Promise.all([
@@ -470,21 +441,18 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-    ]);
+    ])
 
-    const outcomes = [r1, r2];
-    const succeeded = outcomes.filter((o) => o.success);
-    const rejected = outcomes.filter((o) => !o.success);
-    expect(succeeded).toHaveLength(1);
-    expect(rejected).toHaveLength(1);
-    expect(rejected[0].insufficientItems?.[0].available).toBe(0);
-    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(2);
+    const outcomes = [r1, r2]
+    const succeeded = outcomes.filter((o) => o.success)
+    const rejected = outcomes.filter((o) => !o.success)
+    expect(succeeded).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0].insufficientItems?.[0].available).toBe(0)
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(2)
 
-    await releaseVariantStockViaSdk(
-      succeeded[0].reservation!.reservationKey,
-      'Test cleanup'
-    );
-    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
+    await releaseVariantStockViaSdk(succeeded[0].reservation!.reservationKey, 'Test cleanup')
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0)
 
     // 3. Concurrent reservations on different SKUs of the same product must not overwrite each other
     const [skuA, skuB] = await Promise.all([
@@ -510,29 +478,27 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-    ]);
-    expect(skuA.success).toBe(true);
-    expect(skuB.success).toBe(true);
-    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(1);
-    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(1);
+    ])
+    expect(skuA.success).toBe(true)
+    expect(skuB.success).toBe(true)
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(1)
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(1)
 
-    await releaseVariantStockViaSdk('res_diff_sku_1', 'Test cleanup A');
-    await releaseVariantStockViaSdk('res_diff_sku_2', 'Test cleanup B');
-    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(0);
-    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(0);
-  });
+    await releaseVariantStockViaSdk('res_diff_sku_1', 'Test cleanup A')
+    await releaseVariantStockViaSdk('res_diff_sku_2', 'Test cleanup B')
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(0)
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(0)
+  })
 
   it('exposes configurable defaults (30m payment, 8h pay-on-collection, 24h pay-on-delivery) and stops + releases stock if payment times out', async () => {
-    expect(WORKFLOW_TIMEOUT_DEFAULTS.paymentWaitTimeout).toBe('30m');
-    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnCollectionTimeout).toBe('8h');
-    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnDeliveryTimeout).toBe('24h');
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.paymentWaitTimeout).toBe('30m')
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnCollectionTimeout).toBe('8h')
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnDeliveryTimeout).toBe('24h')
 
-    const products = collectionsStore.products as unknown as Product[];
-    const oxford = products.find(
-      (p) => p.slug === 'classic-oxford-button-down'
-    )!;
-    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!;
-    const startStock = variant.stock;
+    const products = collectionsStore.products as unknown as Product[]
+    const oxford = products.find((p) => p.slug === 'classic-oxford-button-down')!
+    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!
+    const startStock = variant.stock
 
     // 1. Pay & Delivery: payment times out after configurable window -> stops workflow & releases stock
     const timeoutRun = await start(executeDurableCheckoutWorkflow, [
@@ -562,26 +528,24 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    const timeoutResult = await timeoutRun.returnValue;
-    expect(timeoutResult.success).toBe(false);
-    expect(timeoutResult.status).toBe(408);
-    expect(timeoutResult.stockReleased).toBe(true);
-    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(startStock);
-  });
+    const timeoutResult = await timeoutRun.returnValue
+    expect(timeoutResult.success).toBe(false)
+    expect(timeoutResult.status).toBe(408)
+    expect(timeoutResult.stockReleased).toBe(true)
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(startStock)
+  })
 
   it('handles pay_then_collect (payment -> invoice/receipt email -> reserved -> Ready for Collection -> done or Cancelled)', async () => {
-    const products = collectionsStore.products as unknown as Product[];
-    const boot = products.find(
-      (p) => p.slug === 'milan-leather-chelsea-boot'
-    )!;
-    const targetVariant = boot.variants![0];
-    const startStock = targetVariant.stock;
+    const products = collectionsStore.products as unknown as Product[]
+    const boot = products.find((p) => p.slug === 'milan-leather-chelsea-boot')!
+    const targetVariant = boot.variants![0]
+    const startStock = targetVariant.stock
 
     // 1. Pay then collect: payment received via hook -> email w/ invoice+receipt -> stock reserved -> marked READY_FOR_COLLECTION -> completes & deducts stock
-    const collectOrderId = 'ORD-PTC-READY-1';
+    const collectOrderId = 'ORD-PTC-READY-1'
     const run = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: collectOrderId,
@@ -610,48 +574,41 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    await waitForWorkflowHook(getOrderPaymentHookToken(collectOrderId));
+    await waitForWorkflowHook(getOrderPaymentHookToken(collectOrderId))
     await orderPaymentHook.resume(getOrderPaymentHookToken(collectOrderId), {
       authorized: true,
       cardNumber: '4242424242424242',
-    });
+    })
 
     // While waiting for admin input, stock is reserved (not yet deducted) and order + invoice/receipt email are created
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(collectOrderId));
-    const midOrder = await getOrderByOrderId(collectOrderId);
-    expect(midOrder).not.toBeNull();
-    expect(midOrder?.paymentStatus).toBe('PAID');
-    expect(midOrder?.documents?.invoicePdfUrl).toContain('type=invoice');
-    expect(midOrder?.documents?.receiptPdfUrl).toContain('type=receipt');
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(collectOrderId))
+    const midOrder = await getOrderByOrderId(collectOrderId)
+    expect(midOrder).not.toBeNull()
+    expect(midOrder?.paymentStatus).toBe('PAID')
+    expect(midOrder?.documents?.invoicePdfUrl).toContain('type=invoice')
+    expect(midOrder?.documents?.receiptPdfUrl).toContain('type=receipt')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock)
 
     // Admin marks as Ready for Collection -> workflow completes & stock is deducted
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(collectOrderId),
-      {
-        nextStatus: 'READY_FOR_COLLECTION',
-        note: 'Garments ready at SoHo pickup lounge.',
-      }
-    );
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(collectOrderId), {
+      nextStatus: 'READY_FOR_COLLECTION',
+      note: 'Garments ready at SoHo pickup lounge.',
+    })
 
-    const finalResult = await run.returnValue;
-    expect(finalResult.success).toBe(true);
+    const finalResult = await run.returnValue
+    expect(finalResult.success).toBe(true)
     if (finalResult.success) {
-      expect(finalResult.fulfillmentOutcome?.finalStatus).toBe(
-        'READY_FOR_COLLECTION'
-      );
-      expect(finalResult.fulfillmentOutcome?.stockCommitted).toBe(true);
+      expect(finalResult.fulfillmentOutcome?.finalStatus).toBe('READY_FOR_COLLECTION')
+      expect(finalResult.fulfillmentOutcome?.stockCommitted).toBe(true)
     }
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
     // 2. Pay then collect cancelled -> releases reserved stock and refunds payment
-    const cancelOrderId = 'ORD-PTC-CANCEL-1';
+    const cancelOrderId = 'ORD-PTC-CANCEL-1'
     const cancelRun = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: cancelOrderId,
@@ -683,38 +640,34 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(cancelOrderId));
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(cancelOrderId),
-      { nextStatus: 'CANCELLED', note: 'Customer requested cancellation.' }
-    );
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(cancelOrderId))
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(cancelOrderId), {
+      nextStatus: 'CANCELLED',
+      note: 'Customer requested cancellation.',
+    })
 
-    const cancelResult = await cancelRun.returnValue;
-    expect(cancelResult.success).toBe(true);
+    const cancelResult = await cancelRun.returnValue
+    expect(cancelResult.success).toBe(true)
     if (cancelResult.success) {
-      expect(cancelResult.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
-      expect(cancelResult.fulfillmentOutcome?.stockReleased).toBe(true);
+      expect(cancelResult.fulfillmentOutcome?.finalStatus).toBe('CANCELLED')
+      expect(cancelResult.fulfillmentOutcome?.stockReleased).toBe(true)
     }
-    const cancelledOrder = await getOrderByOrderId(cancelOrderId);
-    expect(cancelledOrder?.paymentStatus).toBe('REFUNDED');
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
-  });
+    const cancelledOrder = await getOrderByOrderId(cancelOrderId)
+    expect(cancelledOrder?.paymentStatus).toBe('REFUNDED')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
+  })
 
   it('handles pay_and_delivery (reserved -> Out for Delivery -> Delivered deducts stock)', async () => {
-    const products = collectionsStore.products as unknown as Product[];
-    const boot = products.find(
-      (p) => p.slug === 'milan-leather-chelsea-boot'
-    )!;
-    const targetVariant = boot.variants![1];
-    const startStock = targetVariant.stock;
+    const products = collectionsStore.products as unknown as Product[]
+    const boot = products.find((p) => p.slug === 'milan-leather-chelsea-boot')!
+    const targetVariant = boot.variants![1]
+    const startStock = targetVariant.stock
 
-    const deliveryOrderId = 'ORD-PAD-1';
+    const deliveryOrderId = 'ORD-PAD-1'
     const run = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: deliveryOrderId,
@@ -747,61 +700,57 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(deliveryOrderId));
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(deliveryOrderId))
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock)
 
     // Step 1: Out for delivery (still reserved)
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(deliveryOrderId),
-      { nextStatus: 'OUT_FOR_DELIVERY', note: 'Courier dispatched.' }
-    );
-    await new Promise((r) => setTimeout(r, 20));
-    const inTransitOrder = await getOrderByOrderId(deliveryOrderId);
-    expect(inTransitOrder?.orderStatus).toBe('OUT_FOR_DELIVERY');
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(deliveryOrderId), {
+      nextStatus: 'OUT_FOR_DELIVERY',
+      note: 'Courier dispatched.',
+    })
+    await new Promise((r) => setTimeout(r, 20))
+    const inTransitOrder = await getOrderByOrderId(deliveryOrderId)
+    expect(inTransitOrder?.orderStatus).toBe('OUT_FOR_DELIVERY')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock)
 
     // Step 2: Delivered (COMPLETED) -> stock deducted
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(deliveryOrderId),
-      { nextStatus: 'COMPLETED', note: 'Signed at doorstep.' }
-    );
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(deliveryOrderId), {
+      nextStatus: 'COMPLETED',
+      note: 'Signed at doorstep.',
+    })
 
-    const outcome = await run.returnValue;
-    expect(outcome.success).toBe(true);
+    const outcome = await run.returnValue
+    expect(outcome.success).toBe(true)
     if (outcome.success) {
-      expect(outcome.fulfillmentOutcome?.finalStatus).toBe('COMPLETED');
-      expect(outcome.fulfillmentOutcome?.stockCommitted).toBe(true);
+      expect(outcome.fulfillmentOutcome?.finalStatus).toBe('COMPLETED')
+      expect(outcome.fulfillmentOutcome?.stockCommitted).toBe(true)
     }
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
     // Document preview endpoint renders printable invoice
     const docReq = new NextRequest(
-      `http://localhost:3000/api/storefront/documents/${deliveryOrderId}?type=invoice`
-    );
+      `http://localhost:3000/api/storefront/documents/${deliveryOrderId}?type=invoice`,
+    )
     const docRes = await getDocument(docReq, {
       params: Promise.resolve({ orderId: deliveryOrderId }),
-    });
-    expect(docRes.status).toBe(200);
-    expect(await docRes.text()).toContain(deliveryOrderId);
-  });
+    })
+    expect(docRes.status).toBe(200)
+    expect(await docRes.text()).toContain(deliveryOrderId)
+  })
 
   it('handles pay_on_collection (8h configurable window: ready -> collected deducts stock, timeout releases stock)', async () => {
-    const products = collectionsStore.products as unknown as Product[];
-    const boot = products.find(
-      (p) => p.slug === 'milan-leather-chelsea-boot'
-    )!;
-    const targetVariant = boot.variants![2];
-    const startStock = targetVariant.stock;
+    const products = collectionsStore.products as unknown as Product[]
+    const boot = products.find((p) => p.slug === 'milan-leather-chelsea-boot')!
+    const targetVariant = boot.variants![2]
+    const startStock = targetVariant.stock
 
     // 1. Collected within 8h window -> stock deducted and payment marked PAID
-    const pocOrderId = 'ORD-POC-OK-1';
+    const pocOrderId = 'ORD-POC-OK-1'
     const run = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: pocOrderId,
@@ -829,38 +778,33 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(pocOrderId));
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(pocOrderId))
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(pocOrderId),
-      { nextStatus: 'READY_FOR_COLLECTION' }
-    );
-    await new Promise((r) => setTimeout(r, 20));
-    expect((await getOrderByOrderId(pocOrderId))?.orderStatus).toBe(
-      'READY_FOR_COLLECTION'
-    );
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(pocOrderId), {
+      nextStatus: 'READY_FOR_COLLECTION',
+    })
+    await new Promise((r) => setTimeout(r, 20))
+    expect((await getOrderByOrderId(pocOrderId))?.orderStatus).toBe('READY_FOR_COLLECTION')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(pocOrderId),
-      { nextStatus: 'COMPLETED', note: 'Paid in store & collected.' }
-    );
-    const res = await run.returnValue;
-    expect(res.success).toBe(true);
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(pocOrderId), {
+      nextStatus: 'COMPLETED',
+      note: 'Paid in store & collected.',
+    })
+    const res = await run.returnValue
+    expect(res.success).toBe(true)
     if (res.success) {
-      expect(res.fulfillmentOutcome?.stockCommitted).toBe(true);
+      expect(res.fulfillmentOutcome?.stockCommitted).toBe(true)
     }
-    expect((await getOrderByOrderId(pocOrderId))?.paymentStatus).toBe('PAID');
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
+    expect((await getOrderByOrderId(pocOrderId))?.paymentStatus).toBe('PAID')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
     // 2. Window expires without collection -> stock released automatically
-    const pocExpireOrderId = 'ORD-POC-EXPIRE-1';
+    const pocExpireOrderId = 'ORD-POC-EXPIRE-1'
     const expireRun = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: pocExpireOrderId,
@@ -888,34 +832,28 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    const expireOutcome = await expireRun.returnValue;
-    expect(expireOutcome.success).toBe(true);
+    const expireOutcome = await expireRun.returnValue
+    expect(expireOutcome.success).toBe(true)
     if (expireOutcome.success) {
-      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true);
-      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
-      expect(expireOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
+      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true)
+      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true)
+      expect(expireOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED')
     }
-    expect((await getOrderByOrderId(pocExpireOrderId))?.orderStatus).toBe(
-      'CANCELLED'
-    );
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
-  });
+    expect((await getOrderByOrderId(pocExpireOrderId))?.orderStatus).toBe('CANCELLED')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
+  })
 
   it('handles pay_on_delivery (24h configurable window: delivery deducts stock, delivery failure & timeout release stock) + API PATCH', async () => {
-    const products = collectionsStore.products as unknown as Product[];
-    const boot = products.find(
-      (p) => p.slug === 'milan-leather-chelsea-boot'
-    )!;
-    const targetVariant = boot.variants![3];
-    const startStock = targetVariant.stock;
+    const products = collectionsStore.products as unknown as Product[]
+    const boot = products.find((p) => p.slug === 'milan-leather-chelsea-boot')!
+    const targetVariant = boot.variants![3]
+    const startStock = targetVariant.stock
 
     // 1. Delivery succeeds via HTTP POST /api/checkout + PATCH /api/storefront/orders
-    const podOrderId = 'ORD-POD-OK-1';
+    const podOrderId = 'ORD-POD-OK-1'
     const checkoutReq = new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -945,58 +883,50 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-    });
+    })
 
-    const checkoutRes = await postCheckout(checkoutReq);
-    expect(checkoutRes.status).toBe(200);
-    const checkoutData = await checkoutRes.json();
-    expect(checkoutData.order.orderId).toBe(podOrderId);
-    expect(checkoutData.order.paymentSummary.status).toBe('PENDING');
+    const checkoutRes = await postCheckout(checkoutReq)
+    expect(checkoutRes.status).toBe(200)
+    const checkoutData = await checkoutRes.json()
+    expect(checkoutData.order.orderId).toBe(podOrderId)
+    expect(checkoutData.order.paymentSummary.status).toBe('PENDING')
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(podOrderId));
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(podOrderId))
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
-    const outReq = new NextRequest(
-      'http://localhost:3000/api/storefront/orders',
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: podOrderId,
-          nextStatus: 'OUT_FOR_DELIVERY',
-          note: 'Courier on route.',
-        }),
-      }
-    );
-    const outRes = await patchOrderRoute(outReq);
-    expect(outRes.status).toBe(200);
-    const outData = await outRes.json();
-    expect(outData.order.orderStatus).toBe('OUT_FOR_DELIVERY');
+    const outReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: podOrderId,
+        nextStatus: 'OUT_FOR_DELIVERY',
+        note: 'Courier on route.',
+      }),
+    })
+    const outRes = await patchOrderRoute(outReq)
+    expect(outRes.status).toBe(200)
+    const outData = await outRes.json()
+    expect(outData.order.orderStatus).toBe('OUT_FOR_DELIVERY')
 
-    const deliveredReq = new NextRequest(
-      'http://localhost:3000/api/storefront/orders',
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: podOrderId,
-          nextStatus: 'COMPLETED',
-          note: 'Paid on delivery & signed.',
-        }),
-      }
-    );
-    const deliveredRes = await patchOrderRoute(deliveredReq);
-    expect(deliveredRes.status).toBe(200);
-    const deliveredData = await deliveredRes.json();
-    expect(deliveredData.order.orderStatus).toBe('COMPLETED');
-    expect(deliveredData.order.paymentStatus).toBe('PAID');
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
+    const deliveredReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: podOrderId,
+        nextStatus: 'COMPLETED',
+        note: 'Paid on delivery & signed.',
+      }),
+    })
+    const deliveredRes = await patchOrderRoute(deliveredReq)
+    expect(deliveredRes.status).toBe(200)
+    const deliveredData = await deliveredRes.json()
+    expect(deliveredData.order.orderStatus).toBe('COMPLETED')
+    expect(deliveredData.order.paymentStatus).toBe('PAID')
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
     // 2. Delivery fails -> stock released
-    const failOrderId = 'ORD-POD-FAIL-1';
+    const failOrderId = 'ORD-POD-FAIL-1'
     const failRun = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: failOrderId,
@@ -1024,32 +954,27 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(failOrderId));
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(failOrderId))
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
-    await orderFulfillmentHook.resume(
-      getOrderFulfillmentHookToken(failOrderId),
-      {
-        nextStatus: 'CANCELLED',
-        deliveryFailed: true,
-        note: 'Recipient unavailable after 3 courier attempts.',
-      }
-    );
-    const failOutcome = await failRun.returnValue;
-    expect(failOutcome.success).toBe(true);
+    await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(failOrderId), {
+      nextStatus: 'CANCELLED',
+      deliveryFailed: true,
+      note: 'Recipient unavailable after 3 courier attempts.',
+    })
+    const failOutcome = await failRun.returnValue
+    expect(failOutcome.success).toBe(true)
     if (failOutcome.success) {
-      expect(failOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
-      expect(failOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
+      expect(failOutcome.fulfillmentOutcome?.stockReleased).toBe(true)
+      expect(failOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED')
     }
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
     // 3. 24h window expires -> stock released
-    const expireOrderId = 'ORD-POD-EXPIRE-1';
+    const expireOrderId = 'ORD-POD-EXPIRE-1'
     const expireRun = await start(executeDurableCheckoutWorkflow, [
       {
         orderId: expireOrderId,
@@ -1077,33 +1002,20 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       },
-    ]);
+    ])
 
-    const expireOutcome = await expireRun.returnValue;
-    expect(expireOutcome.success).toBe(true);
+    const expireOutcome = await expireRun.returnValue
+    expect(expireOutcome.success).toBe(true)
     if (expireOutcome.success) {
-      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true);
-      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
+      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true)
+      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true)
     }
-    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
-    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
-      startStock - 1
-    );
-
-    // Verify orders GET endpoint
-    const ordersReq = new NextRequest(
-      'http://localhost:3000/api/storefront/orders?neonUserId=neon_usr_alex'
-    );
-    const ordersRes = await getOrdersRoute(ordersReq);
-    expect(ordersRes.status).toBe(200);
-    const ordersData = await ordersRes.json();
-    expect(
-      ordersData.orders.some((o: Order) => o.orderId === podOrderId)
-    ).toBe(true);
-  });
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
+  })
 
   it('publishes clothing product reviews via Payload SDK and updates rating averages', async () => {
-    const slug = 'organic-pima-crewneck-shirt';
+    const slug = 'organic-pima-crewneck-shirt'
     const created = await createProductReview({
       productSlug: slug,
       neonUserId: 'neon_usr_maya',
@@ -1114,52 +1026,46 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       comment: 'Holds collar structure cleanly after wearing all day.',
       variantSize: 'M',
       variantColor: 'Crisp Ivory',
-    });
+    })
 
-    expect(created.review.title).toBe('Exceptionally soft organic cotton');
-    expect(created.product.reviewCount).toBeGreaterThan(0);
+    expect(created.review.title).toBe('Exceptionally soft organic cotton')
+    expect(created.product.reviewCount).toBeGreaterThan(0)
 
-    const detail = await fetchProductBySlugWithReviews(slug);
+    const detail = await fetchProductBySlugWithReviews(slug)
     expect(
-      detail.reviews.some(
-        (r: Review) => r.title === 'Exceptionally soft organic cotton'
-      )
-    ).toBe(true);
-  });
+      detail.reviews.some((r: Review) => r.title === 'Exceptionally soft organic cotton'),
+    ).toBe(true)
+  })
 
   it('syncs separate billing details, carts, and wishlists linked by neonUserId via Payload SDK', async () => {
-    const neonUserId = 'neon_usr_sync_1';
+    const neonUserId = 'neon_usr_sync_1'
 
-    const initialBilling = await getBillingDetails(neonUserId);
-    expect(initialBilling).toBeNull();
+    const initialBilling = await getBillingDetails(neonUserId)
+    expect(initialBilling).toBeNull()
 
     const savedBilling = await upsertBillingDetails({
       neonUserId,
       phone: '+1 (415) 555-0192',
       shippingAddress: '742 Evergreen Terrace, Suite 200',
-    });
-    expect(savedBilling.neonUserId).toBe(neonUserId);
-    expect(savedBilling.phone).toBe('+1 (415) 555-0192');
-    expect(savedBilling.shippingAddress).toBe(
-      '742 Evergreen Terrace, Suite 200'
-    );
+    })
+    expect(savedBilling.neonUserId).toBe(neonUserId)
+    expect(savedBilling.phone).toBe('+1 (415) 555-0192')
+    expect(savedBilling.shippingAddress).toBe('742 Evergreen Terrace, Suite 200')
 
     const updatedBilling = await upsertBillingDetails({
       neonUserId,
       phone: '+1 (415) 555-9999',
       shippingAddress: '100 Market St, San Francisco, CA',
-    });
-    expect(updatedBilling.id).toBe(savedBilling.id);
-    expect(updatedBilling.phone).toBe('+1 (415) 555-9999');
+    })
+    expect(updatedBilling.id).toBe(savedBilling.id)
+    expect(updatedBilling.phone).toBe('+1 (415) 555-9999')
 
-    const fetchedBilling = await getBillingDetails(neonUserId);
-    expect(fetchedBilling?.shippingAddress).toBe(
-      '100 Market St, San Francisco, CA'
-    );
+    const fetchedBilling = await getBillingDetails(neonUserId)
+    expect(fetchedBilling?.shippingAddress).toBe('100 Market St, San Francisco, CA')
 
     const oxford = (collectionsStore.products as unknown as Product[]).find(
-      (p) => p.slug === 'classic-oxford-button-down'
-    )!;
+      (p) => p.slug === 'classic-oxford-button-down',
+    )!
     const syncedCart = await syncCartWithPayload(neonUserId, [
       {
         product: oxford.id,
@@ -1179,40 +1085,38 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         maxAvailableStock: 3,
         imageUrl: '/images/shirt.png',
       },
-    ]);
-    expect(syncedCart.neonUserId).toBe(neonUserId);
-    expect(syncedCart.items?.length).toBe(1);
+    ])
+    expect(syncedCart.neonUserId).toBe(neonUserId)
+    expect(syncedCart.items?.length).toBe(1)
 
-    const fetchedCart = await getCartByNeonUserId(neonUserId);
-    expect(fetchedCart?.items?.[0].variantSku).toBe('PROD-1-SKY-M');
-    expect(fetchedCart?.items?.[0].quantity).toBe(2);
+    const fetchedCart = await getCartByNeonUserId(neonUserId)
+    expect(fetchedCart?.items?.[0].variantSku).toBe('PROD-1-SKY-M')
+    expect(fetchedCart?.items?.[0].quantity).toBe(2)
 
     const jacket = (collectionsStore.products as unknown as Product[]).find(
-      (p) => p.slug === 'moto-full-grain-biker-jacket'
-    )!;
+      (p) => p.slug === 'moto-full-grain-biker-jacket',
+    )!
     const addedWishlist = await toggleWishlistItemInPayload(neonUserId, {
       id: jacket.id,
       slug: jacket.slug,
-    });
-    expect(addedWishlist.neonUserId).toBe(neonUserId);
-    expect(
-      addedWishlist.items?.some((i) => i.productSlug === jacket.slug)
-    ).toBe(true);
+    })
+    expect(addedWishlist.neonUserId).toBe(neonUserId)
+    expect(addedWishlist.items?.some((i) => i.productSlug === jacket.slug)).toBe(true)
 
     const toggledOff = await toggleWishlistItemInPayload(neonUserId, {
       id: jacket.id,
       slug: jacket.slug,
-    });
-    expect(toggledOff.items?.length).toBe(0);
+    })
+    expect(toggledOff.items?.length).toBe(0)
 
     const syncedWishlist = await syncWishlistWithPayload(neonUserId, [
       { product: oxford.id, productSlug: oxford.slug },
-    ]);
-    expect(syncedWishlist.items?.length).toBe(1);
-    const fetchedWishlist = await getWishlistByNeonUserId(neonUserId);
-    expect(fetchedWishlist?.items?.[0].productSlug).toBe(oxford.slug);
+    ])
+    expect(syncedWishlist.items?.length).toBe(1)
+    const fetchedWishlist = await getWishlistByNeonUserId(neonUserId)
+    expect(fetchedWishlist?.items?.[0].productSlug).toBe(oxford.slug)
 
-    const userOrders = await getOrdersByUser({ neonUserId: 'neon_usr_alex' });
-    expect(userOrders.length).toBeGreaterThan(0);
-  });
-});
+    const userOrders = await getOrdersByUser({ neonUserId: 'neon_usr_alex' })
+    expect(userOrders.length).toBeGreaterThan(0)
+  })
+})

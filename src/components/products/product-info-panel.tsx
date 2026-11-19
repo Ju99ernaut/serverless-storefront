@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { cn } from 'cn'
-import type { Product, ProductVariant } from '@/data/utils'
+import type { Product, ProductVariant } from '@/lib/utils/data'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 

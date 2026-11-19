@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, type CSSProperties } from 're
 import { useQuery } from '@tanstack/react-query'
 import { cn } from 'cn'
 import { CACHE_TIMES, fetchCatalogData, storefrontQueryKeys, useWishlist } from '../../context'
-import type { Product } from '../../data/utils'
+import type { Product } from '../../lib/utils/data'
 import { GridSkeleton } from './grid-skeleton'
 import { GridEmptyState } from './grid-empty-state'
 import { GridProductCard } from './grid-product-card'

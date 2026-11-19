@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Minus, Plus, Trash2 } from 'lucide-react'
 import { OptimizedImage } from '../ui/optimized-image'
-import type { CartLineItem } from '../../data/utils'
+import type { CartLineItem } from '../../lib/utils/data'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 

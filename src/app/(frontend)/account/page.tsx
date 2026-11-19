@@ -13,7 +13,7 @@ import {
   useWishlist,
 } from '../../../context'
 import { getOrdersByUser, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
-import type { Order } from '../../../data/utils'
+import type { Order } from '../../../lib/utils/data'
 import { Alert } from '../../../components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import {

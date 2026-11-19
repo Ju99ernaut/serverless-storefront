@@ -1,5 +1,5 @@
 import { getCatalogData } from '@/lib/payload-sdk'
-import type { Banner, Order, Product, Review } from '../data/utils'
+import type { Banner, Order, Product, Review } from '../lib/utils/data'
 
 export type AuthModalIntent = 'account' | 'checkout' | 'wishlist' | 'review'
 
@@ -52,8 +52,7 @@ export const storefrontQueryKeys = {
     ['storefront-orders', (userKey || '').trim().toLowerCase()] as const,
   billingDetails: (neonUserId?: string | null) =>
     ['storefront-billing-details', (neonUserId || '').trim()] as const,
-  cart: (neonUserId?: string | null) =>
-    ['storefront-cart', (neonUserId || '').trim()] as const,
+  cart: (neonUserId?: string | null) => ['storefront-cart', (neonUserId || '').trim()] as const,
   wishlist: (neonUserId?: string | null) =>
     ['storefront-wishlist', (neonUserId || '').trim()] as const,
 }

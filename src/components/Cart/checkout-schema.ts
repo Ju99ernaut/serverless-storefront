@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../data/utils'
+import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
 
 export type PaymentOptionMeta = (typeof PAYMENT_OPTIONS)[number]
 

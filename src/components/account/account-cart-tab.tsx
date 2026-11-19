@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ShoppingBag, Trash2 } from 'lucide-react'
-import type { CartLineItem } from '@/data/utils'
+import type { CartLineItem } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {

@@ -10,7 +10,7 @@ import type {
   StockReservation,
   User,
   Wishlist,
-} from '../payload-types';
+} from '../../payload-types'
 
 export type {
   Banner,
@@ -24,60 +24,59 @@ export type {
   StockReservation,
   User,
   Wishlist,
-};
+}
 
-export type PaymentOptionType = Order['paymentOption'];
-export type ProductVariant = NonNullable<Product['variants']>[number];
-export type CartLineItem = NonNullable<Cart['items']>[number];
-export type OrderLineItem = NonNullable<Order['items']>[number];
-export type WishlistItem = NonNullable<Wishlist['items']>[number];
+export type PaymentOptionType = Order['paymentOption']
+export type ProductVariant = NonNullable<Product['variants']>[number]
+export type CartLineItem = NonNullable<Cart['items']>[number]
+export type OrderLineItem = NonNullable<Order['items']>[number]
+export type WishlistItem = NonNullable<Wishlist['items']>[number]
 
 export interface NeonUser {
-  id: string;
-  email: string;
-  name: string;
-  image?: string | null;
-  emailVerified?: boolean;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
+  id: string
+  email: string
+  name: string
+  image?: string | null
+  emailVerified?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export interface BottomBarFilter {
-  id: string;
-  label: string;
-  icon: 'all' | 'jacket' | 'shirt' | 'dress' | 'trousers' | 'shoe';
+  id: string
+  label: string
+  icon: 'all' | 'jacket' | 'shirt' | 'dress' | 'trousers' | 'shoe'
 }
 
 export interface CategoryMenuItem {
-  label: string;
-  filter: string;
-  submenu?: string;
+  label: string
+  filter: string
+  submenu?: string
 }
 
 export interface CategoryMenuLevel {
-  id: string;
-  name: string;
-  parentId: string | null;
-  filter: string;
-  items: CategoryMenuItem[];
+  id: string
+  name: string
+  parentId: string | null
+  filter: string
+  items: CategoryMenuItem[]
 }
 
 export const PAYMENT_OPTIONS: Array<{
-  id: PaymentOptionType;
-  label: string;
-  shortLabel: string;
-  description: string;
-  requiresCardNow: boolean;
-  requiresShippingAddress: boolean;
-  fulfillmentMethod: Order['fulfillmentMethod'];
-  badge: string;
+  id: PaymentOptionType
+  label: string
+  shortLabel: string
+  description: string
+  requiresCardNow: boolean
+  requiresShippingAddress: boolean
+  fulfillmentMethod: Order['fulfillmentMethod']
+  badge: string
 }> = [
   {
     id: 'pay_and_delivery',
     label: 'Pay Now & Home Delivery',
     shortLabel: 'Pay & Delivery',
-    description:
-      'Instant card checkout with tracked courier delivery to your doorstep.',
+    description: 'Instant card checkout with tracked courier delivery to your doorstep.',
     requiresCardNow: true,
     requiresShippingAddress: true,
     fulfillmentMethod: 'DELIVERY',
@@ -87,8 +86,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_then_collect',
     label: 'Pay Now & Store Collection',
     shortLabel: 'Pay then Collect',
-    description:
-      'Pay online now to lock in your items and pick up at our flagship atelier.',
+    description: 'Pay online now to lock in your items and pick up at our flagship atelier.',
     requiresCardNow: true,
     requiresShippingAddress: false,
     fulfillmentMethod: 'COLLECTION',
@@ -98,8 +96,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_on_delivery',
     label: 'Pay on Delivery (COD)',
     shortLabel: 'Pay on Delivery',
-    description:
-      'Reserve your clothing now and pay by card or cash when the courier arrives.',
+    description: 'Reserve your clothing now and pay by card or cash when the courier arrives.',
     requiresCardNow: false,
     requiresShippingAddress: true,
     fulfillmentMethod: 'DELIVERY',
@@ -109,14 +106,13 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_on_collection',
     label: 'Pay on Collection',
     shortLabel: 'Pay on Collection',
-    description:
-      'Reserve stock for 48 hours, try it on in-store, and pay when you collect.',
+    description: 'Reserve stock for 48 hours, try it on in-store, and pay when you collect.',
     requiresCardNow: false,
     requiresShippingAddress: false,
     fulfillmentMethod: 'COLLECTION',
     badge: 'Try Before Paying',
   },
-];
+]
 
 export const BOTTOM_BAR_FILTERS: BottomBarFilter[] = [
   { id: 'all', label: 'All', icon: 'all' },
@@ -125,7 +121,7 @@ export const BOTTOM_BAR_FILTERS: BottomBarFilter[] = [
   { id: 'dresses', label: 'Dresses', icon: 'dress' },
   { id: 'trousers', label: 'Trousers', icon: 'trousers' },
   { id: 'shoes', label: 'Shoes', icon: 'shoe' },
-];
+]
 
 export const CATEGORY_MENUS: Record<string, CategoryMenuLevel> = {
   main: {
@@ -282,33 +278,30 @@ export const CATEGORY_MENUS: Record<string, CategoryMenuLevel> = {
       { label: 'Weatherproof Series', filter: 'weatherproof-shoes' },
     ],
   },
-};
+}
 
 export function slugifyProductTitle(title: string): string {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+    .replace(/(^-|-$)/g, '')
 }
 
 export function getProductImages(product: Product): string[] {
-  const imgs = product.images?.map((i) => i.url).filter(Boolean) ?? [];
-  return imgs.length > 0 ? imgs : ['/images/shirt.png'];
+  const imgs = product.images?.map((i) => i.url).filter(Boolean) ?? []
+  return imgs.length > 0 ? imgs : ['/images/shirt.png']
 }
 
 export function getProductTotalAvailableStock(product: Product): number {
-  if (!product.variants || product.variants.length === 0) return 15;
-  return product.variants.reduce(
-    (sum, v) => sum + Math.max(0, v.stock - (v.reservedStock || 0)),
-    0
-  );
+  if (!product.variants || product.variants.length === 0) return 15
+  return product.variants.reduce((sum, v) => sum + Math.max(0, v.stock - (v.reservedStock || 0)), 0)
 }
 
 export function getProductLowestAvailableVariantStock(product: Product): {
-  minAvailable: number;
-  hasLowStockVariant: boolean;
-  isCompletelyOutOfStock: boolean;
-  lowStockVariantLabel: string | null;
+  minAvailable: number
+  hasLowStockVariant: boolean
+  isCompletelyOutOfStock: boolean
+  lowStockVariantLabel: string | null
 } {
   if (!product.variants || product.variants.length === 0) {
     return {
@@ -316,19 +309,19 @@ export function getProductLowestAvailableVariantStock(product: Product): {
       hasLowStockVariant: false,
       isCompletelyOutOfStock: false,
       lowStockVariantLabel: null,
-    };
+    }
   }
 
-  let totalAvailable = 0;
-  let minPositive = Infinity;
-  let lowVariant: ProductVariant | null = null;
+  let totalAvailable = 0
+  let minPositive = Infinity
+  let lowVariant: ProductVariant | null = null
 
   for (const v of product.variants) {
-    const avail = Math.max(0, v.stock - (v.reservedStock || 0));
-    totalAvailable += avail;
+    const avail = Math.max(0, v.stock - (v.reservedStock || 0))
+    totalAvailable += avail
     if (avail > 0 && avail <= (v.lowStockThreshold || 5) && avail < minPositive) {
-      minPositive = avail;
-      lowVariant = v;
+      minPositive = avail
+      lowVariant = v
     }
   }
 
@@ -339,7 +332,7 @@ export function getProductLowestAvailableVariantStock(product: Product): {
     lowStockVariantLabel: lowVariant
       ? `Only ${Math.max(0, lowVariant.stock - (lowVariant.reservedStock || 0))} left in ${lowVariant.color} (${lowVariant.size})`
       : null,
-  };
+  }
 }
 
 const SUBFILTER_TO_CATEGORY: Record<string, Product['category']> = {
@@ -383,30 +376,25 @@ const SUBFILTER_TO_CATEGORY: Record<string, Product['category']> = {
   'shoes-selection': 'shoes',
   'handcrafted-shoes': 'shoes',
   'weatherproof-shoes': 'shoes',
-};
+}
 
-export function getMainCategoryForFilter(
-  filter: string,
-  catalogProducts?: Product[]
-): string {
-  if (!filter || filter === 'all') return 'all';
+export function getMainCategoryForFilter(filter: string, catalogProducts?: Product[]): string {
+  if (!filter || filter === 'all') return 'all'
   if (SUBFILTER_TO_CATEGORY[filter]) {
-    return SUBFILTER_TO_CATEGORY[filter];
+    return SUBFILTER_TO_CATEGORY[filter]
   }
-  const match = catalogProducts?.find((p) =>
-    p.tags?.some((t) => t.tag === filter)
-  );
-  return match ? match.category : 'all';
+  const match = catalogProducts?.find((p) => p.tags?.some((t) => t.tag === filter))
+  return match ? match.category : 'all'
 }
 
 export function getFilterDisplayName(filter: string): string {
-  if (!filter || filter === 'all') return 'All Products';
+  if (!filter || filter === 'all') return 'All Products'
   for (const menu of Object.values(CATEGORY_MENUS)) {
     for (const item of menu.items) {
       if (item.filter === filter) {
-        return item.label;
+        return item.label
       }
     }
   }
-  return filter;
+  return filter
 }
