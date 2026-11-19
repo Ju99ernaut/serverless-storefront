@@ -10,10 +10,7 @@ export const API_CONFIG = {
   },
   resend: {
     apiKey: process.env.RESEND_API_KEY || '',
-    from:
-      process.env.RESEND_FROM ||
-      process.env.SMTP_FROM ||
-      'Storefront Orders <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM || 'Storefront Orders <onboarding@resend.dev>',
   },
 }
 
