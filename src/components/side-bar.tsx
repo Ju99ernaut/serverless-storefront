@@ -6,7 +6,7 @@ import { CATEGORY_MENUS, CategoryMenuItem } from '../data/utils'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { Drawer, DrawerContent, DrawerHeader } from './ui/drawer'
 import { Button } from './ui/button'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import {
   Breadcrumb,
   BreadcrumbItem,

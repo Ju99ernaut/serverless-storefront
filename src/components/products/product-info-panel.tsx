@@ -248,7 +248,7 @@ export function ProductInfoPanel({
           className="gap-1.5"
         >
           <Heart
-            className={`h-4 w-4 ${wishlisted ? 'fill-rose-500 text-rose-500' : ''}`}
+            className={cn('h-4 w-4', wishlisted && 'fill-rose-500 text-rose-500')}
             aria-hidden="true"
           />
         </Button>

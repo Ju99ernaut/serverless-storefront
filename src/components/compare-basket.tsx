@@ -6,8 +6,6 @@ import type { Product } from '../data/utils'
 import { cn } from 'cn'
 import { Button } from './ui/button'
 
-const MAX_COMPARE_ITEMS = 3
-
 interface CompareBasketProps {
   compareItems: Product[]
   isCompareOpen: boolean
@@ -22,16 +20,11 @@ const CompareBasket = ({
   onOpenCompare,
 }: CompareBasketProps) => {
   const isActive = compareItems.length > 0 && !isCompareOpen
-  const isFull = compareItems.length >= MAX_COMPARE_ITEMS
   const canCompare = compareItems.length >= 2
 
   return (
     <div
-      className={cn(
-        'compare-basket',
-        isActive && 'compare-basket--active',
-        isFull && 'compare-basket--full',
-      )}
+      className={cn('compare-basket', isActive && 'compare-basket--active')}
       aria-label="Product comparison basket"
     >
       {compareItems.map((product) => (

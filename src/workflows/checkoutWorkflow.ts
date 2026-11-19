@@ -3,83 +3,76 @@ import {
   generateViaApi,
   sendRenderedEmailWithAttachments,
   OrderTemplateData,
-} from '../utils/documentEmailService';
+} from '../lib/utils/documentEmailService'
 import {
   getRuntimeStore,
   getPayloadIfAvailable,
   reserveVariantStockAtomic,
   releaseVariantStockAtomic,
   commitVariantStockAtomic,
-} from '../lib/storefront-db';
-import {
-  PAYMENT_OPTIONS,
-  PaymentOptionType,
-  StoreOrderRecord,
-} from '../data/utils';
+} from '../lib/storefront-db'
+import { PAYMENT_OPTIONS, PaymentOptionType, StoreOrderRecord } from '../data/utils'
 
 export interface CheckoutWorkflowInput {
-  idempotencyKey?: string;
-  userId?: string;
-  paymentOption?: PaymentOptionType;
-  simulatePaymentFailure?: boolean;
+  idempotencyKey?: string
+  userId?: string
+  paymentOption?: PaymentOptionType
+  simulatePaymentFailure?: boolean
   customer: {
-    name: string;
-    email: string;
-    address?: string;
-    phone?: string;
-    collectionLocation?: string;
-  };
+    name: string
+    email: string
+    address?: string
+    phone?: string
+    collectionLocation?: string
+  }
   payment?: {
-    cardholderName?: string;
-    cardNumber?: string;
-    expiry?: string;
-  };
+    cardholderName?: string
+    cardNumber?: string
+    expiry?: string
+  }
   items: Array<{
-    id: string;
-    slug?: string;
-    variantSku?: string;
-    title: string;
-    brand: string;
-    category: string;
-    subcategory: string;
-    size?: string;
-    color?: string;
-    price: number;
-    quantity: number;
-    images?: string[];
-  }>;
+    id: string
+    slug?: string
+    variantSku?: string
+    title: string
+    brand: string
+    category: string
+    subcategory: string
+    size?: string
+    color?: string
+    price: number
+    quantity: number
+    images?: string[]
+  }>
 }
 
 async function reserveInventoryStep(input: {
-  reservationKey: string;
-  orderId: string;
-  rawItems: CheckoutWorkflowInput['items'];
+  reservationKey: string
+  orderId: string
+  rawItems: CheckoutWorkflowInput['items']
 }) {
-  'use step';
-  const store = getRuntimeStore();
+  'use step'
+  const store = getRuntimeStore()
   const reservationItems = input.rawItems.map((item) => {
     const matchedProd = store.products.find(
-      (p) => p.id === item.id || p.slug === item.slug || p.slug === item.id
-    );
-    const defaultVariant = matchedProd?.variants[0];
+      (p) => p.id === item.id || p.slug === item.slug || p.slug === item.id,
+    )
+    const defaultVariant = matchedProd?.variants[0]
     return {
       productSlug: matchedProd?.slug || item.slug || item.id,
-      variantSku:
-        item.variantSku ||
-        defaultVariant?.sku ||
-        `${item.id.toUpperCase()}-STD-M`,
+      variantSku: item.variantSku || defaultVariant?.sku || `${item.id.toUpperCase()}-STD-M`,
       quantity: Math.max(1, Number(item.quantity) || 1),
-    };
-  });
+    }
+  })
 
   const result = reserveVariantStockAtomic({
     reservationKey: input.reservationKey,
     orderId: input.orderId,
     items: reservationItems,
-  });
+  })
 
   if (result.success && result.reservation) {
-    const payload = await getPayloadIfAvailable();
+    const payload = await getPayloadIfAvailable()
     if (payload) {
       await payload
         .create({
@@ -92,20 +85,17 @@ async function reserveInventoryStep(input: {
             items: result.reservation.items,
           },
         })
-        .catch(() => {});
+        .catch(() => {})
     }
   }
 
-  return result;
+  return result
 }
 
-async function releaseReservedStockStep(input: {
-  reservationKey: string;
-  reason: string;
-}) {
-  'use step';
-  const released = releaseVariantStockAtomic(input.reservationKey, input.reason);
-  const payload = await getPayloadIfAvailable();
+async function releaseReservedStockStep(input: { reservationKey: string; reason: string }) {
+  'use step'
+  const released = releaseVariantStockAtomic(input.reservationKey, input.reason)
+  const payload = await getPayloadIfAvailable()
   if (payload && released) {
     await payload
       .update({
@@ -118,28 +108,26 @@ async function releaseReservedStockStep(input: {
           failureReason: input.reason,
         },
       })
-      .catch(() => {});
+      .catch(() => {})
   }
   return {
     released: Boolean(released),
     reservationKey: input.reservationKey,
     reason: input.reason,
-  };
+  }
 }
 
 async function processPaymentTransactionStep(input: {
-  paymentOption: PaymentOptionType;
-  cardNumber?: string;
-  simulatePaymentFailure?: boolean;
-  grandTotal: number;
+  paymentOption: PaymentOptionType
+  cardNumber?: string
+  simulatePaymentFailure?: boolean
+  grandTotal: number
 }) {
-  'use step';
-  const optionMeta =
-    PAYMENT_OPTIONS.find((o) => o.id === input.paymentOption) ||
-    PAYMENT_OPTIONS[0];
+  'use step'
+  const optionMeta = PAYMENT_OPTIONS.find((o) => o.id === input.paymentOption) || PAYMENT_OPTIONS[0]
 
-  const cleanCard = (input.cardNumber || '').replace(/\D/g, '');
-  const cardLast4 = cleanCard.slice(-4) || (optionMeta.requiresCardNow ? '4242' : 'N/A');
+  const cleanCard = (input.cardNumber || '').replace(/\D/g, '')
+  const cardLast4 = cleanCard.slice(-4) || (optionMeta.requiresCardNow ? '4242' : 'N/A')
 
   if (optionMeta.requiresCardNow) {
     if (input.simulatePaymentFailure || cleanCard.endsWith('0000')) {
@@ -151,7 +139,7 @@ async function processPaymentTransactionStep(input: {
         fulfillmentMethod: optionMeta.fulfillmentMethod,
         error:
           'Payment authorization declined by card issuer. Reserved stock has been automatically released back to inventory.',
-      };
+      }
     }
 
     return {
@@ -161,7 +149,7 @@ async function processPaymentTransactionStep(input: {
       cardLast4,
       fulfillmentMethod: optionMeta.fulfillmentMethod,
       paidAt: new Date().toISOString(),
-    };
+    }
   }
 
   // Pay on Delivery or Pay on Collection
@@ -175,34 +163,34 @@ async function processPaymentTransactionStep(input: {
     cardLast4: 'PAY-LATER',
     fulfillmentMethod: optionMeta.fulfillmentMethod,
     paidAt: 'Due upon ' + (optionMeta.fulfillmentMethod === 'DELIVERY' ? 'delivery' : 'collection'),
-  };
+  }
 }
 
 async function commitOrderAndDocumentsStep(input: {
-  reservationKey: string;
-  orderId: string;
-  invoiceNumber: string;
-  receiptNumber: string;
-  timestamp: string;
-  paymentOption: PaymentOptionType;
+  reservationKey: string
+  orderId: string
+  invoiceNumber: string
+  receiptNumber: string
+  timestamp: string
+  paymentOption: PaymentOptionType
   paymentResult: {
-    paymentStatus: 'PAID' | 'PENDING';
-    methodLabel: string;
-    cardLast4: string;
-    fulfillmentMethod: 'DELIVERY' | 'COLLECTION';
-    paidAt?: string;
-  };
-  customer: CheckoutWorkflowInput['customer'];
-  items: CheckoutWorkflowInput['items'];
+    paymentStatus: 'PAID' | 'PENDING'
+    methodLabel: string
+    cardLast4: string
+    fulfillmentMethod: 'DELIVERY' | 'COLLECTION'
+    paidAt?: string
+  }
+  customer: CheckoutWorkflowInput['customer']
+  items: CheckoutWorkflowInput['items']
 }) {
-  'use step';
-  commitVariantStockAtomic(input.reservationKey);
+  'use step'
+  commitVariantStockAtomic(input.reservationKey)
 
   const lineItems = input.items.map((item) => {
-    const unitPrice = Number(item.price) || 0;
-    const quantity = Number(item.quantity) || 1;
-    const slug = item.slug || item.id;
-    const defaultSku = `${item.id.toUpperCase()}-STD-${item.size || 'M'}`;
+    const unitPrice = Number(item.price) || 0
+    const quantity = Number(item.quantity) || 1
+    const slug = item.slug || item.id
+    const defaultSku = `${item.id.toUpperCase()}-STD-${item.size || 'M'}`
     return {
       id: item.id,
       productId: item.id,
@@ -218,22 +206,19 @@ async function commitOrderAndDocumentsStep(input: {
       unitPrice,
       lineTotal: Number((unitPrice * quantity).toFixed(2)),
       imageUrl: item.images?.[0] || '/images/shirt.png',
-    };
-  });
+    }
+  })
 
-  const subTotal = Number(
-    lineItems.reduce((acc, item) => acc + item.lineTotal, 0).toFixed(2)
-  );
-  const taxRate = 0.08;
-  const tax = Number((subTotal * taxRate).toFixed(2));
-  const shipping = input.paymentResult.fulfillmentMethod === 'DELIVERY' ? 12 : 0;
-  const grandTotal = Number((subTotal + tax + shipping).toFixed(2));
+  const subTotal = Number(lineItems.reduce((acc, item) => acc + item.lineTotal, 0).toFixed(2))
+  const taxRate = 0.08
+  const tax = Number((subTotal * taxRate).toFixed(2))
+  const shipping = input.paymentResult.fulfillmentMethod === 'DELIVERY' ? 12 : 0
+  const grandTotal = Number((subTotal + tax + shipping).toFixed(2))
 
   const resolvedAddress =
     input.paymentResult.fulfillmentMethod === 'COLLECTION'
-      ? input.customer.collectionLocation ||
-        'Flagship Storefront Atelier — 450 Mercer St, SoHo'
-      : input.customer.address || '';
+      ? input.customer.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
+      : input.customer.address || ''
 
   const sharedTemplateData: OrderTemplateData = {
     orderId: input.orderId,
@@ -263,9 +248,9 @@ async function commitOrderAndDocumentsStep(input: {
       shipping,
       grandTotal,
     },
-  };
+  }
 
-  const subject = `Your Storefront Order ${input.orderId} — Invoice & Receipt (${input.paymentResult.methodLabel})`;
+  const subject = `Your Storefront Order ${input.orderId} — Invoice & Receipt (${input.paymentResult.methodLabel})`
 
   const [invoicePdf, receiptPdf, renderedEmail] = await Promise.all([
     generateViaApi({
@@ -295,19 +280,17 @@ async function commitOrderAndDocumentsStep(input: {
         ...sharedTemplateData,
       },
     }),
-  ]);
+  ])
 
   const emailResult = await sendRenderedEmailWithAttachments({
     to: input.customer.email,
     subject,
     renderedEmail,
     attachments: [invoicePdf, receiptPdf],
-  });
+  })
 
   const initialStatus =
-    input.paymentResult.fulfillmentMethod === 'COLLECTION'
-      ? 'READY_FOR_COLLECTION'
-      : 'CONFIRMED';
+    input.paymentResult.fulfillmentMethod === 'COLLECTION' ? 'READY_FOR_COLLECTION' : 'CONFIRMED'
 
   const orderRecord: StoreOrderRecord = {
     id: `ord_${Date.now()}`,
@@ -357,20 +340,20 @@ async function commitOrderAndDocumentsStep(input: {
         emailSent: true,
       },
     ],
-  };
+  }
 
-  const store = getRuntimeStore();
-  store.orders.unshift(orderRecord);
+  const store = getRuntimeStore()
+  store.orders.unshift(orderRecord)
 
   // Clear saved cart for this user if registered
   const matchedUser = store.users.find(
-    (u) => u.email.toLowerCase() === input.customer.email.toLowerCase()
-  );
+    (u) => u.email.toLowerCase() === input.customer.email.toLowerCase(),
+  )
   if (matchedUser) {
-    matchedUser.savedCart = [];
+    matchedUser.savedCart = []
   }
 
-  const payload = await getPayloadIfAvailable();
+  const payload = await getPayloadIfAvailable()
   if (payload) {
     await payload
       .create({
@@ -404,15 +387,12 @@ async function commitOrderAndDocumentsStep(input: {
             emailMessageId: orderRecord.documents.emailMessageId,
             emailPreviewUrl: orderRecord.documents.emailPreviewUrl || undefined,
             emailTemplateId: orderRecord.documents.emailTemplateId,
-            payloadPreviewJson: orderRecord.documents.payloadPreviewJson as Record<
-              string,
-              unknown
-            >,
+            payloadPreviewJson: orderRecord.documents.payloadPreviewJson as Record<string, unknown>,
           },
           statusTimeline: orderRecord.statusTimeline,
         },
       })
-      .catch(() => {});
+      .catch(() => {})
   }
 
   return {
@@ -422,7 +402,7 @@ async function commitOrderAndDocumentsStep(input: {
     receiptPdf,
     renderedEmail,
     emailResult,
-  };
+  }
 }
 
 /**
@@ -430,26 +410,23 @@ async function commitOrderAndDocumentsStep(input: {
  * Coordinates atomic stock reservation, payment authorization, rollback on failure,
  * order persistence, and ComposeIt PDF/HTML email dispatch.
  */
-export async function executeDurableCheckoutWorkflow(
-  input: CheckoutWorkflowInput
-) {
-  'use workflow';
+export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInput) {
+  'use workflow'
 
-  const timestamp = new Date().toISOString();
-  const shortId = Math.floor(100000 + Math.random() * 900000);
-  const orderId = `ORD-${shortId}`;
-  const invoiceNumber = `INV-${shortId}`;
-  const receiptNumber = `RCP-${shortId}`;
-  const reservationKey = input.idempotencyKey || `res_${orderId}`;
-  const paymentOption: PaymentOptionType =
-    input.paymentOption || 'pay_and_delivery';
+  const timestamp = new Date().toISOString()
+  const shortId = Math.floor(100000 + Math.random() * 900000)
+  const orderId = `ORD-${shortId}`
+  const invoiceNumber = `INV-${shortId}`
+  const receiptNumber = `RCP-${shortId}`
+  const reservationKey = input.idempotencyKey || `res_${orderId}`
+  const paymentOption: PaymentOptionType = input.paymentOption || 'pay_and_delivery'
 
   // Step 1: Reserve Stock Atomically
   const reservationOutcome = await reserveInventoryStep({
     reservationKey,
     orderId,
     rawItems: input.items,
-  });
+  })
 
   if (!reservationOutcome.success) {
     return {
@@ -458,33 +435,31 @@ export async function executeDurableCheckoutWorkflow(
       error: reservationOutcome.error || 'Insufficient stock for checkout.',
       insufficientItems: reservationOutcome.insufficientItems,
       stockReleased: false,
-    };
+    }
   }
 
   // Step 2: Process Payment (or Reserve for Pay-on-Delivery / Pay-on-Collection)
   const subTotal = input.items.reduce(
     (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1),
-    0
-  );
+    0,
+  )
   const deliveryFee =
-    paymentOption === 'pay_and_delivery' || paymentOption === 'pay_on_delivery'
-      ? 12
-      : 0;
-  const grandTotal = Number((subTotal * 1.08 + deliveryFee).toFixed(2));
+    paymentOption === 'pay_and_delivery' || paymentOption === 'pay_on_delivery' ? 12 : 0
+  const grandTotal = Number((subTotal * 1.08 + deliveryFee).toFixed(2))
 
   const paymentOutcome = await processPaymentTransactionStep({
     paymentOption,
     cardNumber: input.payment?.cardNumber,
     simulatePaymentFailure: input.simulatePaymentFailure,
     grandTotal,
-  });
+  })
 
   if (!paymentOutcome.authorized || paymentOutcome.paymentStatus === 'FAILED') {
     // Compensation Step: Release reserved stock immediately
     await releaseReservedStockStep({
       reservationKey,
       reason: paymentOutcome.error || 'Payment failed',
-    });
+    })
 
     return {
       success: false as const,
@@ -492,7 +467,7 @@ export async function executeDurableCheckoutWorkflow(
       error: paymentOutcome.error || 'Payment failed; reserved stock released.',
       stockReleased: true,
       reservationKey,
-    };
+    }
   }
 
   try {
@@ -513,7 +488,7 @@ export async function executeDurableCheckoutWorkflow(
       },
       customer: input.customer,
       items: input.items,
-    });
+    })
 
     return {
       success: true as const,
@@ -559,15 +534,12 @@ export async function executeDurableCheckoutWorkflow(
         html: committed.renderedEmail.html,
         payloadSent: committed.emailResult.payloadSent,
       },
-    };
+    }
   } catch (err) {
     await releaseReservedStockStep({
       reservationKey,
-      reason:
-        err instanceof Error
-          ? err.message
-          : 'Unexpected error during order commit',
-    });
-    throw err;
+      reason: err instanceof Error ? err.message : 'Unexpected error during order commit',
+    })
+    throw err
   }
 }

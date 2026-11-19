@@ -2,12 +2,8 @@ import {
   API_CONFIG,
   generateViaApi,
   sendRenderedEmailWithAttachments,
-} from '../utils/documentEmailService';
-import {
-  getRuntimeStore,
-  releaseVariantStockAtomic,
-  StoreOrderRecord,
-} from '../lib/storefront-db';
+} from '../lib/utils/documentEmailService'
+import { getRuntimeStore, releaseVariantStockAtomic, StoreOrderRecord } from '../lib/storefront-db'
 
 const STATUS_LABELS: Record<StoreOrderRecord['orderStatus'], string> = {
   PENDING: 'Order Pending',
@@ -17,42 +13,41 @@ const STATUS_LABELS: Record<StoreOrderRecord['orderStatus'], string> = {
   OUT_FOR_DELIVERY: 'Out for Courier Delivery',
   COMPLETED: 'Delivered / Collected — Completed',
   CANCELLED: 'Order Cancelled & Stock Released',
-};
+}
 
 async function applyOrderStatusStep(input: {
-  orderId: string;
-  nextStatus: StoreOrderRecord['orderStatus'];
-  note?: string;
+  orderId: string
+  nextStatus: StoreOrderRecord['orderStatus']
+  note?: string
 }) {
-  'use step';
-  const store = getRuntimeStore();
-  const order = store.orders.find((o) => o.orderId === input.orderId);
+  'use step'
+  const store = getRuntimeStore()
+  const order = store.orders.find((o) => o.orderId === input.orderId)
   if (!order) {
-    throw new Error(`Order ${input.orderId} not found.`);
+    throw new Error(`Order ${input.orderId} not found.`)
   }
 
-  order.orderStatus = input.nextStatus;
+  order.orderStatus = input.nextStatus
   if (input.nextStatus === 'COMPLETED' && order.paymentStatus === 'PENDING') {
-    order.paymentStatus = 'PAID';
-    order.paidAt = new Date().toISOString();
+    order.paymentStatus = 'PAID'
+    order.paidAt = new Date().toISOString()
   }
 
   if (input.nextStatus === 'CANCELLED') {
     releaseVariantStockAtomic(
       `res_${order.orderId}`,
-      input.note || 'Order cancelled by customer/admin'
-    );
+      input.note || 'Order cancelled by customer/admin',
+    )
     if (order.paymentStatus === 'PAID') {
-      order.paymentStatus = 'REFUNDED';
+      order.paymentStatus = 'REFUNDED'
     }
   }
 
-  const label = STATUS_LABELS[input.nextStatus] || input.nextStatus;
+  const label = STATUS_LABELS[input.nextStatus] || input.nextStatus
   const statusNote =
-    input.note ||
-    `Your order ${order.orderId} status has been updated to: ${label}.`;
+    input.note || `Your order ${order.orderId} status has been updated to: ${label}.`
 
-  const subject = `Order Update: ${order.orderId} is now ${label}`;
+  const subject = `Order Update: ${order.orderId} is now ${label}`
   const renderedEmail = await generateViaApi({
     templateId: API_CONFIG.templates.receiptEmail,
     formats: ['html'],
@@ -91,14 +86,14 @@ async function applyOrderStatusStep(input: {
       })),
       totals: order.totals,
     },
-  });
+  })
 
   const emailResult = await sendRenderedEmailWithAttachments({
     to: order.customerEmail,
     subject,
     renderedEmail,
     attachments: [],
-  });
+  })
 
   order.statusTimeline.push({
     status: input.nextStatus,
@@ -106,21 +101,21 @@ async function applyOrderStatusStep(input: {
     timestamp: new Date().toISOString(),
     note: statusNote,
     emailSent: true,
-  });
+  })
 
   return {
     order,
     emailDispatched: true,
     emailStatus: emailResult.status,
     previewUrl: emailResult.previewUrl,
-  };
+  }
 }
 
 export async function executeOrderStatusUpdateWorkflow(input: {
-  orderId: string;
-  nextStatus: StoreOrderRecord['orderStatus'];
-  note?: string;
+  orderId: string
+  nextStatus: StoreOrderRecord['orderStatus']
+  note?: string
 }) {
-  'use workflow';
-  return await applyOrderStatusStep(input);
+  'use workflow'
+  return await applyOrderStatusStep(input)
 }

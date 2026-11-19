@@ -39,12 +39,11 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
               </Link>
               <span className="meta__brand">{product.brand}</span>
               <span className="meta__price">${product.price}</span>
-              <span className="meta__year">{product.subcategory}</span>
-              <span className="meta__region">{product.material}</span>
-              <span className="meta__varietal">{product.fit}</span>
-              <span className="meta__alcohol">
-                {product.care} &bull; {totalAvail} units available
-              </span>
+              <span className="meta__subcategory">{product.subcategory}</span>
+              <span className="meta__material">{product.material}</span>
+              <span className="meta__fit">{product.fit}</span>
+              <span className="meta__care">{product.care}</span>
+              <span className="meta__units">{totalAvail} units available</span>
               <span className="inline-flex items-center justify-center gap-1 text-xs text-amber-400 py-2">
                 <Star className="h-3.5 w-3.5 fill-amber-400" aria-hidden="true" />
                 {product.averageRating.toFixed(1)} ({product.reviewCount} reviews)
