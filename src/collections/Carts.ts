@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { enforceNeonUserIdOwnershipHook, ownerByNeonUserIdAccess } from '../lib/access'
 
 export const Carts: CollectionConfig = {
   slug: 'carts',
@@ -6,11 +7,9 @@ export const Carts: CollectionConfig = {
     useAsTitle: 'neonUserId',
     defaultColumns: ['neonUserId', 'updatedAt'],
   },
-  access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+  access: ownerByNeonUserIdAccess,
+  hooks: {
+    beforeChange: [enforceNeonUserIdOwnershipHook],
   },
   fields: [
     {

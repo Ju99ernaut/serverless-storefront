@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { usersAccess } from '../lib/access'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -7,12 +8,7 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'role'],
   },
   auth: true,
-  access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: ({ req: { user } }) => Boolean(user?.role === 'admin'),
-  },
+  access: usersAccess,
   fields: [
     {
       name: 'name',

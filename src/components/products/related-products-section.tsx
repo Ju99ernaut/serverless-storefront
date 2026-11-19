@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getProductImages, type Product } from '@/lib/utils/data'
+import { formatCentsAsDollars, getProductImages, type Product } from '@/lib/utils/data'
 import { OptimizedImage } from '../ui/optimized-image'
 
 interface RelatedProductsSectionProps {
@@ -34,7 +34,7 @@ export function RelatedProductsSection({ relatedProducts }: RelatedProductsSecti
               </div>
               <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
                 <span>{rel.brand}</span>
-                <span className="font-bold text-primary">${rel.price}</span>
+                <span className="font-bold text-primary">{formatCentsAsDollars(rel.price)}</span>
               </div>
             </div>
           </Link>

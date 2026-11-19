@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
-import { getProductImages, type Product } from '@/lib/utils/data'
+import { formatCentsAsDollars, getProductImages, type Product } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -76,7 +76,7 @@ export function AccountWishlistTab({
                 {item.title}
               </Link>
               <div className="text-xs text-muted-foreground">
-                {item.brand} &bull; ${item.price}
+                {item.brand} &bull; {formatCentsAsDollars(item.price)}
               </div>
             </div>
             <div className="flex items-center gap-2 pt-1">

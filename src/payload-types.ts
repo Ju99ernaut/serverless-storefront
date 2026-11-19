@@ -406,35 +406,22 @@ export interface Order {
     shipping: number;
     grandTotal: number;
   };
-  documents?: {
-    invoiceFilename?: string | null;
-    invoiceTemplateId?: string | null;
-    invoicePdfUrl?: string | null;
-    receiptFilename?: string | null;
-    receiptTemplateId?: string | null;
-    receiptPdfUrl?: string | null;
-    emailStatus?: string | null;
-    emailMessageId?: string | null;
-    emailPreviewUrl?: string | null;
-    emailTemplateId?: string | null;
-    renderedHtml?: string | null;
-    payloadPreviewJson?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
+  documentHistory?:
+    | {
+        documentType: 'INVOICE' | 'RECEIPT';
+        documentNumber: string;
+        filename: string;
+        templateId: string;
+        generatedAt: string;
+        id?: string | null;
+      }[]
+    | null;
   statusTimeline?:
     | {
         status: string;
         label: string;
         timestamp: string;
         note?: string | null;
-        emailSent?: boolean | null;
         id?: string | null;
       }[]
     | null;
@@ -830,21 +817,15 @@ export interface OrdersSelect<T extends boolean = true> {
         shipping?: T;
         grandTotal?: T;
       };
-  documents?:
+  documentHistory?:
     | T
     | {
-        invoiceFilename?: T;
-        invoiceTemplateId?: T;
-        invoicePdfUrl?: T;
-        receiptFilename?: T;
-        receiptTemplateId?: T;
-        receiptPdfUrl?: T;
-        emailStatus?: T;
-        emailMessageId?: T;
-        emailPreviewUrl?: T;
-        emailTemplateId?: T;
-        renderedHtml?: T;
-        payloadPreviewJson?: T;
+        documentType?: T;
+        documentNumber?: T;
+        filename?: T;
+        templateId?: T;
+        generatedAt?: T;
+        id?: T;
       };
   statusTimeline?:
     | T
@@ -853,7 +834,6 @@ export interface OrdersSelect<T extends boolean = true> {
         label?: T;
         timestamp?: T;
         note?: T;
-        emailSent?: T;
         id?: T;
       };
   updatedAt?: T;

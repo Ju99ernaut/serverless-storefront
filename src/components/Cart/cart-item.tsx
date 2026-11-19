@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Minus, Plus, Trash2 } from 'lucide-react'
 import { OptimizedImage } from '../ui/optimized-image'
-import type { CartLineItem } from '../../lib/utils/data'
+import { formatCentsAsDollars, type CartLineItem } from '../../lib/utils/data'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 
@@ -123,7 +123,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
           </div>
         </div>
         <div className="flex flex-col justify-between items-end font-bold">
-          <span>${(price * quantity).toFixed(2)}</span>
+          <span>{formatCentsAsDollars(price * quantity)}</span>
           <Button
             type="button"
             variant="destructive"

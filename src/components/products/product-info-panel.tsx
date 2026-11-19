@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { cn } from 'cn'
-import type { Product, ProductVariant } from '@/lib/utils/data'
+import { formatCentsAsDollars, type Product, type ProductVariant } from '@/lib/utils/data'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 
@@ -73,10 +73,12 @@ export function ProductInfoPanel({
         <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-foreground">{product.title}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-4">
-          <span className="text-2xl font-bold text-primary">${displayPrice.toFixed(2)}</span>
+          <span className="text-2xl font-bold text-primary">
+            {formatCentsAsDollars(displayPrice)}
+          </span>
           {product.compareAtPrice && product.compareAtPrice > displayPrice && (
             <span className="text-base line-through text-muted-foreground">
-              ${product.compareAtPrice.toFixed(2)}
+              {formatCentsAsDollars(product.compareAtPrice)}
             </span>
           )}
           <div className="flex items-center gap-1.5 text-sm">
@@ -233,7 +235,7 @@ export function ProductInfoPanel({
                   <>
                     <span>Add</span>
                     <span className="hidden md:inline">{' to Bag'}</span>
-                    <span>{`: $${(displayPrice * quantity).toFixed(2)}`}</span>
+                    <span>{`: ${formatCentsAsDollars(displayPrice * quantity)}`}</span>
                   </>
                 )}
               </span>

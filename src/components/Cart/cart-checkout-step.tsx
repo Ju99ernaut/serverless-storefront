@@ -2,7 +2,11 @@
 
 import { ArrowLeft, Clock, CreditCard, Loader2, Store, Truck } from 'lucide-react'
 import { Controller, type UseFormReturn } from 'react-hook-form'
-import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
+import {
+  PAYMENT_OPTIONS,
+  formatCentsAsDollars,
+  type PaymentOptionType,
+} from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -294,11 +298,11 @@ export function CartCheckoutStep({
           <div className="space-y-1.5 pt-1 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Subtotal ({totalItemCount} items)</span>
-              <span>${subTotal.toFixed(2)}</span>
+              <span>{formatCentsAsDollars(subTotal)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Taxes (8%)</span>
-              <span>${tax.toFixed(2)}</span>
+              <span>{formatCentsAsDollars(tax)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">
@@ -307,13 +311,13 @@ export function CartCheckoutStep({
                   : 'In-Store Collection'}
               </span>
               <span className={shippingFee === 0 ? 'font-bold text-primary' : undefined}>
-                {shippingFee === 0 ? 'FREE' : `$${shippingFee.toFixed(2)}`}
+                {shippingFee === 0 ? 'FREE' : formatCentsAsDollars(shippingFee)}
               </span>
             </div>
             <Separator className="my-2" />
             <div className="flex items-center justify-between py-1 text-base font-bold">
               <span>Total Due</span>
-              <span>${grandTotal.toFixed(2)}</span>
+              <span>{formatCentsAsDollars(grandTotal)}</span>
             </div>
           </div>
 
@@ -322,8 +326,8 @@ export function CartCheckoutStep({
             {isPending
               ? 'Running Durable Checkout Workflow...'
               : selectedPaymentMeta.requiresCardNow
-                ? `Pay $${grandTotal.toFixed(2)} & Place Order`
-                : `Confirm Reservation ($${grandTotal.toFixed(2)} ${selectedPaymentMeta.shortLabel})`}
+                ? `Pay ${formatCentsAsDollars(grandTotal)} & Place Order`
+                : `Confirm Reservation (${formatCentsAsDollars(grandTotal)} ${selectedPaymentMeta.shortLabel})`}
           </Button>
         </form>
       </div>

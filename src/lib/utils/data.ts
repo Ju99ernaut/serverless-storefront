@@ -36,6 +36,7 @@ export interface NeonUser {
   id: string
   email: string
   name: string
+  role?: string | null
   image?: string | null
   emailVerified?: boolean
   createdAt?: Date | string
@@ -285,6 +286,43 @@ export function slugifyProductTitle(title: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+}
+
+export const TAX_RATE = 0.08
+export const DELIVERY_FEE_CENTS = 1200
+
+export function centsToDollars(cents: number | null | undefined): number {
+  const safeCents = Math.round(Number(cents) || 0)
+  return Number((safeCents / 100).toFixed(2))
+}
+
+export function formatCentsAsDollars(cents: number | null | undefined): string {
+  return `$${centsToDollars(cents).toFixed(2)}`
+}
+
+export function calculateOrderTotalsCents(
+  items: Array<{ unitPriceCents: number; quantity: number }>,
+  fulfillmentMethod: Order['fulfillmentMethod'],
+): {
+  subTotalCents: number
+  taxCents: number
+  shippingCents: number
+  grandTotalCents: number
+} {
+  const subTotalCents = items.reduce((sum, item) => {
+    const unitCents = Math.round(Number(item.unitPriceCents) || 0)
+    const qty = Math.max(1, Math.round(Number(item.quantity) || 1))
+    return sum + unitCents * qty
+  }, 0)
+  const taxCents = Math.round(subTotalCents * TAX_RATE)
+  const shippingCents = fulfillmentMethod === 'DELIVERY' ? DELIVERY_FEE_CENTS : 0
+  const grandTotalCents = subTotalCents + taxCents + shippingCents
+  return {
+    subTotalCents,
+    taxCents,
+    shippingCents,
+    grandTotalCents,
+  }
 }
 
 export function getProductImages(product: Product): string[] {

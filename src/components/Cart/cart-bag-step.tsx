@@ -1,7 +1,7 @@
 'use client'
 
 import { Lock } from 'lucide-react'
-import type { CartLineItem } from '../../lib/utils/data'
+import { formatCentsAsDollars, type CartLineItem } from '../../lib/utils/data'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 import { DrawerFooter, DrawerHeader, DrawerTitle } from '../ui/drawer'
@@ -31,7 +31,7 @@ export function CartBagStep({
   onClearCart,
   onProceedToCheckout,
 }: CartBagStepProps) {
-  const estimatedTotal = (subTotal + tax).toFixed(2)
+  const estimatedTotal = formatCentsAsDollars(subTotal + tax)
 
   return (
     <>
@@ -70,11 +70,11 @@ export function CartBagStep({
         <div className="space-y-1 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>${subTotal.toFixed(2)}</span>
+            <span>{formatCentsAsDollars(subTotal)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Taxes (8%)</span>
-            <span>${tax.toFixed(2)}</span>
+            <span>{formatCentsAsDollars(tax)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Delivery / Collection</span>
@@ -83,13 +83,13 @@ export function CartBagStep({
           <Separator className="my-2" />
           <div className="flex items-center justify-between pb-1 text-base font-bold">
             <span>Estimated Total</span>
-            <span>${estimatedTotal}</span>
+            <span>{estimatedTotal}</span>
           </div>
         </div>
 
         <Button type="button" size="lg" className="w-full" onClick={onProceedToCheckout}>
           {isAuthenticated
-            ? `Proceed to Checkout ($${estimatedTotal})`
+            ? `Proceed to Checkout (${estimatedTotal})`
             : 'Sign In / Register to Checkout'}
         </Button>
       </DrawerFooter>

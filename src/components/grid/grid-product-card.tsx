@@ -11,6 +11,7 @@ import 'swiper/css/zoom'
 import { AlertTriangle, Check, Heart, Plus, Star } from 'lucide-react'
 import { cn } from 'cn'
 import {
+  formatCentsAsDollars,
   getProductImages,
   getProductLowestAvailableVariantStock,
   type Product,
@@ -123,7 +124,7 @@ export function GridProductCard({
         <span className="meta__brand">
           {product.brand} &middot; {product.subcategory}
         </span>
-        <span className="meta__price">${product.price}</span>
+        <span className="meta__price">{formatCentsAsDollars(product.price)}</span>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5">

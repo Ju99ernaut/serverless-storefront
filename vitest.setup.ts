@@ -157,3 +157,67 @@ vi.mock('workflow/api', () => ({
     }
   },
 }))
+
+vi.mock('@payload-config', () => ({
+  default: {},
+}))
+
+vi.mock('payload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('payload')>()
+  return {
+    ...actual,
+    getPayload: vi.fn(async () => {
+      const { sdk } = await import('./src/lib/payload-sdk')
+      return {
+        find: (args: Parameters<typeof sdk.find>[0]) => sdk.find(args),
+        findByID: (args: Parameters<typeof sdk.findByID>[0]) => sdk.findByID(args),
+        create: (args: Parameters<typeof sdk.create>[0]) => sdk.create(args),
+        update: (args: Parameters<typeof sdk.update>[0]) => sdk.update(args as never),
+        delete: (args: Parameters<typeof sdk.delete>[0]) => sdk.delete(args as never),
+        db: {},
+      }
+    }),
+  }
+})
+
+interface MockNeonSessionUser {
+  id: string
+  email: string
+  name: string
+  role?: string | null
+}
+
+let currentMockSessionUser: MockNeonSessionUser | null = {
+  id: 'neon_usr_alex',
+  email: 'alex.rivera@example.com',
+  name: 'Alex Rivera',
+  role: 'customer',
+}
+
+;(globalThis as unknown as {
+  __setMockNeonSessionUser__?: (user: MockNeonSessionUser | null) => void
+}).__setMockNeonSessionUser__ = (user) => {
+  currentMockSessionUser = user
+}
+
+vi.mock('@neon/auth/next/server', () => ({
+  createNeonAuth: () => ({
+    handler: () => ({
+      GET: async () => new Response('ok'),
+      POST: async () => new Response('ok'),
+      PUT: async () => new Response('ok'),
+      DELETE: async () => new Response('ok'),
+      PATCH: async () => new Response('ok'),
+    }),
+    middleware: () => async () => new Response('ok'),
+    getSession: async () => ({
+      data: currentMockSessionUser
+        ? {
+            user: currentMockSessionUser,
+            session: { id: 'sess_test', userId: currentMockSessionUser.id },
+          }
+        : null,
+      error: null,
+    }),
+  }),
+}))

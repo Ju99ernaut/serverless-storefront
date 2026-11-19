@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Clock, ExternalLink, FileText, Mail, Package, Truck } from 'lucide-react'
-import type { Order } from '@/lib/utils/data'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, Clock, FileText, Loader2, Package, Truck } from 'lucide-react'
+import { storefrontQueryKeys, useAuth } from '@/context'
+import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
+import { formatCentsAsDollars, type Order } from '@/lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -15,6 +19,7 @@ import {
   EmptyTitle,
 } from '../ui/empty'
 import { OptimizedImage } from '../ui/optimized-image'
+import { toast } from '../ui/toast'
 
 const STATUS_BADGE_MAP: Record<
   Order['orderStatus'],
@@ -44,6 +49,47 @@ export function AccountOrdersTab({
   updatingOrderId,
   onAdvanceStatus,
 }: AccountOrdersTabProps) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [generatingKey, setGeneratingKey] = useState<string | null>(null)
+  const isAuthorizedOperator = Boolean(
+    user?.role && ['admin', 'staff', 'fulfillment'].includes(user.role.trim().toLowerCase()),
+  )
+
+  const generateDocMutation = useMutation({
+    mutationFn: ({
+      orderId,
+      documentType,
+    }: {
+      orderId: string
+      documentType: 'INVOICE' | 'RECEIPT'
+    }) => {
+      setGeneratingKey(`${orderId}:${documentType}`)
+      return generateOrderDocumentViaSdk({ orderId, documentType })
+    },
+    onSuccess: async (res) => {
+      await queryClient.invalidateQueries({
+        queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+      })
+      toast.add({
+        type: 'success',
+        description: `${res.document.filename} generated on demand via ComposeIt.`,
+      })
+      if (res.document.pdfUrl) {
+        window.open(res.document.pdfUrl, '_blank', 'noopener,noreferrer')
+      }
+    },
+    onError: (err: unknown) => {
+      toast.add({
+        type: 'error',
+        description: err instanceof Error ? err.message : 'Unable to generate document.',
+      })
+    },
+    onSettled: () => {
+      setGeneratingKey(null)
+    },
+  })
+
   if (orders.length === 0) {
     return (
       <Card>
@@ -55,7 +101,8 @@ export function AccountOrdersTab({
               </EmptyMedia>
               <EmptyTitle>You haven&apos;t placed an order yet</EmptyTitle>
               <EmptyDescription>
-                Your confirmed orders, PDF invoices, and live delivery milestones will appear here.
+                Your confirmed orders, on-demand invoices and receipts, and live delivery milestones
+                will appear here.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -74,6 +121,9 @@ export function AccountOrdersTab({
       {orders.map((order) => {
         const statusBadge = STATUS_BADGE_MAP[order.orderStatus] || STATUS_BADGE_MAP.CONFIRMED
         const isTerminal = order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED'
+        const isGeneratingInvoice = generatingKey === `${order.orderId}:INVOICE`
+        const isGeneratingReceipt = generatingKey === `${order.orderId}:RECEIPT`
+        const docHistory = order.documentHistory ?? []
 
         return (
           <Card key={order.orderId}>
@@ -91,34 +141,40 @@ export function AccountOrdersTab({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <a
-                  href={`/api/storefront/documents/${encodeURIComponent(order.orderId)}?type=invoice`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={buttonVariants({
-                    variant: 'outline',
-                    size: 'sm',
-                    className: 'gap-1.5',
-                  })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={generatingKey !== null}
+                  onClick={() =>
+                    generateDocMutation.mutate({ orderId: order.orderId, documentType: 'INVOICE' })
+                  }
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Invoice PDF</span>
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                </a>
-                <a
-                  href={`/api/storefront/documents/${encodeURIComponent(order.orderId)}?type=receipt`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={buttonVariants({
-                    variant: 'outline',
-                    size: 'sm',
-                    className: 'gap-1.5',
-                  })}
+                  {isGeneratingInvoice ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>Generate Invoice</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={generatingKey !== null}
+                  onClick={() =>
+                    generateDocMutation.mutate({ orderId: order.orderId, documentType: 'RECEIPT' })
+                  }
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Receipt PDF</span>
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                </a>
+                  {isGeneratingReceipt ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>Generate Receipt</span>
+                </Button>
               </div>
             </CardHeader>
 
@@ -153,7 +209,9 @@ export function AccountOrdersTab({
                         </div>
                       </div>
                     </div>
-                    <span className="font-bold text-foreground">${item.lineTotal.toFixed(2)}</span>
+                    <span className="font-bold text-foreground">
+                      {formatCentsAsDollars(item.lineTotal)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -171,14 +229,40 @@ export function AccountOrdersTab({
                     'Flagship Storefront Atelier'}
                 </div>
                 <div className="text-sm font-bold text-primary">
-                  Total: ${order.totals.grandTotal.toFixed(2)}
+                  Total: {formatCentsAsDollars(order.totals.grandTotal)}
                 </div>
               </div>
+
+              {/* Invoices & Receipts History */}
+              {docHistory.length > 0 && (
+                <div className="space-y-2 rounded-none border border-border bg-popover p-4">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Invoices &amp; Receipts History
+                  </div>
+                  <div className="space-y-2 pt-1">
+                    {docHistory.map((doc, idx) => (
+                      <div
+                        key={`${order.orderId}-doc-${idx}`}
+                        className="flex flex-wrap items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{doc.documentType}</Badge>
+                          <span className="font-semibold text-foreground">{doc.documentNumber}</span>
+                          <span className="text-muted-foreground">{doc.filename}</span>
+                        </div>
+                        <span className="text-muted-foreground">
+                          Generated {new Date(doc.generatedAt).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Status Timeline */}
               <div className="space-y-2 rounded-none border border-border bg-popover p-4">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Live Tracking &amp; Email Updates
+                  Live Tracking Updates
                 </div>
                 <div className="space-y-2.5 pt-1">
                   {(order.statusTimeline ?? []).map((entry, idx) => (
@@ -203,21 +287,15 @@ export function AccountOrdersTab({
                             minute: '2-digit',
                           })}
                         </div>
-                        {entry.emailSent && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-primary">
-                            <Mail className="h-2.5 w-2.5" aria-hidden="true" />
-                            Emailed
-                          </span>
-                        )}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {!isTerminal && (
+                {!isTerminal && isAuthorizedOperator && (
                   <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
                     <span className="text-[11px] text-muted-foreground mr-1">
-                      Simulate Tracking Update (Emails Customer):
+                      Admin Fulfillment Controls:
                     </span>
                     <Button
                       type="button"
@@ -276,6 +354,24 @@ export function AccountOrdersTab({
                     </Button>
                   </div>
                 )}
+
+                {!isTerminal &&
+                  !isAuthorizedOperator &&
+                  order.orderStatus !== 'OUT_FOR_DELIVERY' && (
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={updatingOrderId === order.orderId}
+                        onClick={() =>
+                          onAdvanceStatus(order.orderId, 'CANCELLED', { deliveryFailed: false })
+                        }
+                      >
+                        Cancel Order
+                      </Button>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>

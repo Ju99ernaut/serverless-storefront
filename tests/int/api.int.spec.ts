@@ -4,7 +4,6 @@ import { start } from 'workflow/api'
 import { NextRequest } from 'next/server'
 import { POST as postCheckout } from '@/app/(frontend)/api/checkout/route'
 import { PATCH as patchOrderRoute } from '@/app/(frontend)/api/storefront/orders/route'
-import { GET as getDocument } from '@/app/(frontend)/api/storefront/documents/[orderId]/route'
 import {
   createProductReview,
   fetchProductBySlugWithReviews,
@@ -14,13 +13,19 @@ import {
   getOrderByOrderId,
   getOrdersByUser,
   getWishlistByNeonUserId,
-  releaseVariantStockViaSdk,
-  reserveVariantStockViaSdk,
   syncCartWithPayload,
   syncWishlistWithPayload,
   toggleWishlistItemInPayload,
   upsertBillingDetails,
 } from '@/lib/payload-sdk'
+import { releaseVariantStock, reserveVariantStock } from '@/lib/payload-server'
+import {
+  isAdminAccess,
+  ordersAccess,
+  ownerByNeonUserIdAccess,
+  reviewsAccess,
+} from '@/lib/access'
+import type { PayloadRequest } from 'payload'
 import {
   WORKFLOW_TIMEOUT_DEFAULTS,
   executeDurableCheckoutWorkflow,
@@ -31,6 +36,10 @@ import {
 } from '@/workflows/checkoutWorkflow'
 import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from './products'
 import {
+  DELIVERY_FEE_CENTS,
+  calculateOrderTotalsCents,
+  centsToDollars,
+  formatCentsAsDollars,
   getProductLowestAvailableVariantStock,
   type Order,
   type Product,
@@ -186,7 +195,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         ...(wantsPdf
           ? {
               pdf: {
-                url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=${docType}`,
+                url: `https://api.composeit.local/ephemeral/${encodeURIComponent(orderId)}-${docType}.pdf`,
                 sizeBytes: 28450,
                 mimeType: 'application/pdf',
                 checksum: `sha256_${orderId.toLowerCase()}_${docType}`,
@@ -199,7 +208,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
                 htmlDocument,
                 checksum: `sha256_${orderId.toLowerCase()}_html`,
                 mimeType: 'text/html',
-                url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=html`,
+                url: `https://api.composeit.local/ephemeral/${encodeURIComponent(orderId)}.html`,
                 sizeBytes: htmlDocument.length,
               },
             }
@@ -355,6 +364,8 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
 
     const oxford = catalog.products.find((p: Product) => p.slug === 'classic-oxford-button-down')
     expect(oxford).toBeDefined()
+    expect(oxford!.price).toBe(8900)
+    expect(formatCentsAsDollars(oxford!.price)).toBe('$89.00')
 
     const stockInfo = getProductLowestAvailableVariantStock(oxford!)
     expect(stockInfo.hasLowStockVariant).toBe(true)
@@ -419,7 +430,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
 
     // 2. True concurrent race-condition check via Promise.all on same SKU (stock = 2)
     const [r1, r2] = await Promise.all([
-      reserveVariantStockViaSdk({
+      reserveVariantStock({
         reservationKey: 'res_double_1',
         orderId: 'ORD-DBL-1',
         items: [
@@ -430,7 +441,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-      reserveVariantStockViaSdk({
+      reserveVariantStock({
         reservationKey: 'res_double_2',
         orderId: 'ORD-DBL-2',
         items: [
@@ -451,12 +462,12 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     expect(rejected[0].insufficientItems?.[0].available).toBe(0)
     expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(2)
 
-    await releaseVariantStockViaSdk(succeeded[0].reservation!.reservationKey, 'Test cleanup')
+    await releaseVariantStock(succeeded[0].reservation!.reservationKey, 'Test cleanup')
     expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0)
 
     // 3. Concurrent reservations on different SKUs of the same product must not overwrite each other
     const [skuA, skuB] = await Promise.all([
-      reserveVariantStockViaSdk({
+      reserveVariantStock({
         reservationKey: 'res_diff_sku_1',
         orderId: 'ORD-DIFF-1',
         items: [
@@ -467,7 +478,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           },
         ],
       }),
-      reserveVariantStockViaSdk({
+      reserveVariantStock({
         reservationKey: 'res_diff_sku_2',
         orderId: 'ORD-DIFF-2',
         items: [
@@ -484,8 +495,8 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(1)
     expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(1)
 
-    await releaseVariantStockViaSdk('res_diff_sku_1', 'Test cleanup A')
-    await releaseVariantStockViaSdk('res_diff_sku_2', 'Test cleanup B')
+    await releaseVariantStock('res_diff_sku_1', 'Test cleanup A')
+    await releaseVariantStock('res_diff_sku_2', 'Test cleanup B')
     expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(0)
     expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(0)
   })
@@ -582,13 +593,15 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       cardNumber: '4242424242424242',
     })
 
-    // While waiting for admin input, stock is reserved (not yet deducted) and order + invoice/receipt email are created
+    // While waiting for admin input, stock is reserved (not yet deducted) and order + invoice/receipt history are created
     await waitForWorkflowHook(getOrderFulfillmentHookToken(collectOrderId))
     const midOrder = await getOrderByOrderId(collectOrderId)
     expect(midOrder).not.toBeNull()
     expect(midOrder?.paymentStatus).toBe('PAID')
-    expect(midOrder?.documents?.invoicePdfUrl).toContain('type=invoice')
-    expect(midOrder?.documents?.receiptPdfUrl).toContain('type=receipt')
+    expect(midOrder?.totals.shipping).toBe(0)
+    expect(midOrder?.totals.subTotal).toBe(boot.price)
+    expect(midOrder?.documentHistory?.map((d) => d.documentType)).toEqual(['INVOICE', 'RECEIPT'])
+    expect('documents' in (midOrder ?? {})).toBe(false)
     expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
     expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock)
 
@@ -732,15 +745,51 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
     expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
-    // Document preview endpoint renders printable invoice
-    const docReq = new NextRequest(
-      `http://localhost:3000/api/storefront/documents/${deliveryOrderId}?type=invoice`,
-    )
-    const docRes = await getDocument(docReq, {
-      params: Promise.resolve({ orderId: deliveryOrderId }),
+    // Generate Invoice PDF on demand via ComposeIt & record only metadata in documentHistory
+    const genReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'generate_document',
+        orderId: deliveryOrderId,
+        documentType: 'INVOICE',
+      }),
     })
-    expect(docRes.status).toBe(200)
-    expect(await docRes.text()).toContain(deliveryOrderId)
+    const genRes = await patchOrderRoute(genReq)
+    expect(genRes.status).toBe(200)
+    const genBody = await genRes.json()
+    expect(genBody.document.documentType).toBe('INVOICE')
+    expect(genBody.document.pdfUrl).toContain('api.composeit.local/ephemeral')
+    expect(genBody.order.documentHistory).toHaveLength(3)
+
+    const expectedTotals = calculateOrderTotalsCents(
+      [{ unitPriceCents: boot.price, quantity: 1 }],
+      'DELIVERY',
+    )
+    expect(expectedTotals.shippingCents).toBe(DELIVERY_FEE_CENTS)
+    expect(genBody.order.totals).toEqual({
+      subTotal: expectedTotals.subTotalCents,
+      tax: expectedTotals.taxCents,
+      shipping: expectedTotals.shippingCents,
+      grandTotal: expectedTotals.grandTotalCents,
+    })
+    expect(formatCentsAsDollars(genBody.order.totals.grandTotal)).toBe(
+      `$${centsToDollars(expectedTotals.grandTotalCents).toFixed(2)}`,
+    )
+
+    const lastComposeCall = vi.mocked(axios.post).mock.calls.at(-1)?.[1] as {
+      data?: {
+        items?: Array<{ unitPrice: number; lineTotal: number }>
+        totals?: { subTotal: number; tax: number; shipping: number; grandTotal: number }
+      }
+    }
+    expect(lastComposeCall?.data?.items?.[0].unitPrice).toBe(centsToDollars(boot.price))
+    expect(lastComposeCall?.data?.totals).toEqual({
+      subTotal: centsToDollars(expectedTotals.subTotalCents),
+      tax: centsToDollars(expectedTotals.taxCents),
+      shipping: centsToDollars(expectedTotals.shippingCents),
+      grandTotal: centsToDollars(expectedTotals.grandTotalCents),
+    })
   })
 
   it('handles pay_on_collection (8h configurable window: ready -> collected deducts stock, timeout releases stock)', async () => {
@@ -894,34 +943,72 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     await waitForWorkflowHook(getOrderFulfillmentHookToken(podOrderId))
     expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
-    const outReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId: podOrderId,
-        nextStatus: 'OUT_FOR_DELIVERY',
-        note: 'Courier on route.',
-      }),
-    })
-    const outRes = await patchOrderRoute(outReq)
-    expect(outRes.status).toBe(200)
-    const outData = await outRes.json()
-    expect(outData.order.orderStatus).toBe('OUT_FOR_DELIVERY')
+    const setMockSessionUser = (
+      globalThis as unknown as {
+        __setMockNeonSessionUser__: (
+          user: { id: string; email: string; name: string; role?: string | null } | null,
+        ) => void
+      }
+    ).__setMockNeonSessionUser__
 
-    const deliveredReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId: podOrderId,
-        nextStatus: 'COMPLETED',
-        note: 'Paid on delivery & signed.',
+    // Regular customer cannot advance fulfillment status or self-mark order delivered/paid
+    const customerAdvanceRes = await patchOrderRoute(
+      new NextRequest('http://localhost:3000/api/storefront/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: podOrderId,
+          nextStatus: 'OUT_FOR_DELIVERY',
+        }),
       }),
-    })
-    const deliveredRes = await patchOrderRoute(deliveredReq)
-    expect(deliveredRes.status).toBe(200)
-    const deliveredData = await deliveredRes.json()
-    expect(deliveredData.order.orderStatus).toBe('COMPLETED')
-    expect(deliveredData.order.paymentStatus).toBe('PAID')
+    )
+    expect(customerAdvanceRes.status).toBe(403)
+
+    // Authorized admin/fulfillment operator advances order to OUT_FOR_DELIVERY -> COMPLETED
+    try {
+      setMockSessionUser({
+        id: 'neon_usr_admin',
+        email: 'admin@storefront.example.com',
+        name: 'Store Admin',
+        role: 'admin',
+      })
+
+      const outReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: podOrderId,
+          nextStatus: 'OUT_FOR_DELIVERY',
+          note: 'Courier on route.',
+        }),
+      })
+      const outRes = await patchOrderRoute(outReq)
+      expect(outRes.status).toBe(200)
+      const outData = await outRes.json()
+      expect(outData.order.orderStatus).toBe('OUT_FOR_DELIVERY')
+
+      const deliveredReq = new NextRequest('http://localhost:3000/api/storefront/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: podOrderId,
+          nextStatus: 'COMPLETED',
+          note: 'Paid on delivery & signed.',
+        }),
+      })
+      const deliveredRes = await patchOrderRoute(deliveredReq)
+      expect(deliveredRes.status).toBe(200)
+      const deliveredData = await deliveredRes.json()
+      expect(deliveredData.order.orderStatus).toBe('COMPLETED')
+      expect(deliveredData.order.paymentStatus).toBe('PAID')
+    } finally {
+      setMockSessionUser({
+        id: 'neon_usr_alex',
+        email: 'alex.rivera@example.com',
+        name: 'Alex Rivera',
+        role: 'customer',
+      })
+    }
     expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0)
     expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock - 1)
 
@@ -1118,5 +1205,352 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
 
     const userOrders = await getOrdersByUser({ neonUserId: 'neon_usr_alex' })
     expect(userOrders.length).toBeGreaterThan(0)
+  })
+
+  it('enforces server-side session checks on checkout and ownership rules across routes and collections', async () => {
+    const setMockSessionUser = (
+      globalThis as unknown as {
+        __setMockNeonSessionUser__: (
+          user: { id: string; email: string; name: string; role?: string | null } | null,
+        ) => void
+      }
+    ).__setMockNeonSessionUser__
+
+    const products = collectionsStore.products as unknown as Product[]
+    const oxford = products.find((p) => p.slug === 'classic-oxford-button-down')!
+    const targetVariant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-M')!
+
+    const buildCheckoutRequest = (body: Record<string, unknown>) =>
+      new NextRequest('http://localhost:3000/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentOption: 'pay_and_delivery',
+          customer: {
+            name: 'Alex Rivera',
+            email: 'alex.rivera@example.com',
+            address: '742 Evergreen Terrace, San Francisco, CA',
+          },
+          payment: {
+            cardholderName: 'Alex Rivera',
+            cardNumber: '4242424242424242',
+            expiry: '08/29',
+          },
+          items: [
+            {
+              id: String(oxford.id),
+              slug: oxford.slug,
+              variantSku: targetVariant.sku,
+              title: oxford.title,
+              brand: oxford.brand,
+              category: oxford.category,
+              subcategory: oxford.subcategory,
+              size: targetVariant.size,
+              color: targetVariant.color,
+              price: oxford.price,
+              quantity: 1,
+            },
+          ],
+          ...body,
+        }),
+      })
+
+    try {
+      // 1. Unauthenticated checkout must be rejected with 401
+      setMockSessionUser(null)
+      const unauthCheckoutRes = await postCheckout(
+        buildCheckoutRequest({ orderId: 'ORD-UNAUTH-1' }),
+      )
+      expect(unauthCheckoutRes.status).toBe(401)
+
+      // 2. Spoofed userId mismatched with session user must return 403
+      setMockSessionUser({
+        id: 'neon_usr_alex',
+        email: 'alex.rivera@example.com',
+        name: 'Alex Rivera',
+        role: 'customer',
+      })
+      const spoofCheckoutRes = await postCheckout(
+        buildCheckoutRequest({ orderId: 'ORD-SPOOF-1', userId: 'neon_usr_other' }),
+      )
+      expect(spoofCheckoutRes.status).toBe(403)
+
+      // 3. Another user cannot mutate orders or read documents owned by neon_usr_alex
+      setMockSessionUser({
+        id: 'neon_usr_other',
+        email: 'other.user@example.com',
+        name: 'Other User',
+        role: 'customer',
+      })
+      const forbiddenPatchRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: 'ORD-PAD-1',
+            nextStatus: 'CANCELLED',
+          }),
+        }),
+      )
+      expect(forbiddenPatchRes.status).toBe(403)
+
+      const forbiddenDocRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_document',
+            orderId: 'ORD-PAD-1',
+            documentType: 'RECEIPT',
+          }),
+        }),
+      )
+      expect(forbiddenDocRes.status).toBe(403)
+
+      // 4. Unauthenticated on-demand document & order access return 401
+      setMockSessionUser(null)
+      const unauthDocRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_document',
+            orderId: 'ORD-PAD-1',
+            documentType: 'RECEIPT',
+          }),
+        }),
+      )
+      expect(unauthDocRes.status).toBe(401)
+
+      // 5. Actual owner can generate an on-demand receipt via ComposeIt (200)
+      setMockSessionUser({
+        id: 'neon_usr_alex',
+        email: 'alex.rivera@example.com',
+        name: 'Alex Rivera',
+        role: 'customer',
+      })
+      const ownerDocRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_document',
+            orderId: 'ORD-PAD-1',
+            documentType: 'RECEIPT',
+          }),
+        }),
+      )
+      expect(ownerDocRes.status).toBe(200)
+      const ownerDocData = await ownerDocRes.json()
+      expect(ownerDocData.document.documentType).toBe('RECEIPT')
+      expect(ownerDocData.document.pdfUrl).toContain('api.composeit.local/ephemeral')
+
+      // 5b. Regular customer cannot spoof payment confirmation or mark their own order delivered/failed
+      const customerPaymentRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'payment',
+            orderId: 'ORD-PAY-SEC-1',
+            authorized: true,
+          }),
+        }),
+      )
+      expect(customerPaymentRes.status).toBe(403)
+
+      const customerCompleteRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: 'ORD-PAD-1',
+            nextStatus: 'COMPLETED',
+          }),
+        }),
+      )
+      expect(customerCompleteRes.status).toBe(403)
+
+      const customerDeliveryFailedRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: 'ORD-PAD-1',
+            deliveryFailed: true,
+          }),
+        }),
+      )
+      expect(customerDeliveryFailedRes.status).toBe(403)
+
+      // 5c. Customer attempting to cancel an already COMPLETED order gets 409
+      const customerCancelCompletedRes = await patchOrderRoute(
+        new NextRequest('http://localhost:3000/api/storefront/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: 'ORD-PAD-1',
+            nextStatus: 'CANCELLED',
+          }),
+        }),
+      )
+      expect(customerCancelCompletedRes.status).toBe(409)
+
+      // 5d. Valid PAYMENT_WEBHOOK_SECRET authorizes server-to-server payment confirmation without a user session
+      const prevWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET
+      process.env.PAYMENT_WEBHOOK_SECRET = 'test_webhook_secret_32_chars_min'
+      try {
+        const paySecOrderId = 'ORD-PAY-WEBHOOK-1'
+        const payRun = await start(executeDurableCheckoutWorkflow, [
+          {
+            orderId: paySecOrderId,
+            userId: 'neon_usr_alex',
+            paymentOption: 'pay_and_delivery',
+            awaitPaymentHook: true,
+            waitForFulfillment: false,
+            timeouts: { paymentWaitTimeout: '500ms' },
+            customer: {
+              name: 'Alex Rivera',
+              email: 'alex.rivera@example.com',
+              address: '742 Evergreen Terrace, San Francisco, CA',
+            },
+            items: [
+              {
+                id: String(oxford.id),
+                slug: oxford.slug,
+                variantSku: targetVariant.sku,
+                title: oxford.title,
+                brand: oxford.brand,
+                category: oxford.category,
+                subcategory: oxford.subcategory,
+                size: targetVariant.size,
+                color: targetVariant.color,
+                price: oxford.price,
+                quantity: 1,
+              },
+            ],
+          },
+        ])
+        await waitForWorkflowHook(getOrderPaymentHookToken(paySecOrderId))
+
+        setMockSessionUser(null)
+        const badSecretRes = await patchOrderRoute(
+          new NextRequest('http://localhost:3000/api/storefront/orders', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-payment-webhook-secret': 'wrong_secret',
+            },
+            body: JSON.stringify({
+              action: 'payment',
+              orderId: paySecOrderId,
+              authorized: true,
+            }),
+          }),
+        )
+        expect(badSecretRes.status).toBe(401)
+
+        const goodSecretRes = await patchOrderRoute(
+          new NextRequest('http://localhost:3000/api/storefront/orders', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-payment-webhook-secret': 'test_webhook_secret_32_chars_min',
+            },
+            body: JSON.stringify({
+              action: 'payment',
+              orderId: paySecOrderId,
+              authorized: true,
+              cardNumber: '4242424242424242',
+            }),
+          }),
+        )
+        expect(goodSecretRes.status).toBe(200)
+        const payOutcome = await payRun.returnValue
+        expect(payOutcome.success).toBe(true)
+
+        // Owner CAN self-cancel their own pre-dispatch CONFIRMED order (200)
+        setMockSessionUser({
+          id: 'neon_usr_alex',
+          email: 'alex.rivera@example.com',
+          name: 'Alex Rivera',
+          role: 'customer',
+        })
+        await waitForWorkflowHook(getOrderFulfillmentHookToken(paySecOrderId))
+        const selfCancelRes = await patchOrderRoute(
+          new NextRequest('http://localhost:3000/api/storefront/orders', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: paySecOrderId,
+              nextStatus: 'CANCELLED',
+              note: 'Changed my mind before dispatch.',
+            }),
+          }),
+        )
+        expect(selfCancelRes.status).toBe(200)
+        const selfCancelData = await selfCancelRes.json()
+        expect(selfCancelData.order.orderStatus).toBe('CANCELLED')
+      } finally {
+        if (prevWebhookSecret === undefined) {
+          delete process.env.PAYMENT_WEBHOOK_SECRET
+        } else {
+          process.env.PAYMENT_WEBHOOK_SECRET = prevWebhookSecret
+        }
+      }
+
+      // 6. Verify Payload collection access policies & ownership filters directly
+      const customerReq = { user: null } as unknown as PayloadRequest
+      expect(await ownerByNeonUserIdAccess.read({ req: customerReq })).toEqual({
+        neonUserId: { equals: 'neon_usr_alex' },
+      })
+      expect(
+        await ownerByNeonUserIdAccess.create({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_other' },
+        }),
+      ).toBe(false)
+      expect(
+        await ownerByNeonUserIdAccess.create({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_alex' },
+        }),
+      ).toBe(true)
+      expect(
+        await ownerByNeonUserIdAccess.update({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_other' },
+        }),
+      ).toBe(false)
+      expect(await ordersAccess.read({ req: customerReq })).toEqual({
+        or: [
+          { neonUserId: { equals: 'neon_usr_alex' } },
+          { customerEmail: { equals: 'alex.rivera@example.com' } },
+        ],
+      })
+      expect(await ordersAccess.create({ req: customerReq, data: {} })).toBe(false)
+      expect(await reviewsAccess.read({ req: customerReq })).toBe(true)
+      expect(
+        await reviewsAccess.create({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_other' },
+        }),
+      ).toBe(false)
+      expect(await isAdminAccess({ req: customerReq })).toBe(false)
+
+      // Unauthenticated request denied for private collections
+      setMockSessionUser(null)
+      expect(await ownerByNeonUserIdAccess.read({ req: customerReq })).toBe(false)
+      expect(await ownerByNeonUserIdAccess.create({ req: customerReq, data: {} })).toBe(false)
+      expect(await ordersAccess.read({ req: customerReq })).toBe(false)
+      expect(await reviewsAccess.create({ req: customerReq, data: {} })).toBe(false)
+    } finally {
+      setMockSessionUser({
+        id: 'neon_usr_alex',
+        email: 'alex.rivera@example.com',
+        name: 'Alex Rivera',
+        role: 'customer',
+      })
+    }
   })
 })

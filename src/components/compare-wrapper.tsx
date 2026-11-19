@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { ShoppingCart, Star, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import { getProductImages, getProductTotalAvailableStock, type Product } from '../lib/utils/data'
+import {
+  formatCentsAsDollars,
+  getProductImages,
+  getProductTotalAvailableStock,
+  type Product,
+} from '../lib/utils/data'
 import { Button } from './ui/button'
 
 interface CompareWrapperProps {
@@ -38,7 +43,7 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
                 <h3 className="meta__title">{product.title}</h3>
               </Link>
               <span className="meta__brand">{product.brand}</span>
-              <span className="meta__price">${product.price}</span>
+              <span className="meta__price">{formatCentsAsDollars(product.price)}</span>
               <span className="meta__subcategory">{product.subcategory}</span>
               <span className="meta__material">{product.material}</span>
               <span className="meta__fit">{product.fit}</span>

@@ -7,14 +7,20 @@ import {
   type OrderTemplateData,
 } from '../lib/utils/documentEmailService'
 import {
-  commitVariantStockViaSdk,
+  clearUserCartServer,
+  commitVariantStock,
+  createOrderServer,
   parseWorkflowDurationMs,
-  releaseVariantStockViaSdk,
-  reserveVariantStockViaSdk,
-  sdk,
-  syncCartWithPayload,
-} from '../lib/payload-sdk'
-import { PAYMENT_OPTIONS, type Order, type PaymentOptionType } from '../lib/utils/data'
+  releaseVariantStock,
+  reserveVariantStock,
+} from '../lib/payload-server'
+import {
+  PAYMENT_OPTIONS,
+  calculateOrderTotalsCents,
+  centsToDollars,
+  type Order,
+  type PaymentOptionType,
+} from '../lib/utils/data'
 import { applyOrderStatusStep } from './orderStatusWorkflow'
 
 export type WorkflowTimeoutValue =
@@ -115,7 +121,7 @@ async function reserveInventoryStep(input: {
 
   const ttlMs = parseWorkflowDurationMs(input.ttlDuration, input.fallbackTtlMs)
 
-  return await reserveVariantStockViaSdk({
+  return await reserveVariantStock({
     reservationKey: input.reservationKey,
     orderId: input.orderId,
     ttlMs,
@@ -125,7 +131,7 @@ async function reserveInventoryStep(input: {
 
 async function releaseReservedStockStep(input: { reservationKey: string; reason: string }) {
   'use step'
-  const released = await releaseVariantStockViaSdk(input.reservationKey, input.reason)
+  const released = await releaseVariantStock(input.reservationKey, input.reason)
   return {
     released: Boolean(released),
     reservationKey: input.reservationKey,
@@ -135,7 +141,7 @@ async function releaseReservedStockStep(input: { reservationKey: string; reason:
 
 async function commitOrderStockStep(input: { reservationKey: string }) {
   'use step'
-  const committed = await commitVariantStockViaSdk(input.reservationKey)
+  const committed = await commitVariantStock(input.reservationKey)
   return {
     committed: Boolean(committed),
     reservationKey: input.reservationKey,
@@ -211,8 +217,8 @@ async function createOrderAndDocumentsStep(input: {
 }) {
   'use step'
   const lineItems = input.items.map((item) => {
-    const unitPrice = Number(item.price) || 0
-    const quantity = Number(item.quantity) || 1
+    const unitPrice = Math.round(Number(item.price) || 0)
+    const quantity = Math.max(1, Math.round(Number(item.quantity) || 1))
     const slug = item.slug || item.id
     const defaultSku = `${item.id.toUpperCase()}-STD-${item.size || 'M'}`
     return {
@@ -228,16 +234,21 @@ async function createOrderAndDocumentsStep(input: {
       color: item.color || 'Signature',
       quantity,
       unitPrice,
-      lineTotal: Number((unitPrice * quantity).toFixed(2)),
+      lineTotal: unitPrice * quantity,
       imageUrl: item.images?.[0] || '/images/shirt.png',
     }
   })
 
-  const subTotal = Number(lineItems.reduce((acc, item) => acc + item.lineTotal, 0).toFixed(2))
-  const taxRate = 0.08
-  const tax = Number((subTotal * taxRate).toFixed(2))
-  const shipping = input.paymentResult.fulfillmentMethod === 'DELIVERY' ? 12 : 0
-  const grandTotal = Number((subTotal + tax + shipping).toFixed(2))
+  const { subTotalCents, taxCents, shippingCents, grandTotalCents } = calculateOrderTotalsCents(
+    lineItems.map((item) => ({ unitPriceCents: item.unitPrice, quantity: item.quantity })),
+    input.paymentResult.fulfillmentMethod,
+  )
+  const orderTotals = {
+    subTotal: subTotalCents,
+    tax: taxCents,
+    shipping: shippingCents,
+    grandTotal: grandTotalCents,
+  }
 
   const resolvedAddress =
     input.paymentResult.fulfillmentMethod === 'COLLECTION'
@@ -265,12 +276,16 @@ async function createOrderAndDocumentsStep(input: {
       status: input.paymentResult.paymentStatus,
       paidAt: input.paymentResult.paidAt || input.timestamp,
     },
-    items: lineItems,
+    items: lineItems.map((item) => ({
+      ...item,
+      unitPrice: centsToDollars(item.unitPrice),
+      lineTotal: centsToDollars(item.lineTotal),
+    })),
     totals: {
-      subTotal,
-      tax,
-      shipping,
-      grandTotal,
+      subTotal: centsToDollars(subTotalCents),
+      tax: centsToDollars(taxCents),
+      shipping: centsToDollars(shippingCents),
+      grandTotal: centsToDollars(grandTotalCents),
     },
   }
 
@@ -313,79 +328,75 @@ async function createOrderAndDocumentsStep(input: {
     attachments: [invoicePdf, receiptPdf],
   })
 
-  const orderRecord = await sdk.create({
-    collection: 'orders',
-    data: {
-      orderId: input.orderId,
-      invoiceNumber: input.invoiceNumber,
-      receiptNumber: input.receiptNumber,
-      neonUserId: input.userId,
-      issuedAt: input.timestamp,
-      customerEmail: input.customer.email.trim().toLowerCase(),
-      customerName: input.customer.name,
-      customerPhone: input.customer.phone,
-      shippingAddress: resolvedAddress,
-      collectionLocation: input.customer.collectionLocation,
-      paymentOption: input.paymentOption,
-      paymentMethodLabel: input.paymentResult.methodLabel,
-      fulfillmentMethod: input.paymentResult.fulfillmentMethod,
-      paymentStatus: input.paymentResult.paymentStatus,
-      orderStatus: 'CONFIRMED',
-      cardLast4: input.paymentResult.cardLast4,
-      paidAt: input.paymentResult.paidAt,
-      items: lineItems.map((i) => ({
-        productId: i.productId,
-        productSlug: i.productSlug,
-        variantSku: i.variantSku,
-        title: i.title,
-        brand: i.brand,
-        category: i.category,
-        subcategory: i.subcategory,
-        size: i.size,
-        color: i.color,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        lineTotal: i.lineTotal,
-        imageUrl: i.imageUrl,
-      })),
-      totals: sharedTemplateData.totals,
-      documents: {
-        invoiceFilename: invoicePdf.filename,
-        invoiceTemplateId: invoicePdf.templateId,
-        invoicePdfUrl: invoicePdf.pdf?.url,
-        receiptFilename: receiptPdf.filename,
-        receiptTemplateId: receiptPdf.templateId,
-        receiptPdfUrl: receiptPdf.pdf?.url,
-        emailStatus: emailResult.status,
-        emailMessageId: emailResult.messageId,
-        emailPreviewUrl: emailResult.previewUrl || undefined,
-        emailTemplateId: emailResult.templateId,
-        renderedHtml: emailResult.renderedHtml,
-        payloadPreviewJson: {
-          invoicePdfApiPost: invoicePdf.payloadSent,
-          receiptPdfApiPost: receiptPdf.payloadSent,
-          emailTemplateApiPost: emailResult.payloadSent,
-        } as unknown as Record<string, unknown>,
+  const orderRecord = await createOrderServer({
+    orderId: input.orderId,
+    invoiceNumber: input.invoiceNumber,
+    receiptNumber: input.receiptNumber,
+    neonUserId: input.userId,
+    issuedAt: input.timestamp,
+    customerEmail: input.customer.email.trim().toLowerCase(),
+    customerName: input.customer.name,
+    customerPhone: input.customer.phone,
+    shippingAddress: resolvedAddress,
+    collectionLocation: input.customer.collectionLocation,
+    paymentOption: input.paymentOption,
+    paymentMethodLabel: input.paymentResult.methodLabel,
+    fulfillmentMethod: input.paymentResult.fulfillmentMethod,
+    paymentStatus: input.paymentResult.paymentStatus,
+    orderStatus: 'CONFIRMED',
+    cardLast4: input.paymentResult.cardLast4,
+    paidAt: input.paymentResult.paidAt,
+    items: lineItems.map((i) => ({
+      productId: i.productId,
+      productSlug: i.productSlug,
+      variantSku: i.variantSku,
+      title: i.title,
+      brand: i.brand,
+      category: i.category,
+      subcategory: i.subcategory,
+      size: i.size,
+      color: i.color,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal,
+      imageUrl: i.imageUrl,
+    })),
+    totals: orderTotals,
+    documentHistory: [
+      {
+        documentType: 'INVOICE',
+        documentNumber: input.invoiceNumber,
+        filename: invoicePdf.filename || `Invoice-${input.invoiceNumber}.pdf`,
+        templateId: invoicePdf.templateId,
+        generatedAt: input.timestamp,
       },
-      statusTimeline: [
-        {
-          status: 'CONFIRMED',
-          label: 'Order Confirmed & Stock Reserved',
-          timestamp: input.timestamp,
-          note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
-          emailSent: true,
-        },
-      ],
-    },
+      {
+        documentType: 'RECEIPT',
+        documentNumber: input.receiptNumber,
+        filename: receiptPdf.filename || `Receipt-${input.receiptNumber}.pdf`,
+        templateId: receiptPdf.templateId,
+        generatedAt: input.timestamp,
+      },
+    ],
+    statusTimeline: [
+      {
+        status: 'CONFIRMED',
+        label: 'Order Confirmed & Stock Reserved',
+        timestamp: input.timestamp,
+        note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
+      },
+    ],
   })
 
   if (input.userId) {
-    await syncCartWithPayload(input.userId, []).catch(() => {})
+    await clearUserCartServer(input.userId).catch(() => {})
   }
 
   return {
     orderRecord,
     sharedTemplateData,
+    orderLineItems: lineItems,
+    orderTotals,
     invoicePdf,
     receiptPdf,
     renderedEmail,
@@ -568,13 +579,13 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   }
 
   // Step 2: Process / Wait for Payment (30m configurable window for pay_and_delivery & pay_then_collect)
-  const subTotal = input.items.reduce(
-    (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1),
-    0,
+  const { grandTotalCents: grandTotal } = calculateOrderTotalsCents(
+    input.items.map((i) => ({
+      unitPriceCents: Math.round(Number(i.price) || 0),
+      quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
+    })),
+    optionMeta.fulfillmentMethod,
   )
-  const deliveryFee =
-    paymentOption === 'pay_and_delivery' || paymentOption === 'pay_on_delivery' ? 12 : 0
-  const grandTotal = Number((subTotal * 1.08 + deliveryFee).toFixed(2))
 
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
   const requiresExternalPaymentHook =
@@ -735,21 +746,18 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
         orderStatus: fulfillmentOutcome?.finalStatus ?? committed.orderRecord.orderStatus,
         customer: committed.sharedTemplateData.customer,
         paymentSummary: committed.sharedTemplateData.paymentSummary,
-        items: committed.sharedTemplateData.items,
-        totals: committed.sharedTemplateData.totals,
+        items: committed.orderLineItems,
+        totals: committed.orderTotals,
       },
+      documentHistory: committed.orderRecord.documentHistory ?? [],
       documents: {
         invoice: {
-          filename: committed.invoicePdf.filename,
+          filename: committed.invoicePdf.filename || `Invoice-${invoiceNumber}.pdf`,
           templateId: committed.invoicePdf.templateId,
-          pdf: committed.invoicePdf.pdf,
-          payloadSent: committed.invoicePdf.payloadSent,
         },
         receipt: {
-          filename: committed.receiptPdf.filename,
+          filename: committed.receiptPdf.filename || `Receipt-${receiptNumber}.pdf`,
           templateId: committed.receiptPdf.templateId,
-          pdf: committed.receiptPdf.pdf,
-          payloadSent: committed.receiptPdf.payloadSent,
         },
       },
       email: {
@@ -757,13 +765,8 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
         messageId: committed.emailResult.messageId,
         to: committed.emailResult.to,
         subject: committed.emailResult.subject,
-        previewUrl: committed.emailResult.previewUrl,
         templateId: committed.emailResult.templateId,
         attachmentsCount: committed.emailResult.attachmentsCount,
-        attachments: committed.emailResult.attachments,
-        renderedHtml: committed.emailResult.renderedHtml,
-        html: committed.renderedEmail.html,
-        payloadSent: committed.emailResult.payloadSent,
       },
     }
   } catch (err) {

@@ -1,6 +1,6 @@
 import { PayloadSDK } from '@payloadcms/sdk'
 import type { Where } from 'payload'
-import type { Order, Product, StockReservation, Wishlist } from '../payload-types'
+import type { Order, Product, Wishlist } from '../payload-types'
 import type { CartLineItem } from './utils/data'
 
 const getBaseURL = () => {
@@ -15,72 +15,6 @@ export const sdk = new PayloadSDK({
   baseURL: getBaseURL(),
   fetch: (input, init) => globalThis.fetch(input, init),
 })
-
-const inventoryLockChains = new Map<string, Promise<void>>()
-
-async function acquireSingleLock(key: string): Promise<() => void> {
-  const prev = inventoryLockChains.get(key) ?? Promise.resolve()
-  let releaseFn!: () => void
-  const current = new Promise<void>((resolve) => {
-    releaseFn = resolve
-  })
-  const nextChain = prev.then(() => current)
-  inventoryLockChains.set(key, nextChain)
-  await prev
-  return () => {
-    releaseFn()
-    if (inventoryLockChains.get(key) === nextChain) {
-      inventoryLockChains.delete(key)
-    }
-  }
-}
-
-async function withInventoryLock<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
-  const sortedUniqueKeys = Array.from(new Set(['__inventory_root__', ...keys])).sort()
-  const releases: Array<() => void> = []
-  try {
-    for (const key of sortedUniqueKeys) {
-      releases.push(await acquireSingleLock(key))
-    }
-    return await fn()
-  } finally {
-    for (let i = releases.length - 1; i >= 0; i--) {
-      releases[i]()
-    }
-  }
-}
-
-export function parseWorkflowDurationMs(
-  duration: string | number | undefined,
-  fallbackMs: number,
-): number {
-  if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
-    return duration
-  }
-  if (typeof duration === 'string') {
-    const trimmed = duration.trim().toLowerCase()
-    const match =
-      /^(\d+(?:\.\d+)?)\s*(ms|s|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?$/.exec(
-        trimmed,
-      )
-    if (match) {
-      const value = Number(match[1])
-      const unit = match[2] || 'ms'
-      if (Number.isFinite(value) && value > 0) {
-        if (unit === 'ms') return value
-        if (unit === 's') return value * 1000
-        if (unit === 'm' || unit.startsWith('min')) return value * 60 * 1000
-        if (unit === 'h' || unit.startsWith('hr') || unit.startsWith('hour')) {
-          return value * 60 * 60 * 1000
-        }
-        if (unit === 'd' || unit.startsWith('day')) {
-          return value * 24 * 60 * 60 * 1000
-        }
-      }
-    }
-  }
-  return fallbackMs
-}
 
 export async function getProducts() {
   try {
@@ -216,7 +150,12 @@ export async function getOrdersByUser(params: {
       sort: '-createdAt',
       limit: 100,
     })
-    return res.docs || []
+    return (res.docs || []).filter((o) =>
+      Boolean(
+        (neonUserId && o.neonUserId === neonUserId) ||
+          (email && o.customerEmail?.trim().toLowerCase() === email),
+      ),
+    )
   } catch (error) {
     console.error('Failed to fetch orders from Payload:', error)
     return []
@@ -254,6 +193,10 @@ export async function createProductReview(payload: {
   variantSize?: string
   variantColor?: string
 }) {
+  if (!payload.neonUserId?.trim()) {
+    throw new Error('Authentication required to publish a review.')
+  }
+
   const product = await getProductBySlug(payload.productSlug)
   if (!product) {
     throw new Error(`Product "${payload.productSlug}" not found`)
@@ -299,14 +242,20 @@ export async function createProductReview(payload: {
   const totalCount = currentCount + 1
   const nextAvg = Number(((currentAvg * currentCount + rating) / totalCount).toFixed(1))
 
-  const updatedProduct = await sdk.update({
-    collection: 'products',
-    id: product.id,
-    data: {
+  const updatedProduct = await sdk
+    .update({
+      collection: 'products',
+      id: product.id,
+      data: {
+        reviewCount: totalCount,
+        averageRating: nextAvg,
+      },
+    })
+    .catch(() => ({
+      ...product,
       reviewCount: totalCount,
       averageRating: nextAvg,
-    },
-  })
+    }))
 
   return {
     review,
@@ -326,7 +275,8 @@ export async function getBillingDetails(neonUserId: string) {
       },
       limit: 1,
     })
-    return res.docs?.[0] || null
+    const doc = res.docs?.[0]
+    return doc && doc.neonUserId === neonUserId ? doc : null
   } catch (error) {
     console.error('Failed to fetch billing details from Payload:', error)
     return null
@@ -338,6 +288,9 @@ export async function upsertBillingDetails(params: {
   phone?: string | null
   shippingAddress?: string | null
 }) {
+  if (!params.neonUserId) {
+    throw new Error('Authentication required to update billing details.')
+  }
   const existing = await getBillingDetails(params.neonUserId)
   if (existing) {
     return sdk.update({
@@ -396,7 +349,8 @@ export async function getCartByNeonUserId(neonUserId: string) {
       },
       limit: 1,
     })
-    return res.docs?.[0] || null
+    const doc = res.docs?.[0]
+    return doc && doc.neonUserId === neonUserId ? doc : null
   } catch (error) {
     console.error('Failed to fetch cart from Payload:', error)
     return null
@@ -404,6 +358,9 @@ export async function getCartByNeonUserId(neonUserId: string) {
 }
 
 export async function syncCartWithPayload(neonUserId: string, items: CartLineItem[]) {
+  if (!neonUserId) {
+    throw new Error('Authentication required to sync cart.')
+  }
   const normalizedItems = normalizeCartItemsForPayload(items)
   const existing = await getCartByNeonUserId(neonUserId)
   if (existing) {
@@ -449,7 +406,8 @@ export async function getWishlistByNeonUserId(neonUserId: string) {
       },
       limit: 1,
     })
-    return res.docs?.[0] || null
+    const doc = res.docs?.[0]
+    return doc && doc.neonUserId === neonUserId ? doc : null
   } catch (error) {
     console.error('Failed to fetch wishlist from Payload:', error)
     return null
@@ -460,6 +418,9 @@ export async function syncWishlistWithPayload(
   neonUserId: string,
   items: NonNullable<Wishlist['items']>,
 ) {
+  if (!neonUserId) {
+    throw new Error('Authentication required to sync wishlist.')
+  }
   const normalizedItems = normalizeWishlistItemsForPayload(items)
   const existing = await getWishlistByNeonUserId(neonUserId)
   if (existing) {
@@ -485,6 +446,9 @@ export async function toggleWishlistItemInPayload(
   neonUserId: string,
   product: Pick<Product, 'id' | 'slug'>,
 ) {
+  if (!neonUserId) {
+    throw new Error('Authentication required to update wishlist.')
+  }
   const existing = await getWishlistByNeonUserId(neonUserId)
   const currentItems = existing?.items ?? []
   const alreadySaved = currentItems.some((item) => item.productSlug === product.slug)
@@ -513,365 +477,32 @@ export async function updateOrderStatusViaSdk(payload: {
   return data
 }
 
-function stripVariantIds(variants: NonNullable<Product['variants']>) {
-  return variants.map((v) => ({
-    sku: v.sku,
-    size: v.size,
-    color: v.color,
-    colorHex: v.colorHex,
-    priceOverride: v.priceOverride,
-    stock: v.stock,
-    reservedStock: v.reservedStock,
-    lowStockThreshold: v.lowStockThreshold,
-    imageUrl: v.imageUrl,
-  }))
-}
-
-async function applyVariantInventoryAdjustments(
-  items: Array<{ productSlug: string; variantSku: string; quantity: number }>,
-  mode: 'reserve' | 'release_reserved' | 'release_committed' | 'commit',
-) {
-  const uniqueSlugs = Array.from(new Set(items.map((i) => i.productSlug)))
-  if (uniqueSlugs.length === 0) return
-
-  const productsRes = await sdk.find({
-    collection: 'products',
-    where: {
-      slug: { in: uniqueSlugs },
-    },
-    limit: 100,
-  })
-
-  const products = productsRes.docs || []
-  for (const product of products) {
-    const matchingItems = items.filter((i) => i.productSlug === product.slug)
-    if (matchingItems.length === 0 || !product.variants) continue
-
-    const updatedVariants = stripVariantIds(product.variants)
-    let dirty = false
-
-    for (const item of matchingItems) {
-      const variant = updatedVariants.find((v) => v.sku === item.variantSku) || updatedVariants[0]
-      if (!variant) continue
-
-      if (mode === 'reserve') {
-        variant.reservedStock += item.quantity
-        dirty = true
-      } else if (mode === 'release_reserved') {
-        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity)
-        dirty = true
-      } else if (mode === 'release_committed') {
-        variant.stock += item.quantity
-        dirty = true
-      } else if (mode === 'commit') {
-        variant.reservedStock = Math.max(0, variant.reservedStock - item.quantity)
-        variant.stock = Math.max(0, variant.stock - item.quantity)
-        dirty = true
-      }
-    }
-
-    if (dirty) {
-      await sdk.update({
-        collection: 'products',
-        id: product.id,
-        data: {
-          variants: updatedVariants,
-        },
-      })
-    }
-  }
-}
-
-async function expireStaleReservationsUnlocked() {
-  try {
-    const nowIso = new Date().toISOString()
-    const res = await sdk.find({
-      collection: 'stock-reservations',
-      where: {
-        status: { equals: 'RESERVED' },
-        expiresAt: { less_than_equal: nowIso },
-      },
-      limit: 50,
-    })
-
-    for (const reservation of res.docs || []) {
-      const items = (reservation.items || []).map((i) => ({
-        productSlug: i.productSlug,
-        variantSku: i.variantSku,
-        quantity: i.quantity,
-      }))
-      await applyVariantInventoryAdjustments(items, 'release_reserved')
-      await sdk.update({
-        collection: 'stock-reservations',
-        id: reservation.id,
-        data: { status: 'EXPIRED' },
-      })
-    }
-  } catch (error) {
-    console.error('Failed to expire stale reservations:', error)
-  }
-}
-
-export async function expireStaleReservationsViaSdk() {
-  return withInventoryLock(['__expire__'], () => expireStaleReservationsUnlocked())
-}
-
-export async function reserveVariantStockViaSdk(params: {
-  reservationKey: string
+export async function generateOrderDocumentViaSdk(payload: {
   orderId: string
-  ttlMs?: number
-  items: Array<{
-    productSlug: string
-    variantSku: string
-    quantity: number
-  }>
+  documentType: 'INVOICE' | 'RECEIPT'
 }): Promise<{
-  success: boolean
-  error?: string
-  reservation?: StockReservation
-  insufficientItems?: Array<{
-    variantSku: string
-    requested: number
-    available: number
-  }>
+  order: Order
+  document: {
+    documentType: 'INVOICE' | 'RECEIPT'
+    documentNumber: string
+    filename: string
+    templateId: string
+    generatedAt: string
+    pdfUrl: string | null
+  }
 }> {
-  const productSlugs = params.items.map((i) => i.productSlug)
-  return withInventoryLock(productSlugs, async () => {
-    await expireStaleReservationsUnlocked()
-
-    const existingRes = await sdk.find({
-      collection: 'stock-reservations',
-      where: {
-        reservationKey: { equals: params.reservationKey },
-      },
-      limit: 1,
-    })
-    const existing = existingRes.docs?.[0]
-    if (existing && existing.status === 'RESERVED') {
-      return { success: true, reservation: existing }
-    }
-
-    const nowIso = new Date().toISOString()
-    const uniqueSlugs = Array.from(new Set(productSlugs))
-    const [productsRes, activeReservationsRes] = await Promise.all([
-      sdk.find({
-        collection: 'products',
-        where: {
-          slug: { in: uniqueSlugs },
-        },
-        limit: 100,
-      }),
-      sdk.find({
-        collection: 'stock-reservations',
-        where: {
-          status: { equals: 'RESERVED' },
-          expiresAt: { greater_than: nowIso },
-        },
-        limit: 200,
-      }),
-    ])
-
-    const products = productsRes.docs || []
-    const activeReservedBySku = new Map<string, number>()
-    for (const resDoc of activeReservationsRes.docs || []) {
-      for (const resItem of resDoc.items || []) {
-        activeReservedBySku.set(
-          resItem.variantSku,
-          (activeReservedBySku.get(resItem.variantSku) ?? 0) + (Number(resItem.quantity) || 0),
-        )
-      }
-    }
-
-    const insufficient: Array<{
-      variantSku: string
-      requested: number
-      available: number
-    }> = []
-
-    const resolvedItems: Array<{
-      productSlug: string
-      variantSku: string
-      quantity: number
-    }> = []
-
-    const pendingSkuQty = new Map<string, number>()
-
-    for (const reqItem of params.items) {
-      const product = products.find((p) => p.slug === reqItem.productSlug)
-      if (!product) {
-        return {
-          success: false,
-          error: `Product "${reqItem.productSlug}" not found.`,
-        }
-      }
-
-      const variant =
-        product.variants?.find((v) => v.sku === reqItem.variantSku) || product.variants?.[0]
-
-      if (!variant) {
-        return {
-          success: false,
-          error: `Variant "${reqItem.variantSku}" not found for ${product.title}.`,
-        }
-      }
-
-      const activeReservedFromLedger = activeReservedBySku.get(variant.sku) ?? 0
-      const alreadyQueuedQty = pendingSkuQty.get(variant.sku) ?? 0
-      const effectiveReserved =
-        Math.max(variant.reservedStock, activeReservedFromLedger) + alreadyQueuedQty
-      const available = Math.max(0, variant.stock - effectiveReserved)
-
-      if (available < reqItem.quantity) {
-        insufficient.push({
-          variantSku: variant.sku,
-          requested: reqItem.quantity,
-          available,
-        })
-      } else {
-        pendingSkuQty.set(variant.sku, alreadyQueuedQty + reqItem.quantity)
-        resolvedItems.push({
-          productSlug: product.slug,
-          variantSku: variant.sku,
-          quantity: reqItem.quantity,
-        })
-      }
-    }
-
-    if (insufficient.length > 0) {
-      const detail = insufficient
-        .map((i) => `${i.variantSku} (requested ${i.requested}, only ${i.available} available)`)
-        .join(', ')
-      return {
-        success: false,
-        error: `Insufficient stock for: ${detail}`,
-        insufficientItems: insufficient,
-      }
-    }
-
-    const ttlMs =
-      typeof params.ttlMs === 'number' && params.ttlMs > 0 ? params.ttlMs : 30 * 60 * 1000
-    const expiresAt = new Date(Date.now() + ttlMs).toISOString()
-
-    let reservation: StockReservation
-    try {
-      reservation = await sdk.create({
-        collection: 'stock-reservations',
-        data: {
-          reservationKey: params.reservationKey,
-          orderId: params.orderId,
-          status: 'RESERVED',
-          expiresAt,
-          items: resolvedItems,
-        },
-      })
-    } catch (error) {
-      return {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unable to reserve inventory due to a concurrent checkout.',
-      }
-    }
-
-    try {
-      await applyVariantInventoryAdjustments(resolvedItems, 'reserve')
-    } catch (error) {
-      await sdk
-        .update({
-          collection: 'stock-reservations',
-          id: reservation.id,
-          data: {
-            status: 'RELEASED',
-            failureReason: error instanceof Error ? error.message : 'Inventory adjustment failed',
-          },
-        })
-        .catch(() => undefined)
-      throw error
-    }
-
-    return { success: true, reservation }
-  })
-}
-
-async function findStockReservation(reservationKeyOrOrderId: string) {
-  const normalizedOrderId = reservationKeyOrOrderId.replace(/^res_/, '')
-  const existingRes = await sdk.find({
-    collection: 'stock-reservations',
-    where: {
-      or: [
-        { reservationKey: { equals: reservationKeyOrOrderId } },
-        { orderId: { equals: normalizedOrderId } },
-      ],
+  const res = await sdk.request({
+    method: 'PATCH',
+    path: '/storefront/orders',
+    json: {
+      action: 'generate_document',
+      orderId: payload.orderId,
+      documentType: payload.documentType,
     },
-    limit: 1,
   })
-  return existingRes.docs?.[0] || null
-}
-
-export async function releaseVariantStockViaSdk(
-  reservationKey: string,
-  reason = 'Transaction failed or cancelled',
-) {
-  return withInventoryLock(['__release__', reservationKey], async () => {
-    const reservation = await findStockReservation(reservationKey)
-    if (!reservation) return null
-
-    const items = (reservation.items || []).map((i) => ({
-      productSlug: i.productSlug,
-      variantSku: i.variantSku,
-      quantity: i.quantity,
-    }))
-
-    if (reservation.status === 'RESERVED') {
-      await applyVariantInventoryAdjustments(items, 'release_reserved')
-      return sdk.update({
-        collection: 'stock-reservations',
-        id: reservation.id,
-        data: {
-          status: 'RELEASED',
-          failureReason: reason,
-        },
-      })
-    }
-
-    if (reservation.status === 'COMMITTED') {
-      await applyVariantInventoryAdjustments(items, 'release_committed')
-      return sdk.update({
-        collection: 'stock-reservations',
-        id: reservation.id,
-        data: {
-          status: 'RELEASED',
-          failureReason: reason,
-        },
-      })
-    }
-
-    return reservation
-  })
-}
-
-export async function commitVariantStockViaSdk(reservationKey: string) {
-  return withInventoryLock(['__commit__', reservationKey], async () => {
-    const reservation = await findStockReservation(reservationKey)
-    if (!reservation) return null
-
-    if (reservation.status === 'RESERVED') {
-      const items = (reservation.items || []).map((i) => ({
-        productSlug: i.productSlug,
-        variantSku: i.variantSku,
-        quantity: i.quantity,
-      }))
-      await applyVariantInventoryAdjustments(items, 'commit')
-      return sdk.update({
-        collection: 'stock-reservations',
-        id: reservation.id,
-        data: {
-          status: 'COMMITTED',
-        },
-      })
-    }
-
-    return reservation
-  })
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to generate document')
+  }
+  return data
 }

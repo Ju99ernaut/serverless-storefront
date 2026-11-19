@@ -1,7 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Check, ExternalLink, FileText } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Check, ExternalLink, FileText, Loader2 } from 'lucide-react'
+import { storefrontQueryKeys, useAuth } from '@/context'
+import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
+import { formatCentsAsDollars } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -13,6 +18,7 @@ import {
   EmptyTitle,
 } from '../ui/empty'
 import { Separator } from '../ui/separator'
+import { toast } from '../ui/toast'
 import type { CheckoutSuccessResponse } from './checkout-schema'
 
 interface CartOrderSuccessStepProps {
@@ -21,7 +27,40 @@ interface CartOrderSuccessStepProps {
 }
 
 export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessStepProps) {
-  const encodedOrderId = encodeURIComponent(orderResult.order.orderId)
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [generatingType, setGeneratingType] = useState<'INVOICE' | 'RECEIPT' | null>(null)
+
+  const generateDocMutation = useMutation({
+    mutationFn: (documentType: 'INVOICE' | 'RECEIPT') => {
+      setGeneratingType(documentType)
+      return generateOrderDocumentViaSdk({
+        orderId: orderResult.order.orderId,
+        documentType,
+      })
+    },
+    onSuccess: async (res) => {
+      await queryClient.invalidateQueries({
+        queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+      })
+      toast.add({
+        type: 'success',
+        description: `${res.document.filename} generated on demand via ComposeIt.`,
+      })
+      if (res.document.pdfUrl) {
+        window.open(res.document.pdfUrl, '_blank', 'noopener,noreferrer')
+      }
+    },
+    onError: (err: unknown) => {
+      toast.add({
+        type: 'error',
+        description: err instanceof Error ? err.message : 'Unable to generate document.',
+      })
+    },
+    onSettled: () => {
+      setGeneratingType(null)
+    },
+  })
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6" role="status" aria-live="polite">
@@ -37,8 +76,7 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
           <EmptyDescription>
             Order <strong>{orderResult.order.orderId}</strong> has been allocated cleanly by our
             durable checkout workflow. Your <strong>Invoice</strong> &amp; <strong>Receipt</strong>{' '}
-            PDFs and confirmation email have been dispatched to{' '}
-            <strong>{orderResult.email.to}</strong>.
+            confirmation email has been dispatched to <strong>{orderResult.email.to}</strong>.
           </EmptyDescription>
         </EmptyHeader>
 
@@ -68,45 +106,52 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Total</span>
                 <strong className="text-foreground">
-                  ${orderResult.order.totals.grandTotal.toFixed(2)}
+                  {formatCentsAsDollars(orderResult.order.totals.grandTotal)}
                 </strong>
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Email Status</span>
-                <code className="text-primary">{orderResult.email.status}</code>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Invoice PDF</span>
-                <a
-                  href={`/api/storefront/documents/${encodedOrderId}?type=invoice`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                <span className="text-muted-foreground">Invoice PDF (On Demand)</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="link"
+                  className="h-auto p-0 text-xs font-semibold text-primary"
+                  disabled={generatingType !== null}
+                  onClick={() => generateDocMutation.mutate('INVOICE')}
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  {generatingType === 'INVOICE' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                   <span className="truncate max-w-[170px]">
                     {orderResult.documents.invoice.filename}
                   </span>
                   <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                </a>
+                </Button>
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Receipt PDF</span>
-                <a
-                  href={`/api/storefront/documents/${encodedOrderId}?type=receipt`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                <span className="text-muted-foreground">Receipt PDF (On Demand)</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="link"
+                  className="h-auto p-0 text-xs font-semibold text-primary"
+                  disabled={generatingType !== null}
+                  onClick={() => generateDocMutation.mutate('RECEIPT')}
                 >
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  {generatingType === 'RECEIPT' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                   <span className="truncate max-w-[170px]">
                     {orderResult.documents.receipt.filename}
                   </span>
                   <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                </a>
+                </Button>
               </div>
             </CardContent>
           </Card>

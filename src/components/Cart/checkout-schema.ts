@@ -6,6 +6,13 @@ export type PaymentOptionMeta = (typeof PAYMENT_OPTIONS)[number]
 export interface CheckoutSuccessResponse {
   success: boolean
   reservationKey?: string
+  documentHistory?: Array<{
+    documentType: 'INVOICE' | 'RECEIPT'
+    documentNumber: string
+    filename: string
+    templateId: string
+    generatedAt: string
+  }>
   order: {
     orderId: string
     invoiceNumber: string
@@ -29,24 +36,10 @@ export interface CheckoutSuccessResponse {
     invoice: {
       filename: string
       templateId: string
-      pdf?: {
-        url: string
-        sizeBytes: number
-        mimeType: string
-        checksum: string
-      }
-      payloadSent: unknown
     }
     receipt: {
       filename: string
       templateId: string
-      pdf?: {
-        url: string
-        sizeBytes: number
-        mimeType: string
-        checksum: string
-      }
-      payloadSent: unknown
     }
   }
   email: {
@@ -54,23 +47,8 @@ export interface CheckoutSuccessResponse {
     messageId: string
     to: string
     subject: string
-    previewUrl: string | null
     templateId: string
     attachmentsCount: number
-    attachments: Array<{
-      filename: string
-      path: string
-      contentType: string
-    }>
-    renderedHtml: string
-    html?: {
-      htmlDocument: string
-      checksum: string
-      mimeType: string
-      url: string
-      sizeBytes: number
-    }
-    payloadSent: unknown
   }
 }
 

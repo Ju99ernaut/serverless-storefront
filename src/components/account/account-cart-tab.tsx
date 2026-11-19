@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ShoppingBag, Trash2 } from 'lucide-react'
-import type { CartLineItem } from '@/lib/utils/data'
+import { formatCentsAsDollars, type CartLineItem } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -72,7 +72,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-primary">
-                      ${(ci.price * ci.quantity).toFixed(2)}
+                      {formatCentsAsDollars(ci.price * ci.quantity)}
                     </span>
                     <Button
                       type="button"

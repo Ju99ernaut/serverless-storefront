@@ -6,7 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '../../context'
-import { PAYMENT_OPTIONS, type CartLineItem } from '../../lib/utils/data'
+import {
+  PAYMENT_OPTIONS,
+  calculateOrderTotalsCents,
+  type CartLineItem,
+} from '../../lib/utils/data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { getBillingDetails } from '@/lib/payload-sdk'
 import { Drawer, DrawerContent } from '../ui/drawer'
@@ -96,12 +100,18 @@ const CartSidebar = ({
   const selectedPaymentMeta =
     PAYMENT_OPTIONS.find((opt) => opt.id === paymentOption) || PAYMENT_OPTIONS[0]
 
-  const subTotal = Number(
-    items.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2),
+  const {
+    subTotalCents: subTotal,
+    taxCents: tax,
+    shippingCents: shippingFee,
+    grandTotalCents: grandTotal,
+  } = calculateOrderTotalsCents(
+    items.map((item) => ({
+      unitPriceCents: item.unitPrice ?? item.price,
+      quantity: item.quantity,
+    })),
+    selectedPaymentMeta.fulfillmentMethod,
   )
-  const tax = Number((subTotal * 0.08).toFixed(2))
-  const shippingFee = selectedPaymentMeta.fulfillmentMethod === 'DELIVERY' ? 12 : 0
-  const grandTotal = Number((subTotal + tax + shippingFee).toFixed(2))
   const isEmpty = items.length === 0
   const totalItemCount = items.reduce((sum, i) => sum + i.quantity, 0)
 

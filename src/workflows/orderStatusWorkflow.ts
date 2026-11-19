@@ -4,12 +4,12 @@ import {
   sendRenderedEmailWithAttachments,
 } from '../lib/utils/documentEmailService'
 import {
-  commitVariantStockViaSdk,
-  getOrderByOrderId,
-  releaseVariantStockViaSdk,
-  sdk,
-} from '../lib/payload-sdk'
-import type { Order } from '../lib/utils/data'
+  commitVariantStock,
+  getOrderByOrderIdServer,
+  releaseVariantStock,
+  updateOrderServer,
+} from '../lib/payload-server'
+import { centsToDollars, type Order } from '../lib/utils/data'
 
 const STATUS_LABELS: Record<Order['orderStatus'], string> = {
   PENDING: 'Order Pending',
@@ -30,7 +30,7 @@ export async function applyOrderStatusStep(input: {
   releaseStock?: boolean
 }) {
   'use step'
-  const order = await getOrderByOrderId(input.orderId)
+  const order = await getOrderByOrderIdServer(input.orderId)
   if (!order) {
     throw new Error(`Order ${input.orderId} not found.`)
   }
@@ -53,12 +53,12 @@ export async function applyOrderStatusStep(input: {
       (order.paymentOption === 'pay_then_collect' && effectiveStatus === 'READY_FOR_COLLECTION'))
 
   if (shouldCommitStock) {
-    await commitVariantStockViaSdk(`res_${order.orderId}`)
+    await commitVariantStock(`res_${order.orderId}`)
   }
 
   if (effectiveStatus === 'CANCELLED') {
     if (input.releaseStock !== false) {
-      await releaseVariantStockViaSdk(
+      await releaseVariantStock(
         `res_${order.orderId}`,
         input.note ||
           (input.deliveryFailed
@@ -115,10 +115,15 @@ export async function applyOrderStatusStep(input: {
         size: i.size || undefined,
         color: i.color || undefined,
         quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        lineTotal: i.lineTotal,
+        unitPrice: centsToDollars(i.unitPrice),
+        lineTotal: centsToDollars(i.lineTotal),
       })),
-      totals: order.totals,
+      totals: {
+        subTotal: centsToDollars(order.totals.subTotal),
+        tax: centsToDollars(order.totals.tax),
+        shipping: centsToDollars(order.totals.shipping),
+        grandTotal: centsToDollars(order.totals.grandTotal),
+      },
     },
   })
 
@@ -135,33 +140,26 @@ export async function applyOrderStatusStep(input: {
       label: entry.label,
       timestamp: entry.timestamp,
       note: entry.note,
-      emailSent: entry.emailSent,
     })),
     {
       status: effectiveStatus,
       label,
       timestamp: new Date().toISOString(),
       note: statusNote,
-      emailSent: true,
     },
   ]
 
-  const updatedOrder = await sdk.update({
-    collection: 'orders',
-    id: order.id,
-    data: {
-      orderStatus: effectiveStatus,
-      paymentStatus: nextPaymentStatus,
-      paidAt: nextPaidAt,
-      statusTimeline: nextTimeline,
-    },
+  const updatedOrder = await updateOrderServer(order.id, {
+    orderStatus: effectiveStatus,
+    paymentStatus: nextPaymentStatus,
+    paidAt: nextPaidAt,
+    statusTimeline: nextTimeline,
   })
 
   return {
     order: updatedOrder,
     emailDispatched: true,
     emailStatus: emailResult.status,
-    previewUrl: emailResult.previewUrl,
   }
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "serverless-store",
+  "name": "serverless-storefront",
   "version": "1.0.0",
   "description": "A serverless store using payload CMS, better-auth, r2, workflow SDK and vercel postgres(neon)",
   "license": "MIT",

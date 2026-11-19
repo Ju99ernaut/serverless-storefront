@@ -1,67 +1,99 @@
-# Payload Blank Template
+# The Store (`serverless-store`)
 
-This template comes configured with the bare minimum to get started on anything you need.
+A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon Postgres, Neon Managed Better Auth, the Vercel Workflow SDK, Cloudflare R2 media storage, ComposeIt on-demand PDF/HTML templates, and Resend transactional emails.
 
-## Quick start
+## Features
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+- **Integer Cents Pricing & Calculations**: All product prices (`price`, `compareAtPrice`, `priceOverride`), line items, 8% tax, `$12.00` courier delivery (`1200` cents), and order totals are calculated and stored in integer cents, then formatted to dollars (`$XX.XX`) across the UI and ComposeIt template payloads.
+- **Durable Checkout & Fulfillment Workflows** (`src/workflows/`):
+  - **`pay_and_delivery` & `pay_then_collect`**: Reserve stock upfront and wait for payment within a configurable timeout (`WORKFLOW_PAYMENT_WAIT_TIMEOUT`, default `30m`), releasing stock on failure or timeout. Once paid, send the invoice/receipt email and wait on admin/fulfillment hooks (`READY_FOR_COLLECTION`, `OUT_FOR_DELIVERY`, `COMPLETED`, `CANCELLED`).
+  - **`pay_on_collection`**: Reserves stock for a configurable window (`WORKFLOW_PAY_ON_COLLECTION_TIMEOUT`, default `8h`) until collected (commits stock & marks paid) or cancelled/expired (releases stock).
+  - **`pay_on_delivery`**: Reserves stock for a configurable window (`WORKFLOW_PAY_ON_DELIVERY_TIMEOUT`, default `24h`) until delivered (commits stock & marks paid) or delivery failure / expiry (releases stock).
+- **Double-Allocation Prevention**: Serializes concurrent inventory reservations via a keyed FIFO async mutex in `src/lib/payload-server.ts` alongside a `StockReservations` `beforeChange` hook using transaction-scoped Postgres advisory locks (`pg_advisory_xact_lock`).
+- **Clear Server vs. Client Data Boundaries**:
+  - Server routes and workflow steps use Payload's Local API (`getPayload({ config })`) in [src/lib/payload-server.ts](src/lib/payload-server.ts).
+  - Client components and React Query hooks use `@payloadcms/sdk` in [src/lib/payload-sdk.ts](src/lib/payload-sdk.ts).
+- **Session & Ownership Enforcement**:
+  - `POST /api/checkout` and `PATCH /api/storefront/orders` verify the Neon Auth server session (`getServerNeonUser()`) and ownership (`canUserAccessOrder()`).
+  - Order payment confirmation (`action: "payment"`) is restricted to requests bearing a valid `PAYMENT_WEBHOOK_SECRET` (`x-payment-webhook-secret` / `Authorization: Bearer`) or an authorized admin/staff session.
+  - Fulfillment advancement (`PROCESSING`, `READY_FOR_COLLECTION`, `OUT_FOR_DELIVERY`, `COMPLETED`, `deliveryFailed`) is restricted to Payload CMS admins or authorized Neon Auth roles (`admin`, `staff`, `fulfillment`); customers can only self-cancel their own pre-dispatch orders.
+  - Payload collections enforce `ownerByNeonUserIdAccess`, `ordersAccess`, `reviewsAccess`, `usersAccess`, and admin write guards via [src/lib/access.ts](src/lib/access.ts).
+- **On-Demand Invoices & Receipts**:
+  - Orders keep only metadata history (`documentHistory` for `INVOICE` and `RECEIPT` generations) with no PDF or email history storage.
+  - Invoices and receipts are generated on demand via ComposeIt (`PATCH /api/storefront/orders` with `action: "generate_document"`).
 
-## Quick Start - local setup
+## Tech Stack
 
-To spin up this template locally, follow these steps:
+- **Framework**: Next.js `16.4.6` (App Router) & React `19.2.9`
+- **CMS & Database**: Payload CMS `3.93.0`, `@payloadcms/db-vercel-postgres` (Neon Postgres + Drizzle), `@payloadcms/sdk`, `@payloadcms/richtext-lexical`
+- **Authentication**: `@neon/auth` (Neon Managed Better Auth)
+- **Durable Workflows**: `workflow` `^5.5.0`
+- **Client State & Forms**: `@tanstack/react-query`, `react-hook-form`, `@hookform/resolvers`, `zod`
+- **Media & UI**: Cloudflare R2 (`@payloadcms/storage-s3`), `@imagekit/next`, Tailwind CSS v4, Base UI (`@base-ui/react`), Lucide Icons, Swiper
+- **Documents & Email**: ComposeIt API (`axios`) + `resend`
+- **Testing**: `vitest` (jsdom integration suite) and `@playwright/test`
 
-### Clone
+## Payload Collections
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+Configured in [src/payload.config.ts](src/payload.config.ts):
 
-### Development
+- `users` — Payload admin authentication
+- `billing-details` — Customer phone & shipping address keyed by `neonUserId`
+- `carts` — Persisted user shopping bags keyed by `neonUserId`
+- `wishlists` — Persisted loved items keyed by `neonUserId`
+- `products` — Catalog items, garment metadata, and SKU-level variants (`stock`, `reservedStock`, `lowStockThreshold`, optional `priceOverride` in cents)
+- `categories` & `banners` — Navigation filters and storefront hero banners
+- `media` — Uploaded assets stored via S3/Cloudflare R2 when configured
+- `reviews` — Product reviews with automatic aggregate rating sync
+- `orders` — Order records, totals (cents), fulfillment status timeline, and `documentHistory`
+- `stock-reservations` — Reservation ledger (`RESERVED`, `COMMITTED`, `RELEASED`, `EXPIRED`) with TTL expiry and transactional double-allocation protection
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+## Getting Started
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+### 1. Prerequisites
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+- **Node.js**: `^22.23.5 || ^24.22.3 || >=26.13.1` (see `package.json` `engines`)
+- **pnpm**: `^9 || ^10 || ^11`
+- A **Neon Postgres** database and **Neon Auth** project (plus optional Cloudflare R2, ComposeIt, Resend, and ImageKit credentials)
 
-#### Docker (Optional)
+### 2. Install Dependencies
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+```bash
+pnpm install
+```
 
-To do so, follow these steps:
+### 3. Configure Environment Variables
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+Copy `.env.example` to `.env` and fill in your credentials:
 
-## How it works
+```bash
+cp .env.example .env
+```
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+Environment variables defined in `.env.example`:
 
-### Collections
+- **Database & Server**: `DATABASE_URL`, `DB_SECRET`, `NEXT_PUBLIC_SERVER_URL` (default `http://localhost:3000`)
+- **Neon Auth**: `NEON_AUTH_BASE_URL`
+- **Cloudflare R2 (optional media storage)**: `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_PUBLIC_URL`
+- **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
+- **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
+- **Payment Webhook Secret**: `PAYMENT_WEBHOOK_SECRET` (required for server-to-server `action: "payment"` callbacks)
+- **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+### 4. Run Locally
 
-- #### Users (Authentication)
+```bash
+pnpm dev
+```
 
-  Users are auth-enabled collections that have access to the admin panel.
+Open `http://localhost:3000` for the storefront and `http://localhost:3000/admin` for the Payload CMS admin panel.
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/3.x/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+## Useful Scripts
 
-- #### Media
-
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
-
-### Docker
-
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
-
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
-
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
-
-## Questions
-
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+- `pnpm dev` — Start the Next.js development server
+- `pnpm build` — Build the production bundle (`next build --webpack`)
+- `pnpm start` — Start the production server
+- `pnpm run generate:types` — Regenerate `src/payload-types.ts`
+- `npx next typegen` — Compile workflows (`src/app/.well-known/workflow/`) and Next.js route types
+- `pnpm run test:int` — Run the Vitest integration suite (`tests/int/api.int.spec.ts`)
+- `pnpm run test:e2e` — Run Playwright end-to-end tests (`playwright.config.ts`)

@@ -1,5 +1,7 @@
 import axios from 'axios'
 import { Resend } from 'resend'
+import type { Order } from '../../payload-types'
+import { centsToDollars } from './data'
 
 export const API_CONFIG = {
   composeitApiUrl: process.env.COMPOSEIT_API_URL || '',
@@ -103,16 +105,13 @@ export interface SentEmailResult {
   messageId: string
   to: string
   subject: string
-  previewUrl: string | null
   templateId: string
-  renderedHtml: string
   attachmentsCount: number
   attachments: Array<{
     filename: string
     path: string
     contentType: string
   }>
-  payloadSent: TemplateRequestPayload
 }
 
 export async function generateViaApi({
@@ -215,12 +214,9 @@ export async function sendRenderedEmailWithAttachments({
           messageId: data.id,
           to,
           subject,
-          previewUrl: null,
           templateId: renderedEmail.templateId,
-          renderedHtml: htmlDocument,
           attachmentsCount: mailAttachments.length,
           attachments: mailAttachments,
-          payloadSent: renderedEmail.payloadSent,
         }
       }
     } catch {
@@ -233,11 +229,91 @@ export async function sendRenderedEmailWithAttachments({
     messageId: `msg_${Date.now()}`,
     to,
     subject,
-    previewUrl: null,
     templateId: renderedEmail.templateId,
-    renderedHtml: htmlDocument,
     attachmentsCount: mailAttachments.length,
     attachments: mailAttachments,
-    payloadSent: renderedEmail.payloadSent,
+  }
+}
+
+export function buildOrderTemplateDataFromOrder(order: Order): OrderTemplateData {
+  const issuedAt = order.issuedAt || order.createdAt
+  const resolvedAddress =
+    order.fulfillmentMethod === 'COLLECTION'
+      ? order.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
+      : order.shippingAddress || ''
+
+  return {
+    orderId: order.orderId,
+    invoiceNumber: order.invoiceNumber,
+    receiptNumber: order.receiptNumber,
+    issuedAt,
+    currency: 'USD',
+    customer: {
+      name: order.customerName,
+      email: order.customerEmail,
+      address: resolvedAddress,
+      phone: order.customerPhone ?? undefined,
+      collectionLocation: order.collectionLocation ?? undefined,
+    },
+    paymentSummary: {
+      method: order.paymentMethodLabel || order.paymentOption,
+      paymentOption: order.paymentOption,
+      fulfillmentMethod: order.fulfillmentMethod,
+      cardLast4: order.cardLast4 || 'N/A',
+      status: order.paymentStatus,
+      paidAt: order.paidAt || issuedAt,
+    },
+    items: (order.items || []).map((i) => ({
+      id: i.productId,
+      variantSku: i.variantSku,
+      title: i.title,
+      brand: i.brand || '',
+      category: i.category || '',
+      subcategory: i.subcategory || '',
+      size: i.size || undefined,
+      color: i.color || undefined,
+      quantity: i.quantity,
+      unitPrice: centsToDollars(i.unitPrice),
+      lineTotal: centsToDollars(i.lineTotal),
+    })),
+    totals: {
+      subTotal: centsToDollars(order.totals.subTotal),
+      tax: centsToDollars(order.totals.tax),
+      shipping: centsToDollars(order.totals.shipping),
+      grandTotal: centsToDollars(order.totals.grandTotal),
+    },
+  }
+}
+
+export async function generateOrderDocumentOnDemand(
+  order: Order,
+  documentType: 'INVOICE' | 'RECEIPT',
+) {
+  const isReceipt = documentType === 'RECEIPT'
+  const documentNumber = isReceipt ? order.receiptNumber : order.invoiceNumber
+  const filename = isReceipt
+    ? `Receipt-${documentNumber}.pdf`
+    : `Invoice-${documentNumber}.pdf`
+  const templateId = isReceipt
+    ? API_CONFIG.templates.receiptPdf
+    : API_CONFIG.templates.invoicePdf
+
+  const result = await generateViaApi({
+    templateId,
+    formats: ['pdf'],
+    filename,
+    data: {
+      documentType,
+      ...buildOrderTemplateDataFromOrder(order),
+    },
+  })
+
+  return {
+    documentType,
+    documentNumber,
+    filename,
+    templateId,
+    generatedAt: new Date().toISOString(),
+    pdfUrl: result.pdf?.url || null,
   }
 }

@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { ordersAccess } from '../lib/access'
 
 export const Orders: CollectionConfig = {
   slug: 'orders',
@@ -13,11 +14,7 @@ export const Orders: CollectionConfig = {
       'createdAt',
     ],
   },
-  access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-  },
+  access: ordersAccess,
   fields: [
     {
       name: 'orderId',
@@ -163,21 +160,22 @@ export const Orders: CollectionConfig = {
       ],
     },
     {
-      name: 'documents',
-      type: 'group',
+      name: 'documentHistory',
+      type: 'array',
       fields: [
-        { name: 'invoiceFilename', type: 'text' },
-        { name: 'invoiceTemplateId', type: 'text' },
-        { name: 'invoicePdfUrl', type: 'text' },
-        { name: 'receiptFilename', type: 'text' },
-        { name: 'receiptTemplateId', type: 'text' },
-        { name: 'receiptPdfUrl', type: 'text' },
-        { name: 'emailStatus', type: 'text' },
-        { name: 'emailMessageId', type: 'text' },
-        { name: 'emailPreviewUrl', type: 'text' },
-        { name: 'emailTemplateId', type: 'text' },
-        { name: 'renderedHtml', type: 'textarea' },
-        { name: 'payloadPreviewJson', type: 'json' },
+        {
+          name: 'documentType',
+          type: 'select',
+          required: true,
+          options: [
+            { label: 'Invoice', value: 'INVOICE' },
+            { label: 'Receipt', value: 'RECEIPT' },
+          ],
+        },
+        { name: 'documentNumber', type: 'text', required: true },
+        { name: 'filename', type: 'text', required: true },
+        { name: 'templateId', type: 'text', required: true },
+        { name: 'generatedAt', type: 'text', required: true },
       ],
     },
     {
@@ -188,7 +186,6 @@ export const Orders: CollectionConfig = {
         { name: 'label', type: 'text', required: true },
         { name: 'timestamp', type: 'text', required: true },
         { name: 'note', type: 'text' },
-        { name: 'emailSent', type: 'checkbox', defaultValue: false },
       ],
     },
   ],

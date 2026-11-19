@@ -1,5 +1,6 @@
 import { APIError, type CollectionBeforeChangeHook, type CollectionConfig } from 'payload'
 import { sql } from '@payloadcms/db-vercel-postgres'
+import { isAdminAccess } from '../lib/access'
 
 const preventDoubleAllocationHook: CollectionBeforeChangeHook = async ({
   data,
@@ -158,9 +159,10 @@ export const StockReservations: CollectionConfig = {
     defaultColumns: ['reservationKey', 'orderId', 'status', 'expiresAt'],
   },
   access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
+    read: isAdminAccess,
+    create: isAdminAccess,
+    update: isAdminAccess,
+    delete: isAdminAccess,
   },
   hooks: {
     beforeChange: [preventDoubleAllocationHook],

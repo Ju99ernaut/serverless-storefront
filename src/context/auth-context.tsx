@@ -32,6 +32,7 @@ function mapSessionUser(raw: {
   id: string
   email: string
   name: string
+  role?: string | null
   image?: string | null
   emailVerified?: boolean
   createdAt?: Date | string
@@ -41,6 +42,7 @@ function mapSessionUser(raw: {
     id: raw.id,
     email: raw.email,
     name: raw.name,
+    role: raw.role ?? null,
     image: raw.image ?? null,
     emailVerified: raw.emailVerified,
     createdAt: raw.createdAt,
