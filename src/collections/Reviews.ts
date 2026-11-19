@@ -31,6 +31,11 @@ export const Reviews: CollectionConfig = {
       relationTo: 'users',
     },
     {
+      name: 'neonUserId',
+      type: 'text',
+      index: true,
+    },
+    {
       name: 'authorName',
       type: 'text',
       required: true,

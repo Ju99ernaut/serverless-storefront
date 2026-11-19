@@ -56,7 +56,7 @@ export default function HomePage() {
     } else if (sortBy === 'price-desc') {
       list.sort((a, b) => b.price - a.price)
     } else if (sortBy === 'rating') {
-      list.sort((a, b) => b.averageRating - a.averageRating)
+      list.sort((a, b) => (b.averageRating ?? 0) - (a.averageRating ?? 0))
     }
     return list
   }, [products, sortBy])
@@ -68,7 +68,7 @@ export default function HomePage() {
         !activeFilter ||
         activeFilter === 'all' ||
         p.category === activeFilter ||
-        (Array.isArray(p.tags) && p.tags.includes(activeFilter))
+        Boolean(p.tags?.some((t) => t.tag === activeFilter))
       if (!matchesCat) return false
       if (!q) return true
       return [
@@ -78,7 +78,7 @@ export default function HomePage() {
         p.subcategory,
         p.description,
         p.material,
-        ...(p.tags || []),
+        ...(p.tags?.map((t) => t.tag) || []),
       ]
         .join(' ')
         .toLowerCase()
@@ -105,7 +105,7 @@ export default function HomePage() {
     })
   }
 
-  const handleRemoveCompare = (productId: string) => {
+  const handleRemoveCompare = (productId: Product['id']) => {
     setCompareItems((prev) => {
       const next = prev.filter((item) => item.id !== productId)
       if (next.length === 0) {

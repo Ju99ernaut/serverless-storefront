@@ -2,14 +2,14 @@
 
 import { Check, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import type { Product } from '../data/utils'
+import { getProductImages, type Product } from '../data/utils'
 import { cn } from 'cn'
 import { Button } from './ui/button'
 
 interface CompareBasketProps {
   compareItems: Product[]
   isCompareOpen: boolean
-  onRemoveCompare: (productId: string) => void
+  onRemoveCompare: (productId: Product['id']) => void
   onOpenCompare: () => void
 }
 
@@ -34,7 +34,7 @@ const CompareBasket = ({
           data-idx={product.id}
         >
           <OptimizedImage
-            src={product.images[0] || '/images/shirt.png'}
+            src={getProductImages(product)[0]}
             alt={product.title}
             width={40}
             height={40}

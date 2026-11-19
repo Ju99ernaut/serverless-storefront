@@ -2,12 +2,13 @@
 
 import { useEffect, useId, useState } from 'react'
 import axios from 'axios'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { storefrontQueryKeys, useAuth } from '../../context'
+import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '../../context'
 import { PAYMENT_OPTIONS, type CartLineItem } from '../../data/utils'
 import { useIsMobile } from '@/hooks/use-is-mobile'
+import { getBillingDetails } from '@/lib/payload-sdk'
 import { Drawer, DrawerContent } from '../ui/drawer'
 import { toast } from '../ui/toast'
 import { CartBagStep } from './cart-bag-step'
@@ -47,9 +48,12 @@ const CartSidebar = ({
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart')
   const [orderResult, setOrderResult] = useState<CheckoutSuccessResponse | null>(null)
 
-  const initialAddress = user?.shippingAddresses?.[0]?.streetAddress
-    ? `${user.shippingAddresses[0].streetAddress}, ${user.shippingAddresses[0].city || ''}`
-    : DEFAULT_SHIPPING_ADDRESS
+  const { data: billingDetails } = useQuery({
+    queryKey: storefrontQueryKeys.billingDetails(user?.id),
+    queryFn: () => getBillingDetails(user!.id),
+    enabled: Boolean(user?.id),
+    ...CACHE_TIMES.userState,
+  })
 
   const checkoutForm = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
@@ -58,8 +62,8 @@ const CartSidebar = ({
       paymentOption: 'pay_and_delivery',
       customerName: user?.name || 'Alex Rivera',
       customerEmail: user?.email || 'alex.rivera@example.com',
-      customerPhone: user?.phone || '+1 (415) 555-0192',
-      shippingAddress: initialAddress,
+      customerPhone: billingDetails?.phone || '+1 (415) 555-0192',
+      shippingAddress: billingDetails?.shippingAddress || DEFAULT_SHIPPING_ADDRESS,
       collectionLocation: COLLECTION_LOCATIONS[0],
       ccName: user?.name || 'Alex Rivera',
       ccNumber: '4242 4242 4242 4242',
@@ -74,18 +78,19 @@ const CartSidebar = ({
     if (!user) return
     checkoutForm.setValue('customerName', user.name || '')
     checkoutForm.setValue('customerEmail', user.email || '')
-    if (user.phone) {
-      checkoutForm.setValue('customerPhone', user.phone)
-    }
     checkoutForm.setValue('ccName', user.name || '')
-    if (user.shippingAddresses?.[0]?.streetAddress) {
-      const addr = user.shippingAddresses[0]
-      checkoutForm.setValue(
-        'shippingAddress',
-        `${addr.streetAddress}${addr.city ? `, ${addr.city}` : ''}${addr.postalCode ? ` ${addr.postalCode}` : ''}`,
-      )
-    }
   }, [user, checkoutForm])
+
+  // Pre-fill billing details (phone & shipping address) when loaded from Payload
+  useEffect(() => {
+    if (!billingDetails) return
+    if (billingDetails.phone) {
+      checkoutForm.setValue('customerPhone', billingDetails.phone)
+    }
+    if (billingDetails.shippingAddress) {
+      checkoutForm.setValue('shippingAddress', billingDetails.shippingAddress)
+    }
+  }, [billingDetails, checkoutForm])
 
   const paymentOption = checkoutForm.watch('paymentOption')
   const selectedPaymentMeta =
@@ -158,8 +163,8 @@ const CartSidebar = ({
             }
           : undefined,
         items: items.map((item) => ({
-          id: item.id,
-          slug: item.slug,
+          id: item.productId,
+          slug: item.productSlug,
           variantSku: item.variantSku,
           title: item.title,
           brand: item.brand,
@@ -169,7 +174,7 @@ const CartSidebar = ({
           color: item.selectedColor,
           price: item.unitPrice ?? item.price,
           quantity: item.quantity,
-          images: item.images,
+          images: item.imageUrl ? [item.imageUrl] : [],
         })),
       })
 
@@ -184,7 +189,10 @@ const CartSidebar = ({
         description: `Order ${data.order.orderId} confirmed!`,
       })
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.orders(user?.email) }),
+        queryClient.invalidateQueries({
+          queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+        }),
+        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.cart(user?.id) }),
         queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog }),
       ])
     },

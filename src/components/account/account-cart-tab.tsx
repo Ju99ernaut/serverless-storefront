@@ -52,7 +52,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
                 >
                   <div className="flex items-center gap-3">
                     <OptimizedImage
-                      src={ci.images[0] || '/images/shirt.png'}
+                      src={ci.imageUrl || '/images/shirt.png'}
                       alt={ci.title}
                       width={52}
                       height={52}
@@ -60,7 +60,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
                     />
                     <div>
                       <Link
-                        href={`/products/${ci.slug}`}
+                        href={`/products/${ci.productSlug}`}
                         className="font-bold text-foreground hover:text-primary"
                       >
                         {ci.title}

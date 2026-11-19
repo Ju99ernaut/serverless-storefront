@@ -68,6 +68,9 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    'billing-details': BillingDetail;
+    carts: Cart;
+    wishlists: Wishlist;
     media: Media;
     categories: Category;
     banners: Banner;
@@ -83,6 +86,9 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    'billing-details': BillingDetailsSelect<false> | BillingDetailsSelect<true>;
+    carts: CartsSelect<false> | CartsSelect<true>;
+    wishlists: WishlistsSelect<false> | WishlistsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     banners: BannersSelect<false> | BannersSelect<true>;
@@ -137,41 +143,6 @@ export interface User {
   id: number;
   name?: string | null;
   role: 'customer' | 'admin';
-  phone?: string | null;
-  neonAuthUserId?: string | null;
-  authProvider?: ('neon' | 'google' | 'local') | null;
-  avatarUrl?: string | null;
-  shippingAddresses?:
-    | {
-        label?: string | null;
-        fullName: string;
-        streetAddress: string;
-        city?: string | null;
-        postalCode?: string | null;
-        country?: string | null;
-        phone?: string | null;
-        isDefault?: boolean | null;
-        id?: string | null;
-      }[]
-    | null;
-  wishlistProductSlugs?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  savedCart?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -194,62 +165,45 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
+ * via the `definition` "billing-details".
  */
-export interface Media {
+export interface BillingDetail {
   id: number;
-  alt: string;
-  caption?: string | null;
-  /**
-   * Optional ImageKit path or external R2/CDN URL override.
-   */
-  imagekitPath?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories".
- */
-export interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  menuId: string;
-  parentMenuId?: string | null;
-  submenuTargetId?: string | null;
-  iconName?: string | null;
-  showInBottomBar?: boolean | null;
-  sortOrder?: number | null;
+  neonUserId: string;
+  phone?: string | null;
+  shippingAddress?: string | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "banners".
+ * via the `definition` "carts".
  */
-export interface Banner {
+export interface Cart {
   id: number;
-  title: string;
-  subtitle: string;
-  badgeText?: string | null;
-  imageUrl: string;
-  media?: (number | null) | Media;
-  ctaText: string;
-  ctaFilter?: string | null;
-  ctaProductSlug?: string | null;
-  accentColor?: string | null;
-  active?: boolean | null;
-  sortOrder?: number | null;
+  neonUserId: string;
+  items?:
+    | {
+        product?: (number | null) | Product;
+        productId: string;
+        productSlug: string;
+        cartItemId: string;
+        variantSku: string;
+        title: string;
+        brand: string;
+        category: string;
+        subcategory: string;
+        selectedSize: string;
+        selectedColor: string;
+        selectedColorHex: string;
+        unitPrice: number;
+        price: number;
+        quantity: number;
+        maxAvailableStock: number;
+        imageUrl?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -260,7 +214,6 @@ export interface Banner {
 export interface Product {
   id: number;
   slug: string;
-  legacyId?: string | null;
   title: string;
   brand: string;
   price: number;
@@ -308,6 +261,84 @@ export interface Product {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  alt: string;
+  caption?: string | null;
+  /**
+   * Optional ImageKit path or external R2/CDN URL override.
+   */
+  imagekitPath?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wishlists".
+ */
+export interface Wishlist {
+  id: number;
+  neonUserId: string;
+  items?:
+    | {
+        product?: (number | null) | Product;
+        productSlug: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  menuId: string;
+  parentMenuId?: string | null;
+  submenuTargetId?: string | null;
+  iconName?: string | null;
+  showInBottomBar?: boolean | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "banners".
+ */
+export interface Banner {
+  id: number;
+  title: string;
+  subtitle: string;
+  badgeText?: string | null;
+  imageUrl: string;
+  media?: (number | null) | Media;
+  ctaText: string;
+  ctaFilter?: string | null;
+  ctaProductSlug?: string | null;
+  accentColor?: string | null;
+  active?: boolean | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "reviews".
  */
 export interface Review {
@@ -315,6 +346,7 @@ export interface Review {
   product?: (number | null) | Product;
   productSlug: string;
   user?: (number | null) | User;
+  neonUserId?: string | null;
   authorName: string;
   authorEmail?: string | null;
   rating: number;
@@ -336,6 +368,8 @@ export interface Order {
   invoiceNumber: string;
   receiptNumber: string;
   user?: (number | null) | User;
+  neonUserId?: string | null;
+  issuedAt?: string | null;
   customerEmail: string;
   customerName: string;
   customerPhone?: string | null;
@@ -384,6 +418,7 @@ export interface Order {
     emailMessageId?: string | null;
     emailPreviewUrl?: string | null;
     emailTemplateId?: string | null;
+    renderedHtml?: string | null;
     payloadPreviewJson?:
       | {
           [k: string]: unknown;
@@ -456,6 +491,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'billing-details';
+        value: number | BillingDetail;
+      } | null)
+    | ({
+        relationTo: 'carts';
+        value: number | Cart;
+      } | null)
+    | ({
+        relationTo: 'wishlists';
+        value: number | Wishlist;
       } | null)
     | ({
         relationTo: 'media';
@@ -534,25 +581,6 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
-  phone?: T;
-  neonAuthUserId?: T;
-  authProvider?: T;
-  avatarUrl?: T;
-  shippingAddresses?:
-    | T
-    | {
-        label?: T;
-        fullName?: T;
-        streetAddress?: T;
-        city?: T;
-        postalCode?: T;
-        country?: T;
-        phone?: T;
-        isDefault?: T;
-        id?: T;
-      };
-  wishlistProductSlugs?: T;
-  savedCart?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -570,6 +598,64 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "billing-details_select".
+ */
+export interface BillingDetailsSelect<T extends boolean = true> {
+  neonUserId?: T;
+  phone?: T;
+  shippingAddress?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "carts_select".
+ */
+export interface CartsSelect<T extends boolean = true> {
+  neonUserId?: T;
+  items?:
+    | T
+    | {
+        product?: T;
+        productId?: T;
+        productSlug?: T;
+        cartItemId?: T;
+        variantSku?: T;
+        title?: T;
+        brand?: T;
+        category?: T;
+        subcategory?: T;
+        selectedSize?: T;
+        selectedColor?: T;
+        selectedColorHex?: T;
+        unitPrice?: T;
+        price?: T;
+        quantity?: T;
+        maxAvailableStock?: T;
+        imageUrl?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wishlists_select".
+ */
+export interface WishlistsSelect<T extends boolean = true> {
+  neonUserId?: T;
+  items?:
+    | T
+    | {
+        product?: T;
+        productSlug?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -632,7 +718,6 @@ export interface BannersSelect<T extends boolean = true> {
  */
 export interface ProductsSelect<T extends boolean = true> {
   slug?: T;
-  legacyId?: T;
   title?: T;
   brand?: T;
   price?: T;
@@ -686,6 +771,7 @@ export interface ReviewsSelect<T extends boolean = true> {
   product?: T;
   productSlug?: T;
   user?: T;
+  neonUserId?: T;
   authorName?: T;
   authorEmail?: T;
   rating?: T;
@@ -706,6 +792,8 @@ export interface OrdersSelect<T extends boolean = true> {
   invoiceNumber?: T;
   receiptNumber?: T;
   user?: T;
+  neonUserId?: T;
+  issuedAt?: T;
   customerEmail?: T;
   customerName?: T;
   customerPhone?: T;
@@ -757,6 +845,7 @@ export interface OrdersSelect<T extends boolean = true> {
         emailMessageId?: T;
         emailPreviewUrl?: T;
         emailTemplateId?: T;
+        renderedHtml?: T;
         payloadPreviewJson?: T;
       };
   statusTimeline?:

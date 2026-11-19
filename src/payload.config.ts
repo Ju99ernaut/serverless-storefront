@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { Users } from './collections/Users'
+import { BillingDetails } from './collections/BillingDetails'
+import { Carts } from './collections/Carts'
+import { Wishlists } from './collections/Wishlists'
 import { Media } from './collections/Media'
 import { Categories } from './collections/Categories'
 import { Banners } from './collections/Banners'
@@ -35,7 +38,19 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Categories, Banners, Products, Reviews, Orders, StockReservations],
+  collections: [
+    Users,
+    BillingDetails,
+    Carts,
+    Wishlists,
+    Media,
+    Categories,
+    Banners,
+    Products,
+    Reviews,
+    Orders,
+    StockReservations,
+  ],
   editor: lexicalEditor(),
   secret: process.env.DB_SECRET || 'default-storefront-payload-secret-key',
   typescript: {

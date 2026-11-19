@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRuntimeStore } from '@/lib/storefront-db';
+import { getOrderByOrderId } from '@/lib/payload-sdk';
 
 export async function GET(
   request: NextRequest,
@@ -8,11 +8,10 @@ export async function GET(
   const { orderId } = await params;
   const { searchParams } = new URL(request.url);
   const docType = (searchParams.get('type') || 'invoice').toLowerCase();
-  const store = getRuntimeStore();
 
-  const order = store.orders.find((o) => o.orderId === orderId);
+  const order = await getOrderByOrderId(orderId);
 
-  if (docType === 'html' && order?.documents.renderedHtml) {
+  if (docType === 'html' && order?.documents?.renderedHtml) {
     return new NextResponse(order.documents.renderedHtml, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
@@ -25,6 +24,8 @@ export async function GET(
     docType === 'receipt'
       ? order?.receiptNumber || `RCP-${orderId}`
       : order?.invoiceNumber || `INV-${orderId}`;
+
+  const issuedAt = order ? order.issuedAt || order.createdAt : '';
 
   const htmlView = `<!DOCTYPE html>
 <html lang="en">
@@ -53,19 +54,19 @@ export async function GET(
     ${
       order
         ? `
-      <p><strong>Order ID:</strong> ${order.orderId} &bull; <strong>Issued:</strong> ${new Date(order.issuedAt).toLocaleString()}</p>
+      <p><strong>Order ID:</strong> ${order.orderId} &bull; <strong>Issued:</strong> ${new Date(issuedAt).toLocaleString()}</p>
       <p><strong>Customer:</strong> ${order.customerName} (${order.customerEmail})</p>
-      <p><strong>Fulfillment:</strong> ${order.fulfillmentMethod} &bull; <strong>Address / Pickup:</strong> ${order.shippingAddress}</p>
-      <p><strong>Payment:</strong> ${order.paymentMethodLabel} &bull; <strong>Status:</strong> ${order.paymentStatus}</p>
+      <p><strong>Fulfillment:</strong> ${order.fulfillmentMethod} &bull; <strong>Address / Pickup:</strong> ${order.shippingAddress || ''}</p>
+      <p><strong>Payment:</strong> ${order.paymentMethodLabel || order.paymentOption} &bull; <strong>Status:</strong> ${order.paymentStatus}</p>
       <table>
         <thead>
           <tr><th>Item</th><th>Variant</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
         </thead>
         <tbody>
-          ${order.items
+          ${(order.items || [])
             .map(
               (i) =>
-                `<tr><td>${i.title} (${i.brand})</td><td>${i.color} / ${i.size}</td><td>${i.quantity}</td><td>$${i.unitPrice.toFixed(2)}</td><td>$${i.lineTotal.toFixed(2)}</td></tr>`
+                `<tr><td>${i.title} (${i.brand || ''})</td><td>${i.color || ''} / ${i.size || ''}</td><td>${i.quantity}</td><td>$${i.unitPrice.toFixed(2)}</td><td>$${i.lineTotal.toFixed(2)}</td></tr>`
             )
             .join('')}
         </tbody>

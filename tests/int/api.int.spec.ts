@@ -1,27 +1,346 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import axios from 'axios';
+import { start } from 'workflow/api';
 import { NextRequest } from 'next/server';
-import { GET as getCatalog } from '@/app/(frontend)/api/storefront/catalog/route';
 import { POST as postCheckout } from '@/app/(frontend)/api/checkout/route';
-import { GET as getProductBySlug } from '@/app/(frontend)/api/storefront/products/[slug]/route';
-import { POST as postProductReview } from '@/app/(frontend)/api/storefront/products/[slug]/reviews/route';
-import { POST as postAccount } from '@/app/(frontend)/api/storefront/account/route';
 import {
-  GET as getOrders,
-  PATCH as patchOrder,
+  GET as getOrdersRoute,
+  PATCH as patchOrderRoute,
 } from '@/app/(frontend)/api/storefront/orders/route';
 import { GET as getDocument } from '@/app/(frontend)/api/storefront/documents/[orderId]/route';
 import {
-  getRuntimeStore,
-  reserveVariantStockAtomic,
-  releaseVariantStockAtomic,
-} from '@/lib/storefront-db';
-import { getProductLowestAvailableVariantStock } from '@/data/utils';
+  createProductReview,
+  fetchProductBySlugWithReviews,
+  getBillingDetails,
+  getCartByNeonUserId,
+  getCatalogData,
+  getOrderByOrderId,
+  getOrdersByUser,
+  getWishlistByNeonUserId,
+  releaseVariantStockViaSdk,
+  reserveVariantStockViaSdk,
+  syncCartWithPayload,
+  syncWishlistWithPayload,
+  toggleWishlistItemInPayload,
+  upsertBillingDetails,
+} from '@/lib/payload-sdk';
+import {
+  WORKFLOW_TIMEOUT_DEFAULTS,
+  executeDurableCheckoutWorkflow,
+  getOrderFulfillmentHookToken,
+  getOrderPaymentHookToken,
+  orderFulfillmentHook,
+  orderPaymentHook,
+} from '@/workflows/checkoutWorkflow';
+import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from '@/data/products';
+import {
+  getProductLowestAvailableVariantStock,
+  type Order,
+  type Product,
+  type Review,
+} from '@/data/utils';
 
-describe('Storefront End-to-End API & Workflow Integration Suite', () => {
+type MockRecord = Record<string, unknown> & {
+  id: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+function parseBracketQuery(search: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const params = new URLSearchParams(search);
+  for (const [rawKey, value] of params.entries()) {
+    const parts = rawKey
+      .replace(/\]/g, '')
+      .split('[')
+      .filter((p) => p.length > 0);
+    if (parts.length === 0) continue;
+
+    let current: Record<string, unknown> | unknown[] = result;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      const nextIsIndex = !isLast && /^\d+$/.test(parts[i + 1]);
+
+      if (Array.isArray(current)) {
+        const idx = Number(part);
+        if (isLast) {
+          current[idx] = value;
+        } else {
+          if (!current[idx] || typeof current[idx] !== 'object') {
+            current[idx] = nextIsIndex ? [] : {};
+          }
+          current = current[idx] as Record<string, unknown> | unknown[];
+        }
+      } else {
+        if (isLast) {
+          current[part] = value;
+        } else {
+          if (!current[part] || typeof current[part] !== 'object') {
+            current[part] = nextIsIndex ? [] : {};
+          }
+          current = current[part] as Record<string, unknown> | unknown[];
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function matchesWhere(doc: MockRecord, where: unknown): boolean {
+  if (!where || typeof where !== 'object') return true;
+  const w = where as Record<string, unknown>;
+
+  if (Array.isArray(w.or)) {
+    return w.or.some((sub) => matchesWhere(doc, sub));
+  }
+  if (Array.isArray(w.and)) {
+    return w.and.every((sub) => matchesWhere(doc, sub));
+  }
+
+  for (const [field, cond] of Object.entries(w)) {
+    if (field === 'or' || field === 'and') continue;
+    if (!cond || typeof cond !== 'object') continue;
+    const op = cond as Record<string, unknown>;
+    const val = doc[field];
+
+    if ('equals' in op) {
+      const target = op.equals;
+      const normalizedTarget =
+        target === 'true' ? true : target === 'false' ? false : target;
+      if (val !== normalizedTarget && String(val) !== String(target)) {
+        return false;
+      }
+    }
+    if ('not_equals' in op) {
+      if (val === op.not_equals || String(val) === String(op.not_equals)) {
+        return false;
+      }
+    }
+    if ('in' in op) {
+      const list = Array.isArray(op.in)
+        ? op.in
+        : typeof op.in === 'string'
+          ? op.in.split(',')
+          : [];
+      if (!list.some((item) => item === val || String(item) === String(val))) {
+        return false;
+      }
+    }
+    if ('less_than_equal' in op) {
+      if (String(val ?? '') > String(op.less_than_equal ?? '')) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+const waitForWorkflowHook = (token: string) =>
+  (
+    globalThis as unknown as {
+      __waitForWorkflowHook__: (token: string, timeoutMs?: number) => Promise<void>;
+    }
+  ).__waitForWorkflowHook__(token);
+
+describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () => {
+  let collectionsStore: Record<string, MockRecord[]>;
+  let nextIds: Record<string, number>;
+
+  const getLiveVariant = (slug: string, sku: string) => {
+    const prod = (collectionsStore.products as unknown as Product[]).find(
+      (p) => p.slug === slug
+    )!;
+    return prod.variants!.find((v) => v.sku === sku)!;
+  };
+
   beforeAll(() => {
+    collectionsStore = {
+      products: structuredClone(PRODUCTS) as unknown as MockRecord[],
+      banners: structuredClone(HOME_BANNERS) as unknown as MockRecord[],
+      reviews: structuredClone(INITIAL_REVIEWS) as unknown as MockRecord[],
+      'billing-details': [],
+      carts: [],
+      wishlists: [],
+      orders: [],
+      'stock-reservations': [],
+    };
+    nextIds = {
+      products: PRODUCTS.length + 1,
+      banners: HOME_BANNERS.length + 1,
+      reviews: INITIAL_REVIEWS.length + 1,
+      'billing-details': 1,
+      carts: 1,
+      wishlists: 1,
+      orders: 1,
+      'stock-reservations': 1,
+    };
+
+    const buildMockComposeItResponse = (parsed: {
+      formats?: string[];
+      data?: { orderId?: string; documentType?: string };
+    }) => {
+      const orderId = parsed.data?.orderId || 'ORD-TEST';
+      const docType =
+        parsed.data?.documentType === 'RECEIPT' ? 'receipt' : 'invoice';
+      const wantsPdf = !parsed.formats || parsed.formats.includes('pdf');
+      const wantsHtml = !parsed.formats || parsed.formats.includes('html');
+      const htmlDocument = `<!DOCTYPE html><html><body><h1>Order ${orderId}</h1></body></html>`;
+
+      return {
+        ...(wantsPdf
+          ? {
+              pdf: {
+                url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=${docType}`,
+                sizeBytes: 28450,
+                mimeType: 'application/pdf',
+                checksum: `sha256_${orderId.toLowerCase()}_${docType}`,
+              },
+            }
+          : {}),
+        ...(wantsHtml
+          ? {
+              html: {
+                htmlDocument,
+                checksum: `sha256_${orderId.toLowerCase()}_html`,
+                mimeType: 'text/html',
+                url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=html`,
+                sizeBytes: htmlDocument.length,
+              },
+            }
+          : {}),
+      };
+    };
+
+    vi.spyOn(axios, 'post').mockImplementation(
+      async (_url: string, data?: unknown) => {
+        const parsed =
+          data && typeof data === 'object'
+            ? (data as {
+                formats?: string[];
+                data?: { orderId?: string; documentType?: string };
+              })
+            : {};
+        return { data: buildMockComposeItResponse(parsed) };
+      }
+    );
+
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const rawUrl =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url;
+        const method = (init?.method || 'GET').toUpperCase();
+        const urlObj = new URL(rawUrl, 'http://localhost:3000');
+
+        if (urlObj.pathname.startsWith('/api/')) {
+          const rest = urlObj.pathname.slice('/api/'.length);
+          const [collection, idSegment] = rest.split('/');
+
+          if (collection && collectionsStore[collection]) {
+            const docs = collectionsStore[collection];
+            const query = parseBracketQuery(urlObj.search) as {
+              where?: unknown;
+              sort?: string;
+              limit?: string;
+            };
+
+            if (method === 'GET') {
+              if (idSegment) {
+                const found = docs.find((d) => String(d.id) === idSegment);
+                return new Response(JSON.stringify(found || null), {
+                  status: found ? 200 : 404,
+                  headers: { 'Content-Type': 'application/json' },
+                });
+              }
+
+              let filtered = docs.filter((d) => matchesWhere(d, query.where));
+              if (query.sort) {
+                const desc = query.sort.startsWith('-');
+                const sortField = desc ? query.sort.slice(1) : query.sort;
+                filtered = [...filtered].sort((a, b) => {
+                  const av = a[sortField];
+                  const bv = b[sortField];
+                  if (av === bv) return 0;
+                  const cmp = String(av ?? '') < String(bv ?? '') ? -1 : 1;
+                  return desc ? -cmp : cmp;
+                });
+              }
+              const limit = Number(query.limit) || 10;
+              const sliced = filtered.slice(0, limit);
+              return new Response(
+                JSON.stringify({
+                  docs: sliced,
+                  totalDocs: filtered.length,
+                  limit,
+                  page: 1,
+                  totalPages: 1,
+                  hasNextPage: false,
+                  hasPrevPage: false,
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+
+            if (method === 'POST') {
+              const payloadData =
+                typeof init?.body === 'string' ? JSON.parse(init.body) : {};
+              const now = new Date().toISOString();
+              const newDoc: MockRecord = {
+                ...payloadData,
+                id: nextIds[collection]++,
+                createdAt: now,
+                updatedAt: now,
+              };
+              docs.push(newDoc);
+              return new Response(JSON.stringify({ doc: newDoc }), {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' },
+              });
+            }
+
+            if (method === 'PATCH' && idSegment) {
+              const patchData =
+                typeof init?.body === 'string' ? JSON.parse(init.body) : {};
+              const idx = docs.findIndex((d) => String(d.id) === idSegment);
+              if (idx < 0) {
+                return new Response(
+                  JSON.stringify({ errors: [{ message: 'Not found' }] }),
+                  {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/json' },
+                  }
+                );
+              }
+              const updated: MockRecord = {
+                ...docs[idx],
+                ...patchData,
+                id: docs[idx].id,
+                updatedAt: new Date().toISOString(),
+              };
+              docs[idx] = updated;
+              return new Response(JSON.stringify({ doc: updated }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              });
+            }
+
+            if (method === 'DELETE' && idSegment) {
+              const idx = docs.findIndex((d) => String(d.id) === idSegment);
+              const deleted = idx >= 0 ? docs.splice(idx, 1)[0] : null;
+              return new Response(JSON.stringify({ doc: deleted }), {
+                status: deleted ? 200 : 404,
+                headers: { 'Content-Type': 'application/json' },
+              });
+            }
+          }
+        }
+
         const parsed =
           typeof init?.body === 'string'
             ? (JSON.parse(init.body) as {
@@ -29,37 +348,9 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
                 data?: { orderId?: string; documentType?: string };
               })
             : {};
-        const orderId = parsed.data?.orderId || 'ORD-TEST';
-        const docType =
-          parsed.data?.documentType === 'RECEIPT' ? 'receipt' : 'invoice';
-        const wantsPdf = !parsed.formats || parsed.formats.includes('pdf');
-        const wantsHtml = !parsed.formats || parsed.formats.includes('html');
-        const htmlDocument = `<!DOCTYPE html><html><body><h1>Order ${orderId}</h1></body></html>`;
 
         return new Response(
-          JSON.stringify({
-            ...(wantsPdf
-              ? {
-                  pdf: {
-                    url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=${docType}`,
-                    sizeBytes: 28450,
-                    mimeType: 'application/pdf',
-                    checksum: `sha256_${orderId.toLowerCase()}_${docType}`,
-                  },
-                }
-              : {}),
-            ...(wantsHtml
-              ? {
-                  html: {
-                    htmlDocument,
-                    checksum: `sha256_${orderId.toLowerCase()}_html`,
-                    mimeType: 'text/html',
-                    url: `/api/storefront/documents/${encodeURIComponent(orderId)}?type=html`,
-                    sizeBytes: htmlDocument.length,
-                  },
-                }
-              : {}),
-          }),
+          JSON.stringify(buildMockComposeItResponse(parsed)),
           {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -70,40 +361,40 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
   });
 
   afterAll(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('supports catalog listing, search, sorting, category filtering, and low-stock detection', async () => {
-    const req = new NextRequest(
-      'http://localhost:3000/api/storefront/catalog?q=oxford&filter=shirts&sort=price-asc'
-    );
-    const res = await getCatalog(req);
-    expect(res.status).toBe(200);
-    const data = await res.json();
 
-    expect(Array.isArray(data.products)).toBe(true);
-    expect(data.products.length).toBeGreaterThan(0);
-    expect(Array.isArray(data.banners)).toBe(true);
-    expect(data.banners.length).toBeGreaterThan(0);
+  it('fetches catalog products and banners via Payload SDK and detects low-stock variants', async () => {
+    const catalog = await getCatalogData();
 
-    const oxford = data.products.find(
-      (p: { slug: string }) => p.slug === 'classic-oxford-button-down'
+    expect(Array.isArray(catalog.products)).toBe(true);
+    expect(catalog.products.length).toBeGreaterThan(0);
+    expect(Array.isArray(catalog.banners)).toBe(true);
+    expect(catalog.banners.length).toBeGreaterThan(0);
+
+    const oxford = catalog.products.find(
+      (p: Product) => p.slug === 'classic-oxford-button-down'
     );
     expect(oxford).toBeDefined();
 
-    const stockInfo = getProductLowestAvailableVariantStock(oxford);
+    const stockInfo = getProductLowestAvailableVariantStock(oxford!);
     expect(stockInfo.hasLowStockVariant).toBe(true);
     expect(stockInfo.minAvailable).toBeLessThanOrEqual(5);
+
+    const detail = await fetchProductBySlugWithReviews('classic-oxford-button-down');
+    expect(detail.product.slug).toBe('classic-oxford-button-down');
+    expect(detail.reviews.length).toBeGreaterThan(0);
+    expect(detail.relatedProducts.length).toBeGreaterThan(0);
   });
 
   it('prevents double allocation under concurrent reservations and releases stock on failed payment', async () => {
-    const store = getRuntimeStore();
-    const oxford = store.products.find(
+    const products = collectionsStore.products as unknown as Product[];
+    const oxford = products.find(
       (p) => p.slug === 'classic-oxford-button-down'
-    );
-    expect(oxford).toBeDefined();
-    const variant = oxford!.variants.find((v) => v.sku === 'PROD-1-SKY-S');
-    expect(variant).toBeDefined();
-    const initialStock = variant!.stock;
+    )!;
+    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!;
+    const initialStock = variant.stock;
     expect(initialStock).toBe(2);
 
     // 1. Simulate failed payment checkout -> Workflow reserves then compensates/releases stock
@@ -126,18 +417,18 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
         },
         items: [
           {
-            id: oxford!.id,
-            slug: oxford!.slug,
-            variantSku: variant!.sku,
-            title: oxford!.title,
-            brand: oxford!.brand,
-            category: oxford!.category,
-            subcategory: oxford!.subcategory,
-            size: variant!.size,
-            color: variant!.color,
-            price: oxford!.price,
+            id: String(oxford.id),
+            slug: oxford.slug,
+            variantSku: variant.sku,
+            title: oxford.title,
+            brand: oxford.brand,
+            category: oxford.category,
+            subcategory: oxford.subcategory,
+            size: variant.size,
+            color: variant.color,
+            price: oxford.price,
             quantity: 2,
-            images: oxford!.images,
+            images: ['/images/shirt.png'],
           },
         ],
       }),
@@ -147,32 +438,30 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
     expect(failedRes.status).toBe(402);
     const failedBody = await failedRes.json();
     expect(failedBody.stockReleased).toBe(true);
-    expect(variant!.reservedStock).toBe(0);
-    expect(variant!.stock).toBe(initialStock);
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(initialStock);
 
-    // 2. Concurrent / over-allocation check: lock SKU then verify double-allocation blocked, then test 409 insufficient stock
-    const r1 = reserveVariantStockAtomic({
+    // 2. Concurrent / over-allocation check via Payload SDK
+    const r1 = await reserveVariantStockViaSdk({
       reservationKey: 'res_double_1',
       orderId: 'ORD-DBL-1',
       items: [
         {
-          productSlug: oxford!.slug,
-          variantSku: variant!.sku,
+          productSlug: oxford.slug,
+          variantSku: variant.sku,
           quantity: 2,
         },
       ],
     });
     expect(r1.success).toBe(true);
-    expect(variant!.reservedStock).toBe(2);
 
-    // Attempting a second reservation for the same 2 remaining units must fail
-    const r2 = reserveVariantStockAtomic({
+    const r2 = await reserveVariantStockViaSdk({
       reservationKey: 'res_double_2',
       orderId: 'ORD-DBL-2',
       items: [
         {
-          productSlug: oxford!.slug,
-          variantSku: variant!.sku,
+          productSlug: oxford.slug,
+          variantSku: variant.sku,
           quantity: 1,
         },
       ],
@@ -180,385 +469,702 @@ describe('Storefront End-to-End API & Workflow Integration Suite', () => {
     expect(r2.success).toBe(false);
     expect(r2.insufficientItems?.[0].available).toBe(0);
 
-    // Clean up reservation lock for next tests
-    releaseVariantStockAtomic('res_double_1', 'Test cleanup');
-    expect(variant!.reservedStock).toBe(0);
+    await releaseVariantStockViaSdk('res_double_1', 'Test cleanup');
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
   });
 
-  it('supports all 4 payment and fulfillment options and generates ComposeIt documents and emails', async () => {
-    const store = getRuntimeStore();
-    const boot = store.products.find(
+  it('exposes configurable defaults (30m payment, 8h pay-on-collection, 24h pay-on-delivery) and stops + releases stock if payment times out', async () => {
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.paymentWaitTimeout).toBe('30m');
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnCollectionTimeout).toBe('8h');
+    expect(WORKFLOW_TIMEOUT_DEFAULTS.payOnDeliveryTimeout).toBe('24h');
+
+    const products = collectionsStore.products as unknown as Product[];
+    const oxford = products.find(
+      (p) => p.slug === 'classic-oxford-button-down'
+    )!;
+    const variant = oxford.variants!.find((v) => v.sku === 'PROD-1-SKY-S')!;
+    const startStock = variant.stock;
+
+    // 1. Pay & Delivery: payment times out after configurable window -> stops workflow & releases stock
+    const timeoutRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: 'ORD-PAY-TIMEOUT-1',
+        paymentOption: 'pay_and_delivery',
+        awaitPaymentHook: true,
+        timeouts: { paymentWaitTimeout: '40ms' },
+        customer: {
+          name: 'Timeout Tester',
+          email: 'timeout@example.com',
+          address: '100 Main St',
+        },
+        items: [
+          {
+            id: String(oxford.id),
+            slug: oxford.slug,
+            variantSku: variant.sku,
+            title: oxford.title,
+            brand: oxford.brand,
+            category: oxford.category,
+            subcategory: oxford.subcategory,
+            size: variant.size,
+            color: variant.color,
+            price: oxford.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
+
+    const timeoutResult = await timeoutRun.returnValue;
+    expect(timeoutResult.success).toBe(false);
+    expect(timeoutResult.status).toBe(408);
+    expect(timeoutResult.stockReleased).toBe(true);
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(startStock);
+  });
+
+  it('handles pay_then_collect (payment -> invoice/receipt email -> reserved -> Ready for Collection -> done or Cancelled)', async () => {
+    const products = collectionsStore.products as unknown as Product[];
+    const boot = products.find(
       (p) => p.slug === 'milan-leather-chelsea-boot'
-    );
-    expect(boot).toBeDefined();
-    const targetVariant = boot!.variants[0];
+    )!;
+    const targetVariant = boot.variants![0];
     const startStock = targetVariant.stock;
 
-    const scenarios = [
+    // 1. Pay then collect: payment received via hook -> email w/ invoice+receipt -> stock reserved -> marked READY_FOR_COLLECTION -> completes & deducts stock
+    const collectOrderId = 'ORD-PTC-READY-1';
+    const run = await start(executeDurableCheckoutWorkflow, [
       {
-        option: 'pay_and_delivery',
-        expectedPaymentStatus: 'PAID',
-        expectedFulfillment: 'DELIVERY',
-        expectedShipping: 12,
-      },
-      {
-        option: 'pay_then_collect',
-        expectedPaymentStatus: 'PAID',
-        expectedFulfillment: 'COLLECTION',
-        expectedShipping: 0,
-      },
-      {
-        option: 'pay_on_delivery',
-        expectedPaymentStatus: 'PENDING',
-        expectedFulfillment: 'DELIVERY',
-        expectedShipping: 12,
-      },
-      {
-        option: 'pay_on_collection',
-        expectedPaymentStatus: 'PENDING',
-        expectedFulfillment: 'COLLECTION',
-        expectedShipping: 0,
-      },
-    ] as const;
-
-    let lastOrderId = '';
-
-    for (const sc of scenarios) {
-      const req = new NextRequest('http://localhost:3000/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentOption: sc.option,
-          customer: {
-            name: 'Alex Rivera',
-            email: 'alex.rivera@example.com',
-            address: '742 Evergreen Terrace, San Francisco, CA',
-            collectionLocation: 'Flagship Storefront Atelier — SoHo',
+        orderId: collectOrderId,
+        paymentOption: 'pay_then_collect',
+        awaitPaymentHook: true,
+        waitForFulfillment: true,
+        timeouts: { paymentWaitTimeout: '200ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
           },
-          payment:
-            sc.expectedPaymentStatus === 'PAID'
-              ? {
-                  cardholderName: 'Alex Rivera',
-                  cardNumber: '4242424242424242',
-                  expiry: '08/29',
-                }
-              : undefined,
-          items: [
-            {
-              id: boot!.id,
-              slug: boot!.slug,
-              variantSku: targetVariant.sku,
-              title: boot!.title,
-              brand: boot!.brand,
-              category: boot!.category,
-              subcategory: boot!.subcategory,
-              size: targetVariant.size,
-              color: targetVariant.color,
-              price: boot!.price,
-              quantity: 1,
-              images: boot!.images,
-            },
-          ],
-        }),
-      });
+        ],
+      },
+    ]);
 
-      const res = await postCheckout(req);
-      expect(res.status).toBe(200);
-      const body = await res.json();
+    await waitForWorkflowHook(getOrderPaymentHookToken(collectOrderId));
+    await orderPaymentHook.resume(getOrderPaymentHookToken(collectOrderId), {
+      authorized: true,
+      cardNumber: '4242424242424242',
+    });
 
-      expect(body.success).toBe(true);
-      expect(body.order.paymentOption).toBe(sc.option);
-      expect(body.order.fulfillmentMethod).toBe(sc.expectedFulfillment);
-      expect(body.order.paymentSummary.status).toBe(sc.expectedPaymentStatus);
-      expect(body.order.totals.shipping).toBe(sc.expectedShipping);
-      expect(body.documents.invoice.pdf?.url).toContain('type=invoice');
-      expect(body.documents.receipt.pdf?.url).toContain('type=receipt');
-      expect(body.email.renderedHtml).toContain(body.order.orderId);
+    // While waiting for admin input, stock is reserved (not yet deducted) and order + invoice/receipt email are created
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(collectOrderId));
+    const midOrder = await getOrderByOrderId(collectOrderId);
+    expect(midOrder).not.toBeNull();
+    expect(midOrder?.paymentStatus).toBe('PAID');
+    expect(midOrder?.documents?.invoicePdfUrl).toContain('type=invoice');
+    expect(midOrder?.documents?.receiptPdfUrl).toContain('type=receipt');
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
 
-      lastOrderId = body.order.orderId;
+    // Admin marks as Ready for Collection -> workflow completes & stock is deducted
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(collectOrderId),
+      {
+        nextStatus: 'READY_FOR_COLLECTION',
+        note: 'Garments ready at SoHo pickup lounge.',
+      }
+    );
+
+    const finalResult = await run.returnValue;
+    expect(finalResult.success).toBe(true);
+    if (finalResult.success) {
+      expect(finalResult.fulfillmentOutcome?.finalStatus).toBe(
+        'READY_FOR_COLLECTION'
+      );
+      expect(finalResult.fulfillmentOutcome?.stockCommitted).toBe(true);
     }
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
 
-    // Stock should have decremented cleanly by 4 units
-    expect(targetVariant.stock).toBe(startStock - 4);
-    expect(targetVariant.reservedStock).toBe(0);
+    // 2. Pay then collect cancelled -> releases reserved stock and refunds payment
+    const cancelOrderId = 'ORD-PTC-CANCEL-1';
+    const cancelRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: cancelOrderId,
+        paymentOption: 'pay_then_collect',
+        waitForFulfillment: true,
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+        },
+        payment: {
+          cardholderName: 'Alex Rivera',
+          cardNumber: '4242424242424242',
+          expiry: '08/29',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
 
-    // Check document preview endpoint renders printable invoice
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(cancelOrderId));
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(cancelOrderId),
+      { nextStatus: 'CANCELLED', note: 'Customer requested cancellation.' }
+    );
+
+    const cancelResult = await cancelRun.returnValue;
+    expect(cancelResult.success).toBe(true);
+    if (cancelResult.success) {
+      expect(cancelResult.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
+      expect(cancelResult.fulfillmentOutcome?.stockReleased).toBe(true);
+    }
+    const cancelledOrder = await getOrderByOrderId(cancelOrderId);
+    expect(cancelledOrder?.paymentStatus).toBe('REFUNDED');
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
+  });
+
+  it('handles pay_and_delivery (reserved -> Out for Delivery -> Delivered deducts stock)', async () => {
+    const products = collectionsStore.products as unknown as Product[];
+    const boot = products.find(
+      (p) => p.slug === 'milan-leather-chelsea-boot'
+    )!;
+    const targetVariant = boot.variants![1];
+    const startStock = targetVariant.stock;
+
+    const deliveryOrderId = 'ORD-PAD-1';
+    const run = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: deliveryOrderId,
+        userId: 'neon_usr_alex',
+        paymentOption: 'pay_and_delivery',
+        waitForFulfillment: true,
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          address: '742 Evergreen Terrace, San Francisco, CA',
+        },
+        payment: {
+          cardholderName: 'Alex Rivera',
+          cardNumber: '4242424242424242',
+          expiry: '08/29',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
+
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(deliveryOrderId));
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
+
+    // Step 1: Out for delivery (still reserved)
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(deliveryOrderId),
+      { nextStatus: 'OUT_FOR_DELIVERY', note: 'Courier dispatched.' }
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    const inTransitOrder = await getOrderByOrderId(deliveryOrderId);
+    expect(inTransitOrder?.orderStatus).toBe('OUT_FOR_DELIVERY');
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(startStock);
+
+    // Step 2: Delivered (COMPLETED) -> stock deducted
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(deliveryOrderId),
+      { nextStatus: 'COMPLETED', note: 'Signed at doorstep.' }
+    );
+
+    const outcome = await run.returnValue;
+    expect(outcome.success).toBe(true);
+    if (outcome.success) {
+      expect(outcome.fulfillmentOutcome?.finalStatus).toBe('COMPLETED');
+      expect(outcome.fulfillmentOutcome?.stockCommitted).toBe(true);
+    }
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
+
+    // Document preview endpoint renders printable invoice
     const docReq = new NextRequest(
-      `http://localhost:3000/api/storefront/documents/${lastOrderId}?type=invoice`
+      `http://localhost:3000/api/storefront/documents/${deliveryOrderId}?type=invoice`
     );
     const docRes = await getDocument(docReq, {
-      params: Promise.resolve({ orderId: lastOrderId }),
+      params: Promise.resolve({ orderId: deliveryOrderId }),
     });
     expect(docRes.status).toBe(200);
-    const docHtml = await docRes.text();
-    expect(docHtml).toContain(lastOrderId);
+    expect(await docRes.text()).toContain(deliveryOrderId);
   });
 
-  it('publishes clothing product reviews and updates rating averages', async () => {
-    const slug = 'organic-pima-crewneck-shirt';
-    const postReq = new NextRequest(
-      `http://localhost:3000/api/storefront/products/${slug}/reviews`,
+  it('handles pay_on_collection (8h configurable window: ready -> collected deducts stock, timeout releases stock)', async () => {
+    const products = collectionsStore.products as unknown as Product[];
+    const boot = products.find(
+      (p) => p.slug === 'milan-leather-chelsea-boot'
+    )!;
+    const targetVariant = boot.variants![2];
+    const startStock = targetVariant.stock;
+
+    // 1. Collected within 8h window -> stock deducted and payment marked PAID
+    const pocOrderId = 'ORD-POC-OK-1';
+    const run = await start(executeDurableCheckoutWorkflow, [
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          authorName: 'Maya Lin',
-          authorEmail: 'maya.lin@example.com',
-          rating: 5,
-          title: 'Exceptionally soft organic cotton',
-          comment: 'Holds collar structure cleanly after wearing all day.',
-          variantSize: 'M',
-          variantColor: 'Crisp Ivory',
-        }),
-      }
+        orderId: pocOrderId,
+        paymentOption: 'pay_on_collection',
+        waitForFulfillment: true,
+        timeouts: { payOnCollectionTimeout: '400ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
+
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(pocOrderId));
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(pocOrderId),
+      { nextStatus: 'READY_FOR_COLLECTION' }
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await getOrderByOrderId(pocOrderId))?.orderStatus).toBe(
+      'READY_FOR_COLLECTION'
+    );
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(pocOrderId),
+      { nextStatus: 'COMPLETED', note: 'Paid in store & collected.' }
+    );
+    const res = await run.returnValue;
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.fulfillmentOutcome?.stockCommitted).toBe(true);
+    }
+    expect((await getOrderByOrderId(pocOrderId))?.paymentStatus).toBe('PAID');
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
     );
 
-    const postRes = await postProductReview(postReq, {
-      params: Promise.resolve({ slug }),
-    });
-    expect(postRes.status).toBe(200);
-    const postData = await postRes.json();
-    expect(postData.review.title).toBe('Exceptionally soft organic cotton');
-    expect(postData.product.reviewCount).toBeGreaterThan(0);
+    // 2. Window expires without collection -> stock released automatically
+    const pocExpireOrderId = 'ORD-POC-EXPIRE-1';
+    const expireRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: pocExpireOrderId,
+        paymentOption: 'pay_on_collection',
+        waitForFulfillment: true,
+        timeouts: { payOnCollectionTimeout: '40ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
 
-    const getReq = new NextRequest(
-      `http://localhost:3000/api/storefront/products/${slug}`
+    const expireOutcome = await expireRun.returnValue;
+    expect(expireOutcome.success).toBe(true);
+    if (expireOutcome.success) {
+      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true);
+      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
+      expect(expireOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
+    }
+    expect((await getOrderByOrderId(pocExpireOrderId))?.orderStatus).toBe(
+      'CANCELLED'
     );
-    const getRes = await getProductBySlug(getReq, {
-      params: Promise.resolve({ slug }),
-    });
-    expect(getRes.status).toBe(200);
-    const getData = await getRes.json();
-    expect(
-      getData.reviews.some(
-        (r: { title: string }) => r.title === 'Exceptionally soft organic cotton'
-      )
-    ).toBe(true);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
   });
 
-  it('handles Neon Auth account registration, guest cart merge, wishlist toggle, and order status updates', async () => {
-    const regReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          email: 'new.shopper@example.com',
-          name: 'New Shopper',
-          cartItems: [
-            {
-              id: 'prod-1',
-              slug: 'classic-oxford-button-down',
-              cartItemId: 'PROD-1-SKY-M',
-              variantSku: 'PROD-1-SKY-M',
-              selectedSize: 'M',
-              selectedColor: 'Oxford Sky',
-              selectedColorHex: '#7FA3C9',
-              unitPrice: 89,
-              price: 89,
-              quantity: 1,
-              maxAvailableStock: 3,
-              title: 'Classic Oxford Button-Down',
-              brand: 'Atelier Nord',
-              category: 'shirts',
-              subcategory: 'Oxford Button-Downs',
-              tags: ['shirts'],
-              images: ['/images/shirt.png'],
-              size: 'normal',
-              description: '',
-              material: '100% Supima Cotton',
-              fit: 'Tailored Fit',
-              care: 'Machine wash cold',
-              variants: [],
-              averageRating: 4.9,
-              reviewCount: 18,
-            },
-          ],
-        }),
-      }
-    );
+  it('handles pay_on_delivery (24h configurable window: delivery deducts stock, delivery failure & timeout release stock) + API PATCH', async () => {
+    const products = collectionsStore.products as unknown as Product[];
+    const boot = products.find(
+      (p) => p.slug === 'milan-leather-chelsea-boot'
+    )!;
+    const targetVariant = boot.variants![3];
+    const startStock = targetVariant.stock;
 
-    const regRes = await postAccount(regReq);
-    expect(regRes.status).toBe(200);
-    const regData = await regRes.json();
-    expect(regData.user.email).toBe('new.shopper@example.com');
-    expect(regData.user.savedCart.length).toBe(1);
+    // 1. Delivery succeeds via HTTP POST /api/checkout + PATCH /api/storefront/orders
+    const podOrderId = 'ORD-POD-OK-1';
+    const checkoutReq = new NextRequest('http://localhost:3000/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: podOrderId,
+        userId: 'neon_usr_alex',
+        paymentOption: 'pay_on_delivery',
+        timeouts: { payOnDeliveryTimeout: '500ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          address: '742 Evergreen Terrace, San Francisco, CA',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      }),
+    });
 
-    // Toggle wishlist
-    const wishReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'toggle_wishlist',
-          email: 'new.shopper@example.com',
-          productSlug: 'moto-full-grain-biker-jacket',
-        }),
-      }
-    );
-    const wishRes = await postAccount(wishReq);
-    expect(wishRes.status).toBe(200);
-    const wishData = await wishRes.json();
-    expect(wishData.user.wishlistProductSlugs).toContain(
-      'moto-full-grain-biker-jacket'
-    );
+    const checkoutRes = await postCheckout(checkoutReq);
+    expect(checkoutRes.status).toBe(200);
+    const checkoutData = await checkoutRes.json();
+    expect(checkoutData.order.orderId).toBe(podOrderId);
+    expect(checkoutData.order.paymentSummary.status).toBe('PENDING');
 
-    // Fetch existing orders and advance an order status via Workflow SDK
-    const ordersReq = new NextRequest(
-      'http://localhost:3000/api/storefront/orders?email=alex.rivera@example.com'
-    );
-    const ordersRes = await getOrders(ordersReq);
-    expect(ordersRes.status).toBe(200);
-    const ordersData = await ordersRes.json();
-    expect(ordersData.orders.length).toBeGreaterThan(0);
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(podOrderId));
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
 
-    const firstOrderId = ordersData.orders[0].orderId;
-    const patchReq = new NextRequest(
+    const outReq = new NextRequest(
       'http://localhost:3000/api/storefront/orders',
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: firstOrderId,
-          nextStatus: 'COMPLETED',
-          note: 'Package signed and delivered.',
+          orderId: podOrderId,
+          nextStatus: 'OUT_FOR_DELIVERY',
+          note: 'Courier on route.',
         }),
       }
     );
-    const patchRes = await patchOrder(patchReq);
-    expect(patchRes.status).toBe(200);
-    const patchData = await patchRes.json();
-    expect(patchData.order.orderStatus).toBe('COMPLETED');
-    expect(patchData.emailDispatched).toBe(true);
+    const outRes = await patchOrderRoute(outReq);
+    expect(outRes.status).toBe(200);
+    const outData = await outRes.json();
+    expect(outData.order.orderStatus).toBe('OUT_FOR_DELIVERY');
+
+    const deliveredReq = new NextRequest(
+      'http://localhost:3000/api/storefront/orders',
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: podOrderId,
+          nextStatus: 'COMPLETED',
+          note: 'Paid on delivery & signed.',
+        }),
+      }
+    );
+    const deliveredRes = await patchOrderRoute(deliveredReq);
+    expect(deliveredRes.status).toBe(200);
+    const deliveredData = await deliveredRes.json();
+    expect(deliveredData.order.orderStatus).toBe('COMPLETED');
+    expect(deliveredData.order.paymentStatus).toBe('PAID');
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
+
+    // 2. Delivery fails -> stock released
+    const failOrderId = 'ORD-POD-FAIL-1';
+    const failRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: failOrderId,
+        paymentOption: 'pay_on_delivery',
+        waitForFulfillment: true,
+        timeouts: { payOnDeliveryTimeout: '400ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          address: '742 Evergreen Terrace, San Francisco, CA',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
+
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(failOrderId));
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1);
+
+    await orderFulfillmentHook.resume(
+      getOrderFulfillmentHookToken(failOrderId),
+      {
+        nextStatus: 'CANCELLED',
+        deliveryFailed: true,
+        note: 'Recipient unavailable after 3 courier attempts.',
+      }
+    );
+    const failOutcome = await failRun.returnValue;
+    expect(failOutcome.success).toBe(true);
+    if (failOutcome.success) {
+      expect(failOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
+      expect(failOutcome.fulfillmentOutcome?.finalStatus).toBe('CANCELLED');
+    }
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
+
+    // 3. 24h window expires -> stock released
+    const expireOrderId = 'ORD-POD-EXPIRE-1';
+    const expireRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        orderId: expireOrderId,
+        paymentOption: 'pay_on_delivery',
+        waitForFulfillment: true,
+        timeouts: { payOnDeliveryTimeout: '40ms' },
+        customer: {
+          name: 'Alex Rivera',
+          email: 'alex.rivera@example.com',
+          address: '742 Evergreen Terrace, San Francisco, CA',
+        },
+        items: [
+          {
+            id: String(boot.id),
+            slug: boot.slug,
+            variantSku: targetVariant.sku,
+            title: boot.title,
+            brand: boot.brand,
+            category: boot.category,
+            subcategory: boot.subcategory,
+            size: targetVariant.size,
+            color: targetVariant.color,
+            price: boot.price,
+            quantity: 1,
+          },
+        ],
+      },
+    ]);
+
+    const expireOutcome = await expireRun.returnValue;
+    expect(expireOutcome.success).toBe(true);
+    if (expireOutcome.success) {
+      expect(expireOutcome.fulfillmentOutcome?.timedOut).toBe(true);
+      expect(expireOutcome.fulfillmentOutcome?.stockReleased).toBe(true);
+    }
+    expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(0);
+    expect(getLiveVariant(boot.slug, targetVariant.sku).stock).toBe(
+      startStock - 1
+    );
+
+    // Verify orders GET endpoint
+    const ordersReq = new NextRequest(
+      'http://localhost:3000/api/storefront/orders?neonUserId=neon_usr_alex'
+    );
+    const ordersRes = await getOrdersRoute(ordersReq);
+    expect(ordersRes.status).toBe(200);
+    const ordersData = await ordersRes.json();
+    expect(
+      ordersData.orders.some((o: Order) => o.orderId === podOrderId)
+    ).toBe(true);
   });
 
-  it('supports updating user name, email, password, and avatar with validation guards', async () => {
-    // 1. Register user with initial password
-    const initReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          email: 'profile.tester@example.com',
-          name: 'Profile Tester',
-          password: 'initialPassword123',
-        }),
-      }
-    );
-    const initRes = await postAccount(initReq);
-    expect(initRes.status).toBe(200);
+  it('publishes clothing product reviews via Payload SDK and updates rating averages', async () => {
+    const slug = 'organic-pima-crewneck-shirt';
+    const created = await createProductReview({
+      productSlug: slug,
+      neonUserId: 'neon_usr_maya',
+      authorName: 'Maya Lin',
+      authorEmail: 'maya.lin@example.com',
+      rating: 5,
+      title: 'Exceptionally soft organic cotton',
+      comment: 'Holds collar structure cleanly after wearing all day.',
+      variantSize: 'M',
+      variantColor: 'Crisp Ivory',
+    });
 
-    // 2. Reject incorrect current password
-    const badPwReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_profile',
-          email: 'profile.tester@example.com',
-          currentPassword: 'wrongPassword',
-          newPassword: 'updatedPassword456',
-        }),
-      }
-    );
-    const badPwRes = await postAccount(badPwReq);
-    expect(badPwRes.status).toBe(401);
+    expect(created.review.title).toBe('Exceptionally soft organic cotton');
+    expect(created.product.reviewCount).toBeGreaterThan(0);
 
-    // 3. Reject email conflict with existing demo account
-    const conflictReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_profile',
-          email: 'profile.tester@example.com',
-          newEmail: 'alex.rivera@example.com',
-        }),
-      }
-    );
-    const conflictRes = await postAccount(conflictReq);
-    expect(conflictRes.status).toBe(409);
+    const detail = await fetchProductBySlugWithReviews(slug);
+    expect(
+      detail.reviews.some(
+        (r: Review) => r.title === 'Exceptionally soft organic cotton'
+      )
+    ).toBe(true);
+  });
 
-    // 4. Reject too-short new password
-    const shortPwReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_profile',
-          email: 'profile.tester@example.com',
-          currentPassword: 'initialPassword123',
-          newPassword: '123',
-        }),
-      }
-    );
-    const shortPwRes = await postAccount(shortPwReq);
-    expect(shortPwRes.status).toBe(400);
+  it('syncs separate billing details, carts, and wishlists linked by neonUserId via Payload SDK', async () => {
+    const neonUserId = 'neon_usr_sync_1';
 
-    // 5. Successfully update name, email, avatarUrl, and password
-    const updateReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_profile',
-          email: 'profile.tester@example.com',
-          newEmail: 'updated.tester@example.com',
-          name: 'Updated Tester Name',
-          avatarUrl: 'https://example.com/avatar-updated.png',
-          currentPassword: 'initialPassword123',
-          newPassword: 'updatedPassword456',
-        }),
-      }
-    );
-    const updateRes = await postAccount(updateReq);
-    expect(updateRes.status).toBe(200);
-    const updateData = await updateRes.json();
-    expect(updateData.user.name).toBe('Updated Tester Name');
-    expect(updateData.user.email).toBe('updated.tester@example.com');
-    expect(updateData.user.avatarUrl).toBe(
-      'https://example.com/avatar-updated.png'
+    const initialBilling = await getBillingDetails(neonUserId);
+    expect(initialBilling).toBeNull();
+
+    const savedBilling = await upsertBillingDetails({
+      neonUserId,
+      phone: '+1 (415) 555-0192',
+      shippingAddress: '742 Evergreen Terrace, Suite 200',
+    });
+    expect(savedBilling.neonUserId).toBe(neonUserId);
+    expect(savedBilling.phone).toBe('+1 (415) 555-0192');
+    expect(savedBilling.shippingAddress).toBe(
+      '742 Evergreen Terrace, Suite 200'
     );
 
-    // 6. Verify login works with updated email & new password, and fails with old password
-    const wrongLoginReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'login',
-          email: 'updated.tester@example.com',
-          password: 'initialPassword123',
-        }),
-      }
-    );
-    const wrongLoginRes = await postAccount(wrongLoginReq);
-    expect(wrongLoginRes.status).toBe(401);
+    const updatedBilling = await upsertBillingDetails({
+      neonUserId,
+      phone: '+1 (415) 555-9999',
+      shippingAddress: '100 Market St, San Francisco, CA',
+    });
+    expect(updatedBilling.id).toBe(savedBilling.id);
+    expect(updatedBilling.phone).toBe('+1 (415) 555-9999');
 
-    const goodLoginReq = new NextRequest(
-      'http://localhost:3000/api/storefront/account',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'login',
-          email: 'updated.tester@example.com',
-          password: 'updatedPassword456',
-        }),
-      }
+    const fetchedBilling = await getBillingDetails(neonUserId);
+    expect(fetchedBilling?.shippingAddress).toBe(
+      '100 Market St, San Francisco, CA'
     );
-    const goodLoginRes = await postAccount(goodLoginReq);
-    expect(goodLoginRes.status).toBe(200);
-    const goodLoginData = await goodLoginRes.json();
-    expect(goodLoginData.user.name).toBe('Updated Tester Name');
+
+    const oxford = (collectionsStore.products as unknown as Product[]).find(
+      (p) => p.slug === 'classic-oxford-button-down'
+    )!;
+    const syncedCart = await syncCartWithPayload(neonUserId, [
+      {
+        product: oxford.id,
+        productId: String(oxford.id),
+        productSlug: oxford.slug,
+        cartItemId: 'PROD-1-SKY-M',
+        variantSku: 'PROD-1-SKY-M',
+        title: oxford.title,
+        brand: oxford.brand,
+        category: oxford.category,
+        subcategory: oxford.subcategory,
+        selectedSize: 'M',
+        selectedColor: 'Oxford Sky',
+        selectedColorHex: '#7FA3C9',
+        unitPrice: oxford.price,
+        price: oxford.price,
+        quantity: 2,
+        maxAvailableStock: 3,
+        imageUrl: '/images/shirt.png',
+      },
+    ]);
+    expect(syncedCart.neonUserId).toBe(neonUserId);
+    expect(syncedCart.items?.length).toBe(1);
+
+    const fetchedCart = await getCartByNeonUserId(neonUserId);
+    expect(fetchedCart?.items?.[0].variantSku).toBe('PROD-1-SKY-M');
+    expect(fetchedCart?.items?.[0].quantity).toBe(2);
+
+    const jacket = (collectionsStore.products as unknown as Product[]).find(
+      (p) => p.slug === 'moto-full-grain-biker-jacket'
+    )!;
+    const addedWishlist = await toggleWishlistItemInPayload(neonUserId, {
+      id: jacket.id,
+      slug: jacket.slug,
+    });
+    expect(addedWishlist.neonUserId).toBe(neonUserId);
+    expect(
+      addedWishlist.items?.some((i) => i.productSlug === jacket.slug)
+    ).toBe(true);
+
+    const toggledOff = await toggleWishlistItemInPayload(neonUserId, {
+      id: jacket.id,
+      slug: jacket.slug,
+    });
+    expect(toggledOff.items?.length).toBe(0);
+
+    const syncedWishlist = await syncWishlistWithPayload(neonUserId, [
+      { product: oxford.id, productSlug: oxford.slug },
+    ]);
+    expect(syncedWishlist.items?.length).toBe(1);
+    const fetchedWishlist = await getWishlistByNeonUserId(neonUserId);
+    expect(fetchedWishlist?.items?.[0].productSlug).toBe(oxford.slug);
+
+    const userOrders = await getOrdersByUser({ neonUserId: 'neon_usr_alex' });
+    expect(userOrders.length).toBeGreaterThan(0);
   });
 });

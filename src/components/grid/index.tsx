@@ -25,7 +25,7 @@ interface GridProps {
   products: Product[]
   activeFilter: string
   searchQuery?: string
-  compareIds: string[]
+  compareIds: Array<Product['id']>
   maxCompareReached: boolean
   onToggleCompare: (product: Product) => void
   onAddToCart: (product: Product) => void
@@ -61,7 +61,7 @@ const Grid = ({
         !activeFilter ||
         activeFilter === 'all' ||
         product.category === activeFilter ||
-        (Array.isArray(product.tags) && product.tags.includes(activeFilter))
+        Boolean(product.tags?.some((t) => t.tag === activeFilter))
 
       if (!matchesCategory) return false
 
@@ -74,7 +74,7 @@ const Grid = ({
         product.subcategory,
         product.description,
         product.material,
-        ...(product.tags || []),
+        ...(product.tags?.map((t) => t.tag) || []),
       ]
         .join(' ')
         .toLowerCase()

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Heart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react'
 import { CACHE_TIMES, storefrontQueryKeys, useAuth, useWishlist } from '../context'
-import { fetchUserOrdersViaSdk } from '../lib/payload-sdk'
+import { getOrdersByUser } from '../lib/payload-sdk'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import {
   DropdownMenu,
@@ -39,13 +39,12 @@ interface UserMenuProps {
 export default function UserMenu({ className = '' }: UserMenuProps) {
   const { user, openAuthModal, signOut } = useAuth()
   const { wishlistSlugs } = useWishlist()
-  const { data: ordersData } = useQuery({
-    queryKey: storefrontQueryKeys.orders(user?.email),
-    queryFn: () => fetchUserOrdersViaSdk(user!.email),
-    enabled: Boolean(user?.email),
+  const { data: orders = [] } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+    queryFn: () => getOrdersByUser({ neonUserId: user?.id, email: user?.email }),
+    enabled: Boolean(user?.id || user?.email),
     ...CACHE_TIMES.orders,
   })
-  const orders = ordersData?.orders ?? []
 
   if (!user) {
     return (
@@ -73,8 +72,8 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
             variant="outline"
           >
             <Avatar className="h-6 w-6">
-              {user.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl} alt={user.name || 'User avatar'} />
+              {user.image ? (
+                <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
               ) : null}
               <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
             </Avatar>
@@ -89,8 +88,8 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
         <DropdownMenuLabel className="font-normal">
           <div className="flex items-center gap-2.5">
             <Avatar className="h-9 w-9 shrink-0">
-              {user.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl} alt={user.name || 'User avatar'} />
+              {user.image ? (
+                <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
               ) : null}
               <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
             </Avatar>

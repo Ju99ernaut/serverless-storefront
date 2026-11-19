@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { ShoppingCart, Star, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import { getProductTotalAvailableStock, type Product } from '../data/utils'
+import { getProductImages, getProductTotalAvailableStock, type Product } from '../data/utils'
 import { Button } from './ui/button'
 
 interface CompareWrapperProps {
@@ -23,7 +23,7 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
             <div className="compare__effect">
               <div className="w-40 h-40 flex items-center justify-center rounded-md bg-secondary p-3 border border-border">
                 <OptimizedImage
-                  src={product.images[0] || '/images/shirt.png'}
+                  src={getProductImages(product)[0]}
                   alt={product.title}
                   width={180}
                   height={180}
@@ -46,7 +46,7 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
               <span className="meta__units">{totalAvail} units available</span>
               <span className="inline-flex items-center justify-center gap-1 text-xs text-amber-400 py-2">
                 <Star className="h-3.5 w-3.5 fill-amber-400" aria-hidden="true" />
-                {product.averageRating.toFixed(1)} ({product.reviewCount} reviews)
+                {(product.averageRating ?? 0).toFixed(1)} ({product.reviewCount ?? 0} reviews)
               </span>
               <Button type="button" onClick={() => onAddToCart(product)} disabled={totalAvail <= 0}>
                 <ShoppingCart className="h-4 w-4" aria-hidden="true" />

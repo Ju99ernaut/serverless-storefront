@@ -1,164 +1,46 @@
 import type {
-  Banner as PayloadBanner,
-  Category as PayloadCategory,
-  Media as PayloadMedia,
-  Order as PayloadOrder,
-  Product as PayloadProduct,
-  Review as PayloadReview,
-  StockReservation as PayloadStockReservation,
-  User as PayloadUser,
+  Banner,
+  BillingDetail,
+  Cart,
+  Category,
+  Media,
+  Order,
+  Product,
+  Review,
+  StockReservation,
+  User,
+  Wishlist,
 } from '../payload-types';
 
 export type {
-  PayloadBanner,
-  PayloadCategory,
-  PayloadMedia,
-  PayloadOrder,
-  PayloadProduct,
-  PayloadReview,
-  PayloadStockReservation,
-  PayloadUser,
+  Banner,
+  BillingDetail,
+  Cart,
+  Category,
+  Media,
+  Order,
+  Product,
+  Review,
+  StockReservation,
+  User,
+  Wishlist,
 };
 
-export type PaymentOptionType = PayloadOrder['paymentOption'];
+export type PaymentOptionType = Order['paymentOption'];
+export type ProductVariant = NonNullable<Product['variants']>[number];
+export type CartLineItem = NonNullable<Cart['items']>[number];
+export type OrderLineItem = NonNullable<Order['items']>[number];
+export type WishlistItem = NonNullable<Wishlist['items']>[number];
 
-export type ProductVariant = NonNullable<PayloadProduct['variants']>[number];
-
-export type Product = Omit<
-  PayloadProduct,
-  | 'id'
-  | 'tags'
-  | 'images'
-  | 'variants'
-  | 'size'
-  | 'description'
-  | 'averageRating'
-  | 'reviewCount'
-  | 'updatedAt'
-  | 'createdAt'
-> & {
+export interface NeonUser {
   id: string;
-  tags: string[];
-  images: string[];
-  size: NonNullable<PayloadProduct['size']>;
-  description: string;
-  variants: ProductVariant[];
-  averageRating: number;
-  reviewCount: number;
-  updatedAt?: PayloadProduct['updatedAt'];
-  createdAt?: PayloadProduct['createdAt'];
-};
-
-export type ProductReviewItem = Omit<
-  PayloadReview,
-  'id' | 'verifiedPurchase' | 'updatedAt'
-> & {
-  id: string;
-  verifiedPurchase: boolean;
-  updatedAt?: PayloadReview['updatedAt'];
-};
-
-export type BannerSlide = Omit<
-  PayloadBanner,
-  | 'id'
-  | 'badgeText'
-  | 'ctaFilter'
-  | 'accentColor'
-  | 'updatedAt'
-  | 'createdAt'
-> & {
-  id: string;
-  badgeText: string;
-  ctaFilter: string;
-  accentColor: string;
-  updatedAt?: PayloadBanner['updatedAt'];
-  createdAt?: PayloadBanner['createdAt'];
-};
-
-export interface CartLineItem extends Product {
-  cartItemId: string;
-  variantSku: string;
-  selectedSize: string;
-  selectedColor: string;
-  selectedColorHex: string;
-  unitPrice: number;
-  quantity: number;
-  maxAvailableStock: number;
-}
-
-export type StoreUserAddress = NonNullable<
-  PayloadUser['shippingAddresses']
->[number] & {
-  id: string;
-  label: string;
-};
-
-export type StoreUserRecord = Omit<
-  PayloadUser,
-  | 'id'
-  | 'name'
-  | 'authProvider'
-  | 'shippingAddresses'
-  | 'wishlistProductSlugs'
-  | 'savedCart'
-  | 'updatedAt'
-  | 'collection'
-> & {
-  id: string;
+  email: string;
   name: string;
-  authProvider: NonNullable<PayloadUser['authProvider']>;
-  passwordHash?: string;
-  shippingAddresses: StoreUserAddress[];
-  wishlistProductSlugs: string[];
-  savedCart: CartLineItem[];
-  updatedAt?: PayloadUser['updatedAt'];
-  collection?: PayloadUser['collection'];
-};
-
-export type OrderLineItemRecord = NonNullable<PayloadOrder['items']>[number] & {
-  productSlug: string;
-  brand: string;
-  category: string;
-  subcategory: string;
-  size: string;
-  color: string;
-  imageUrl: string;
-};
-
-export type StoreOrderRecord = Omit<
-  PayloadOrder,
-  | 'id'
-  | 'user'
-  | 'paymentMethodLabel'
-  | 'cardLast4'
-  | 'items'
-  | 'documents'
-  | 'statusTimeline'
-  | 'updatedAt'
-  | 'createdAt'
-> & {
-  id: string;
-  userId?: string;
-  paymentMethodLabel: string;
-  cardLast4: string;
-  issuedAt: string;
-  createdAt?: PayloadOrder['createdAt'];
-  items: OrderLineItemRecord[];
-  documents: NonNullable<PayloadOrder['documents']> & {
-    renderedHtml?: string;
-  };
-  statusTimeline: NonNullable<PayloadOrder['statusTimeline']>;
-  updatedAt?: PayloadOrder['updatedAt'];
-};
-
-export type StockReservationRecord = Omit<
-  PayloadStockReservation,
-  'id' | 'items' | 'updatedAt'
-> & {
-  id: string;
-  items: NonNullable<PayloadStockReservation['items']>;
-  updatedAt?: PayloadStockReservation['updatedAt'];
-};
+  image?: string | null;
+  emailVerified?: boolean;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
 
 export interface BottomBarFilter {
   id: string;
@@ -187,7 +69,7 @@ export const PAYMENT_OPTIONS: Array<{
   description: string;
   requiresCardNow: boolean;
   requiresShippingAddress: boolean;
-  fulfillmentMethod: PayloadOrder['fulfillmentMethod'];
+  fulfillmentMethod: Order['fulfillmentMethod'];
   badge: string;
 }> = [
   {
@@ -409,6 +291,11 @@ export function slugifyProductTitle(title: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+export function getProductImages(product: Product): string[] {
+  const imgs = product.images?.map((i) => i.url).filter(Boolean) ?? [];
+  return imgs.length > 0 ? imgs : ['/images/shirt.png'];
+}
+
 export function getProductTotalAvailableStock(product: Product): number {
   if (!product.variants || product.variants.length === 0) return 15;
   return product.variants.reduce(
@@ -455,7 +342,7 @@ export function getProductLowestAvailableVariantStock(product: Product): {
   };
 }
 
-const SUBFILTER_TO_CATEGORY: Record<string, PayloadProduct['category']> = {
+const SUBFILTER_TO_CATEGORY: Record<string, Product['category']> = {
   jackets: 'jackets',
   'leather-jackets': 'jackets',
   'bomber-jackets': 'jackets',
@@ -506,7 +393,9 @@ export function getMainCategoryForFilter(
   if (SUBFILTER_TO_CATEGORY[filter]) {
     return SUBFILTER_TO_CATEGORY[filter];
   }
-  const match = catalogProducts?.find((p) => p.tags.includes(filter));
+  const match = catalogProducts?.find((p) =>
+    p.tags?.some((t) => t.tag === filter)
+  );
   return match ? match.category : 'all';
 }
 

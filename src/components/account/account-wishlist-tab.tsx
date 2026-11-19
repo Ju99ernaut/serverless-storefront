@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
-import type { Product } from '@/data/utils'
+import { getProductImages, type Product } from '@/data/utils'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -61,7 +61,7 @@ export function AccountWishlistTab({
               className="flex h-40 items-center justify-center rounded-none bg-secondary p-3"
             >
               <OptimizedImage
-                src={item.images[0] || '/images/shirt.png'}
+                src={getProductImages(item)[0]}
                 alt={item.title}
                 width={160}
                 height={160}

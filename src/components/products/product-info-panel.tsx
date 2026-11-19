@@ -81,8 +81,10 @@ export function ProductInfoPanel({
           )}
           <div className="flex items-center gap-1.5 text-sm">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
-            <span className="font-bold text-foreground">{product.averageRating.toFixed(1)}</span>
-            <span className="text-muted-foreground">({product.reviewCount} reviews)</span>
+            <span className="font-bold text-foreground">
+              {(product.averageRating ?? 0).toFixed(1)}
+            </span>
+            <span className="text-muted-foreground">({product.reviewCount ?? 0} reviews)</span>
           </div>
         </div>
 

@@ -6,22 +6,45 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
 } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { CartLineItem, Product } from '../data/utils'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getProductImages, type CartLineItem, type Product } from '../data/utils'
+import { getCartByNeonUserId, syncCartWithPayload } from '../lib/payload-sdk'
 import { useAuth } from './auth-context'
 import {
-  postAccountAction,
+  CACHE_TIMES,
   storefrontQueryKeys,
   type AddToCartOptions,
   type CatalogResponse,
 } from './query-keys'
 
 const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1'
+
+function mergeCartItems(existing: CartLineItem[], incoming: CartLineItem[]): CartLineItem[] {
+  const map = new Map<string, CartLineItem>()
+  for (const item of existing) {
+    const key = item.variantSku || item.cartItemId || item.productId
+    map.set(key, { ...item })
+  }
+  for (const item of incoming) {
+    const key = item.variantSku || item.cartItemId || item.productId
+    const prev = map.get(key)
+    if (prev) {
+      map.set(key, {
+        ...prev,
+        quantity: Math.min(item.maxAvailableStock || 99, prev.quantity + item.quantity),
+      })
+    } else {
+      map.set(key, { ...item })
+    }
+  }
+  return Array.from(map.values())
+}
 
 interface CartContextValue {
   cartItems: CartLineItem[]
@@ -45,14 +68,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const syncedUserIdRef = useRef<string | null>(null)
+  const prevUserIdRef = useRef<string | null>(null)
+
+  const { data: payloadCart, isFetched: isPayloadCartFetched } = useQuery({
+    queryKey: storefrontQueryKeys.cart(user?.id),
+    queryFn: () => getCartByNeonUserId(user!.id),
+    enabled: Boolean(user?.id),
+    ...CACHE_TIMES.userState,
+  })
 
   const { mutate: syncCartMutate } = useMutation({
-    mutationFn: (params: { email: string; cartItems: CartLineItem[] }) =>
-      postAccountAction({
-        action: 'sync_cart',
-        email: params.email,
-        cartItems: params.cartItems,
-      }),
+    mutationFn: (params: { neonUserId: string; items: CartLineItem[] }) =>
+      syncCartWithPayload(params.neonUserId, params.items),
+    onSuccess: (updatedCart, variables) => {
+      queryClient.setQueryData(storefrontQueryKeys.cart(variables.neonUserId), updatedCart)
+    },
   })
 
   // Hydrate guest cart on mount
@@ -69,21 +100,63 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setHydrated(true)
   }, [])
 
-  // Persist cart to localStorage when logged out, or sync to Payload when logged in
+  // Handle user sign-out reset
+  useEffect(() => {
+    const prevUserId = prevUserIdRef.current
+    const currentUserId = user?.id ?? null
+    if (prevUserId && !currentUserId) {
+      syncedUserIdRef.current = null
+      setCartItems([])
+      try {
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY)
+      } catch {}
+    }
+    prevUserIdRef.current = currentUserId
+  }, [user?.id])
+
+  // Merge guest cart with Payload Carts collection when user signs in and query settles
+  useEffect(() => {
+    if (!hydrated || !user?.id || !isPayloadCartFetched) return
+    if (syncedUserIdRef.current === user.id) return
+
+    syncedUserIdRef.current = user.id
+    const remoteItems = payloadCart?.items ?? []
+
+    let guestItems: CartLineItem[] = []
+    try {
+      const rawGuest = localStorage.getItem(GUEST_CART_STORAGE_KEY)
+      if (rawGuest) {
+        const parsed = JSON.parse(rawGuest)
+        if (Array.isArray(parsed)) {
+          guestItems = parsed
+        }
+      }
+      localStorage.removeItem(GUEST_CART_STORAGE_KEY)
+    } catch {}
+
+    if (guestItems.length > 0) {
+      const merged = mergeCartItems(remoteItems, guestItems)
+      setCartItems(merged)
+      syncCartMutate({ neonUserId: user.id, items: merged })
+    } else {
+      setCartItems(remoteItems)
+    }
+  }, [hydrated, user?.id, isPayloadCartFetched, payloadCart, syncCartMutate])
+
+  // Persist guest cart to localStorage, or sync signed-in cart to Payload
   useEffect(() => {
     if (!hydrated) return
     try {
-      if (!user) {
+      if (!user?.id) {
         localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(cartItems))
-      } else {
-        localStorage.removeItem(GUEST_CART_STORAGE_KEY)
+      } else if (syncedUserIdRef.current === user.id) {
         syncCartMutate({
-          email: user.email,
-          cartItems,
+          neonUserId: user.id,
+          items: cartItems,
         })
       }
     } catch {}
-  }, [cartItems, user, hydrated, syncCartMutate])
+  }, [cartItems, user?.id, hydrated, syncCartMutate])
 
   const totalCartCount = useMemo(
     () => cartItems.reduce((acc, item) => acc + item.quantity, 0),
@@ -96,14 +169,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         queryClient.getQueryData<CatalogResponse>(storefrontQueryKeys.catalog)?.products ?? []
       const liveProd =
         cachedProducts.find((p) => p.id === product.id || p.slug === product.slug) || product
+      const variants = liveProd.variants ?? []
       const defaultVariant =
-        liveProd.variants.find((v) => Math.max(0, v.stock - v.reservedStock) > 0) ||
-        liveProd.variants[0]
+        variants.find((v) => Math.max(0, v.stock - v.reservedStock) > 0) || variants[0]
 
       const matchedVariant = options?.variantSku
-        ? liveProd.variants.find((v) => v.sku === options.variantSku) || defaultVariant
+        ? variants.find((v) => v.sku === options.variantSku) || defaultVariant
         : options?.size || options?.color
-          ? liveProd.variants.find(
+          ? variants.find(
               (v) =>
                 (!options.size || v.size === options.size) &&
                 (!options.color || v.color === options.color),
@@ -118,12 +191,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const sku = matchedVariant?.sku || `${liveProd.id.toUpperCase()}-STD-M`
+      const sku = matchedVariant?.sku || `${String(liveProd.id).toUpperCase()}-STD-M`
       const selectedSize = options?.size || matchedVariant?.size || 'M'
       const selectedColor = options?.color || matchedVariant?.color || 'Signature'
       const selectedColorHex = options?.colorHex || matchedVariant?.colorHex || '#5C5EDC'
       const unitPrice = matchedVariant?.priceOverride ?? liveProd.price
       const qtyToAdd = Math.max(1, options?.quantity || 1)
+      const primaryImage = matchedVariant?.imageUrl || getProductImages(liveProd)[0]
 
       setIsCartAnimating(true)
       setCartItems((prev) => {
@@ -142,9 +216,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return [
           ...prev,
           {
-            ...liveProd,
+            product: liveProd.id,
+            productId: String(liveProd.id),
+            productSlug: liveProd.slug,
             cartItemId: sku,
             variantSku: sku,
+            title: liveProd.title,
+            brand: liveProd.brand,
+            category: liveProd.category,
+            subcategory: liveProd.subcategory,
             selectedSize,
             selectedColor,
             selectedColorHex,
@@ -152,6 +232,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             price: unitPrice,
             quantity: Math.min(available, qtyToAdd),
             maxAvailableStock: available,
+            imageUrl: primaryImage,
           },
         ]
       })
@@ -166,13 +247,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateCartQuantity = useCallback((cartItemId: string, nextQty: number) => {
     if (nextQty <= 0) {
       setCartItems((prev) =>
-        prev.filter((item) => item.cartItemId !== cartItemId && item.id !== cartItemId),
+        prev.filter((item) => item.cartItemId !== cartItemId && item.productId !== cartItemId),
       )
       return
     }
     setCartItems((prev) =>
       prev.map((item) =>
-        item.cartItemId === cartItemId || item.id === cartItemId
+        item.cartItemId === cartItemId || item.productId === cartItemId
           ? {
               ...item,
               quantity: Math.min(item.maxAvailableStock || 99, nextQty),
@@ -184,7 +265,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeCartItem = useCallback((cartItemId: string) => {
     setCartItems((prev) =>
-      prev.filter((item) => item.cartItemId !== cartItemId && item.id !== cartItemId),
+      prev.filter((item) => item.cartItemId !== cartItemId && item.productId !== cartItemId),
     )
   }, [])
 

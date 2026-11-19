@@ -4,7 +4,7 @@ export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
     useAsTitle: 'email',
-    defaultColumns: ['name', 'email', 'role', 'authProvider'],
+    defaultColumns: ['name', 'email', 'role'],
   },
   auth: true,
   access: {
@@ -17,7 +17,7 @@ export const Users: CollectionConfig = {
     {
       name: 'name',
       type: 'text',
-      defaultValue: 'Storefront Customer',
+      defaultValue: 'Admin',
     },
     {
       name: 'role',
@@ -28,53 +28,6 @@ export const Users: CollectionConfig = {
         { label: 'Admin', value: 'admin' },
       ],
       required: true,
-    },
-    {
-      name: 'phone',
-      type: 'text',
-    },
-    {
-      name: 'neonAuthUserId',
-      type: 'text',
-      index: true,
-    },
-    {
-      name: 'authProvider',
-      type: 'select',
-      defaultValue: 'neon',
-      options: [
-        { label: 'Neon Managed Better Auth (Email)', value: 'neon' },
-        { label: 'Google OAuth (Neon Managed Better Auth)', value: 'google' },
-        { label: 'Payload Local Auth', value: 'local' },
-      ],
-    },
-    {
-      name: 'avatarUrl',
-      type: 'text',
-    },
-    {
-      name: 'shippingAddresses',
-      type: 'array',
-      fields: [
-        { name: 'label', type: 'text', defaultValue: 'Home' },
-        { name: 'fullName', type: 'text', required: true },
-        { name: 'streetAddress', type: 'textarea', required: true },
-        { name: 'city', type: 'text' },
-        { name: 'postalCode', type: 'text' },
-        { name: 'country', type: 'text', defaultValue: 'United States' },
-        { name: 'phone', type: 'text' },
-        { name: 'isDefault', type: 'checkbox', defaultValue: false },
-      ],
-    },
-    {
-      name: 'wishlistProductSlugs',
-      type: 'json',
-      defaultValue: [],
-    },
-    {
-      name: 'savedCart',
-      type: 'json',
-      defaultValue: [],
     },
   ],
 }

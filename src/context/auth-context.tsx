@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -11,13 +12,13 @@ import {
   type SetStateAction,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { StoreUserRecord } from '../data/utils'
+import type { NeonUser } from '../data/utils'
 import { neonAuthClient } from '../lib/auth-client'
 import type { AuthModalIntent } from './query-keys'
 
 interface AuthContextValue {
-  user: StoreUserRecord | null
-  setUser: Dispatch<SetStateAction<StoreUserRecord | null>>
+  user: NeonUser | null
+  setUser: Dispatch<SetStateAction<NeonUser | null>>
   isAuthModalOpen: boolean
   setIsAuthModalOpen: (open: boolean) => void
   authModalIntent: AuthModalIntent
@@ -27,11 +28,41 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function mapSessionUser(raw: {
+  id: string
+  email: string
+  name: string
+  image?: string | null
+  emailVerified?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}): NeonUser {
+  return {
+    id: raw.id,
+    email: raw.email,
+    name: raw.name,
+    image: raw.image ?? null,
+    emailVerified: raw.emailVerified,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [user, setUser] = useState<StoreUserRecord | null>(null)
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
+  const [user, setUser] = useState<NeonUser | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalIntent, setAuthModalIntent] = useState<AuthModalIntent>('account')
+
+  useEffect(() => {
+    if (isSessionPending) return
+    if (sessionData?.user) {
+      setUser(mapSessionUser(sessionData.user))
+    } else {
+      setUser(null)
+    }
+  }, [sessionData, isSessionPending])
 
   const openAuthModal = useCallback((intent: AuthModalIntent = 'account') => {
     setAuthModalIntent(intent)
@@ -44,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
     setUser(null)
     queryClient.removeQueries({ queryKey: ['storefront-orders'] })
+    queryClient.removeQueries({ queryKey: ['storefront-billing-details'] })
+    queryClient.removeQueries({ queryKey: ['storefront-cart'] })
+    queryClient.removeQueries({ queryKey: ['storefront-wishlist'] })
   }, [queryClient])
 
   const value = useMemo(

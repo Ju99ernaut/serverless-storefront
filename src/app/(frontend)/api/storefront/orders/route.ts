@@ -1,42 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRuntimeStore } from '@/lib/storefront-db';
+import { getOrderByOrderId, getOrdersByUser } from '@/lib/payload-sdk';
+import {
+  getOrderFulfillmentHookToken,
+  getOrderPaymentHookToken,
+  orderFulfillmentHook,
+  orderPaymentHook,
+} from '@/workflows/checkoutWorkflow';
 import { executeOrderStatusUpdateWorkflow } from '@/workflows/orderStatusWorkflow';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const email = (searchParams.get('email') || '').trim().toLowerCase();
+  const neonUserId = (searchParams.get('neonUserId') || '').trim();
   const orderId = (searchParams.get('orderId') || '').trim();
-  const store = getRuntimeStore();
 
-  let orders = store.orders;
   if (orderId) {
-    orders = orders.filter((o) => o.orderId === orderId);
-  } else if (email) {
-    orders = orders.filter((o) => o.customerEmail.toLowerCase() === email);
+    const order = await getOrderByOrderId(orderId);
+    return NextResponse.json({ orders: order ? [order] : [] });
   }
 
+  const orders = await getOrdersByUser({ neonUserId, email });
   return NextResponse.json({ orders });
 }
 
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, nextStatus, note } = body || {};
+    const {
+      action,
+      orderId,
+      nextStatus,
+      note,
+      deliveryFailed,
+      authorized,
+      cardNumber,
+      cardholderName,
+      simulatePaymentFailure,
+      error: paymentError,
+    } = body || {};
 
-    if (!orderId || !nextStatus) {
+    if (!orderId) {
+      return NextResponse.json(
+        { error: 'orderId is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'payment') {
+      await orderPaymentHook.resume(getOrderPaymentHookToken(orderId), {
+        authorized: Boolean(authorized),
+        cardNumber,
+        cardholderName,
+        simulatePaymentFailure: Boolean(simulatePaymentFailure),
+        error: paymentError,
+      });
+      return NextResponse.json({
+        success: true,
+        resumed: 'payment',
+        orderId,
+      });
+    }
+
+    if (!nextStatus && !deliveryFailed) {
       return NextResponse.json(
         { error: 'orderId and nextStatus are required.' },
         { status: 400 }
       );
     }
 
-    const result = await executeOrderStatusUpdateWorkflow({
-      orderId,
-      nextStatus,
-      note,
-    });
+    const resolvedStatus = deliveryFailed ? 'CANCELLED' : nextStatus;
 
-    return NextResponse.json(result);
+    try {
+      await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(orderId), {
+        nextStatus: resolvedStatus,
+        note,
+        deliveryFailed: Boolean(deliveryFailed),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const updatedOrder = await getOrderByOrderId(orderId);
+      return NextResponse.json({
+        order: updatedOrder,
+        emailDispatched: true,
+        resumed: 'fulfillment',
+      });
+    } catch {
+      const result = await executeOrderStatusUpdateWorkflow({
+        orderId,
+        nextStatus: resolvedStatus,
+        note,
+        deliveryFailed: Boolean(deliveryFailed),
+      });
+      return NextResponse.json(result);
+    }
   } catch (err: unknown) {
     return NextResponse.json(
       {

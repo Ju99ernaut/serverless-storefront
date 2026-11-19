@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { CheckCircle2, Clock, ExternalLink, FileText, Mail, Package, Truck } from 'lucide-react'
-import type { StoreOrderRecord } from '@/data/utils'
+import type { Order } from '@/data/utils'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -17,7 +17,7 @@ import {
 import { OptimizedImage } from '../ui/optimized-image'
 
 const STATUS_BADGE_MAP: Record<
-  StoreOrderRecord['orderStatus'],
+  Order['orderStatus'],
   { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
 > = {
   PENDING: { label: 'Pending', variant: 'secondary' },
@@ -30,9 +30,13 @@ const STATUS_BADGE_MAP: Record<
 }
 
 interface AccountOrdersTabProps {
-  orders: StoreOrderRecord[]
+  orders: Order[]
   updatingOrderId: string | null
-  onAdvanceStatus: (orderId: string, nextStatus: StoreOrderRecord['orderStatus']) => void
+  onAdvanceStatus: (
+    orderId: string,
+    nextStatus: Order['orderStatus'],
+    options?: { deliveryFailed?: boolean },
+  ) => void
 }
 
 export function AccountOrdersTab({
@@ -81,8 +85,8 @@ export function AccountOrdersTab({
                   <Badge variant="secondary">Payment: {order.paymentStatus}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Placed {new Date(order.issuedAt).toLocaleString()} &bull;{' '}
-                  {order.paymentMethodLabel} &bull; {order.fulfillmentMethod}
+                  Placed {new Date(order.issuedAt || order.createdAt).toLocaleString()} &bull;{' '}
+                  {order.paymentMethodLabel || order.paymentOption} &bull; {order.fulfillmentMethod}
                 </p>
               </div>
 
@@ -121,7 +125,7 @@ export function AccountOrdersTab({
             <CardContent className="p-5 space-y-5">
               {/* Items */}
               <div className="space-y-2.5">
-                {order.items.map((item, idx) => (
+                {(order.items ?? []).map((item, idx) => (
                   <div
                     key={`${order.orderId}-item-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-none border border-border bg-secondary p-2.5 text-xs"
@@ -138,7 +142,7 @@ export function AccountOrdersTab({
                       </div>
                       <div>
                         <Link
-                          href={`/products/${item.productSlug}`}
+                          href={`/products/${item.productSlug || item.productId}`}
                           className="font-bold text-foreground hover:text-primary"
                         >
                           {item.title}
@@ -177,7 +181,7 @@ export function AccountOrdersTab({
                   Live Tracking &amp; Email Updates
                 </div>
                 <div className="space-y-2.5 pt-1">
-                  {order.statusTimeline.map((entry, idx) => (
+                  {(order.statusTimeline ?? []).map((entry, idx) => (
                     <div
                       key={`${order.orderId}-tl-${idx}`}
                       className="flex items-start justify-between gap-2 text-xs"
@@ -241,7 +245,7 @@ export function AccountOrdersTab({
                     >
                       <Truck className="h-3.5 w-3.5" aria-hidden="true" />
                       {order.fulfillmentMethod === 'COLLECTION'
-                        ? 'Ready for Pickup'
+                        ? 'Ready for Collection'
                         : 'Out for Delivery'}
                     </Button>
                     <Button
@@ -251,16 +255,24 @@ export function AccountOrdersTab({
                       disabled={updatingOrderId === order.orderId}
                       onClick={() => onAdvanceStatus(order.orderId, 'COMPLETED')}
                     >
-                      Mark Completed
+                      {order.fulfillmentMethod === 'COLLECTION'
+                        ? 'Mark Collected'
+                        : 'Mark Delivered'}
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       disabled={updatingOrderId === order.orderId}
-                      onClick={() => onAdvanceStatus(order.orderId, 'CANCELLED')}
+                      onClick={() =>
+                        onAdvanceStatus(order.orderId, 'CANCELLED', {
+                          deliveryFailed: order.fulfillmentMethod === 'DELIVERY',
+                        })
+                      }
                     >
-                      Cancel &amp; Release Stock
+                      {order.fulfillmentMethod === 'DELIVERY'
+                        ? 'Delivery Failed / Cancel'
+                        : 'Cancel & Release Stock'}
                     </Button>
                   </div>
                 )}

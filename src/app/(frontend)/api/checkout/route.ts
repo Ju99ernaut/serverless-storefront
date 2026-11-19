@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   executeDurableCheckoutWorkflow,
-  CheckoutWorkflowInput,
+  type CheckoutWorkflowInput,
 } from '@/workflows/checkoutWorkflow';
 
 export async function POST(request: NextRequest) {
@@ -13,7 +13,12 @@ export async function POST(request: NextRequest) {
       payment,
       paymentOption,
       idempotencyKey,
+      orderId,
       simulatePaymentFailure,
+      simulatePaymentTimeout,
+      awaitPaymentHook,
+      waitForFulfillment,
+      timeouts,
       userId,
     } = body || {};
 
@@ -33,9 +38,14 @@ export async function POST(request: NextRequest) {
 
     const result = await executeDurableCheckoutWorkflow({
       idempotencyKey,
+      orderId,
       userId,
       paymentOption: paymentOption || 'pay_and_delivery',
       simulatePaymentFailure: Boolean(simulatePaymentFailure),
+      simulatePaymentTimeout: Boolean(simulatePaymentTimeout),
+      awaitPaymentHook: Boolean(awaitPaymentHook),
+      waitForFulfillment: Boolean(waitForFulfillment),
+      timeouts,
       customer: {
         name: customer.name,
         email: customer.email,
@@ -51,8 +61,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: result.error,
+          orderId: 'orderId' in result ? result.orderId : undefined,
           stockReleased: result.stockReleased,
-          insufficientItems: result.insufficientItems,
+          timedOut: 'timedOut' in result ? result.timedOut : false,
+          insufficientItems:
+            'insufficientItems' in result ? result.insufficientItems : undefined,
         },
         { status: result.status || 400 }
       );

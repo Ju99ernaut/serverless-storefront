@@ -3,9 +3,15 @@ import {
   generateViaApi,
   sendRenderedEmailWithAttachments,
 } from '../lib/utils/documentEmailService'
-import { getRuntimeStore, releaseVariantStockAtomic, StoreOrderRecord } from '../lib/storefront-db'
+import {
+  commitVariantStockViaSdk,
+  getOrderByOrderId,
+  releaseVariantStockViaSdk,
+  sdk,
+} from '../lib/payload-sdk'
+import type { Order } from '../data/utils'
 
-const STATUS_LABELS: Record<StoreOrderRecord['orderStatus'], string> = {
+const STATUS_LABELS: Record<Order['orderStatus'], string> = {
   PENDING: 'Order Pending',
   CONFIRMED: 'Order Confirmed',
   PROCESSING: 'Preparing Your Garments in Atelier',
@@ -15,39 +21,68 @@ const STATUS_LABELS: Record<StoreOrderRecord['orderStatus'], string> = {
   CANCELLED: 'Order Cancelled & Stock Released',
 }
 
-async function applyOrderStatusStep(input: {
+export async function applyOrderStatusStep(input: {
   orderId: string
-  nextStatus: StoreOrderRecord['orderStatus']
+  nextStatus: Order['orderStatus']
   note?: string
+  deliveryFailed?: boolean
+  commitStock?: boolean
+  releaseStock?: boolean
 }) {
   'use step'
-  const store = getRuntimeStore()
-  const order = store.orders.find((o) => o.orderId === input.orderId)
+  const order = await getOrderByOrderId(input.orderId)
   if (!order) {
     throw new Error(`Order ${input.orderId} not found.`)
   }
 
-  order.orderStatus = input.nextStatus
-  if (input.nextStatus === 'COMPLETED' && order.paymentStatus === 'PENDING') {
-    order.paymentStatus = 'PAID'
-    order.paidAt = new Date().toISOString()
+  const effectiveStatus: Order['orderStatus'] = input.deliveryFailed
+    ? 'CANCELLED'
+    : input.nextStatus
+
+  let nextPaymentStatus = order.paymentStatus
+  let nextPaidAt = order.paidAt
+
+  if (effectiveStatus === 'COMPLETED' && nextPaymentStatus === 'PENDING') {
+    nextPaymentStatus = 'PAID'
+    nextPaidAt = new Date().toISOString()
   }
 
-  if (input.nextStatus === 'CANCELLED') {
-    releaseVariantStockAtomic(
-      `res_${order.orderId}`,
-      input.note || 'Order cancelled by customer/admin',
-    )
-    if (order.paymentStatus === 'PAID') {
-      order.paymentStatus = 'REFUNDED'
+  const shouldCommitStock =
+    input.commitStock !== false &&
+    (effectiveStatus === 'COMPLETED' ||
+      (order.paymentOption === 'pay_then_collect' &&
+        effectiveStatus === 'READY_FOR_COLLECTION'))
+
+  if (shouldCommitStock) {
+    await commitVariantStockViaSdk(`res_${order.orderId}`)
+  }
+
+  if (effectiveStatus === 'CANCELLED') {
+    if (input.releaseStock !== false) {
+      await releaseVariantStockViaSdk(
+        `res_${order.orderId}`,
+        input.note ||
+          (input.deliveryFailed
+            ? 'Delivery failed; reserved stock released'
+            : 'Order cancelled by customer/admin'),
+      )
+    }
+    if (nextPaymentStatus === 'PAID') {
+      nextPaymentStatus = 'REFUNDED'
     }
   }
 
-  const label = STATUS_LABELS[input.nextStatus] || input.nextStatus
+  const label = input.deliveryFailed
+    ? 'Delivery Failed — Stock Released'
+    : STATUS_LABELS[effectiveStatus] || effectiveStatus
   const statusNote =
-    input.note || `Your order ${order.orderId} status has been updated to: ${label}.`
+    input.note ||
+    (input.deliveryFailed
+      ? `Delivery failed for order ${order.orderId}; reserved stock has been released.`
+      : `Your order ${order.orderId} status has been updated to: ${label}.`)
 
   const subject = `Order Update: ${order.orderId} is now ${label}`
+  const issuedAt = order.issuedAt || order.createdAt
   const renderedEmail = await generateViaApi({
     templateId: API_CONFIG.templates.receiptEmail,
     formats: ['html'],
@@ -58,7 +93,7 @@ async function applyOrderStatusStep(input: {
       orderId: order.orderId,
       invoiceNumber: order.invoiceNumber,
       receiptNumber: order.receiptNumber,
-      issuedAt: order.issuedAt,
+      issuedAt,
       currency: 'USD',
       customer: {
         name: order.customerName,
@@ -66,20 +101,20 @@ async function applyOrderStatusStep(input: {
         address: order.shippingAddress || '',
       },
       paymentSummary: {
-        method: order.paymentMethodLabel,
-        cardLast4: order.cardLast4,
-        status: order.paymentStatus,
-        paidAt: order.paidAt || order.issuedAt,
+        method: order.paymentMethodLabel || order.paymentOption,
+        cardLast4: order.cardLast4 || 'N/A',
+        status: nextPaymentStatus,
+        paidAt: nextPaidAt || issuedAt,
       },
-      items: order.items.map((i) => ({
+      items: (order.items || []).map((i) => ({
         id: i.productId,
         variantSku: i.variantSku,
         title: i.title,
-        brand: i.brand,
-        category: i.category,
-        subcategory: i.subcategory,
-        size: i.size,
-        color: i.color,
+        brand: i.brand || '',
+        category: i.category || '',
+        subcategory: i.subcategory || '',
+        size: i.size || undefined,
+        color: i.color || undefined,
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         lineTotal: i.lineTotal,
@@ -95,16 +130,36 @@ async function applyOrderStatusStep(input: {
     attachments: [],
   })
 
-  order.statusTimeline.push({
-    status: input.nextStatus,
-    label,
-    timestamp: new Date().toISOString(),
-    note: statusNote,
-    emailSent: true,
+  const nextTimeline = [
+    ...(order.statusTimeline || []).map((entry) => ({
+      status: entry.status,
+      label: entry.label,
+      timestamp: entry.timestamp,
+      note: entry.note,
+      emailSent: entry.emailSent,
+    })),
+    {
+      status: effectiveStatus,
+      label,
+      timestamp: new Date().toISOString(),
+      note: statusNote,
+      emailSent: true,
+    },
+  ]
+
+  const updatedOrder = await sdk.update({
+    collection: 'orders',
+    id: order.id,
+    data: {
+      orderStatus: effectiveStatus,
+      paymentStatus: nextPaymentStatus,
+      paidAt: nextPaidAt,
+      statusTimeline: nextTimeline,
+    },
   })
 
   return {
-    order,
+    order: updatedOrder,
     emailDispatched: true,
     emailStatus: emailResult.status,
     previewUrl: emailResult.previewUrl,
@@ -113,8 +168,9 @@ async function applyOrderStatusStep(input: {
 
 export async function executeOrderStatusUpdateWorkflow(input: {
   orderId: string
-  nextStatus: StoreOrderRecord['orderStatus']
+  nextStatus: Order['orderStatus']
   note?: string
+  deliveryFailed?: boolean
 }) {
   'use workflow'
   return await applyOrderStatusStep(input)

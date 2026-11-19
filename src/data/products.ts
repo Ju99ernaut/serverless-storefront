@@ -1,15 +1,16 @@
 import {
-  BannerSlide,
+  Banner,
   Product,
-  ProductReviewItem,
   ProductVariant,
-  StoreUserRecord,
+  Review,
   slugifyProductTitle,
 } from './utils';
 
-export const HOME_BANNERS: BannerSlide[] = [
+const SEED_TIMESTAMP = '2026-10-01T10:00:00.000Z';
+
+export const HOME_BANNERS: Banner[] = [
   {
-    id: 'banner-1',
+    id: 1,
     title: 'Autumn / Winter Tailored Outerwear',
     subtitle:
       'Full-grain Italian lambskin biker jackets, recycled 700-fill expedition parkas, and water-repellent flight bombers crafted for durability.',
@@ -19,9 +20,13 @@ export const HOME_BANNERS: BannerSlide[] = [
     ctaFilter: 'jackets',
     ctaProductSlug: 'moto-full-grain-biker-jacket',
     accentColor: '#5C5EDC',
+    active: true,
+    sortOrder: 0,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: 'banner-2',
+    id: 2,
     title: 'Maison Étoile Evening & Runway Edit',
     subtitle:
       'Bias-cut mulberry silk gowns, crushed velvet cocktail silhouettes, and Riviera linen sundresses designed in Paris.',
@@ -31,9 +36,13 @@ export const HOME_BANNERS: BannerSlide[] = [
     ctaFilter: 'dresses-runway',
     ctaProductSlug: 'silk-charmeuse-evening-gown',
     accentColor: '#797BED',
+    active: true,
+    sortOrder: 1,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: 'banner-3',
+    id: 3,
     title: 'Handcrafted Italian Footwear Series',
     subtitle:
       'From Milanese full-grain calfskin Chelsea boots to weatherproof Vibram trail boots and hand-burnished suede penny loafers.',
@@ -43,9 +52,13 @@ export const HOME_BANNERS: BannerSlide[] = [
     ctaFilter: 'shoes-selection',
     ctaProductSlug: 'milan-leather-chelsea-boot',
     accentColor: '#494BC7',
+    active: true,
+    sortOrder: 2,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: 'banner-4',
+    id: 4,
     title: 'Supima Oxford & Organic Linen Shirting',
     subtitle:
       'Breathable GOTS-certified organic Pima cotton, Belgian flax linen, and brushed Scottish highland flannels in modern tailored fits.',
@@ -55,6 +68,10 @@ export const HOME_BANNERS: BannerSlide[] = [
     ctaFilter: 'shirts',
     ctaProductSlug: 'classic-oxford-button-down',
     accentColor: '#5C5EDC',
+    active: true,
+    sortOrder: 3,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
   },
 ];
 
@@ -132,18 +149,27 @@ function buildDummyVariantsForProduct(
   return variants;
 }
 
-const RAW_PRODUCTS: Array<
-  Omit<
-    Product,
-    'slug' | 'description' | 'variants' | 'averageRating' | 'reviewCount'
-  > & {
-    lowStockDemo?: boolean;
-    compareAtPrice?: number;
-    rating: number;
-    reviews: number;
-    description: string;
-  }
-> = [
+interface RawSeedProduct {
+  id: string;
+  title: string;
+  brand: string;
+  price: number;
+  compareAtPrice?: number;
+  category: Product['category'];
+  subcategory: string;
+  tags: string[];
+  images: string[];
+  size: NonNullable<Product['size']>;
+  material: string;
+  fit: string;
+  care: string;
+  lowStockDemo?: boolean;
+  rating: number;
+  reviews: number;
+  description: string;
+}
+
+const RAW_PRODUCTS: RawSeedProduct[] = [
   {
     id: 'prod-1',
     title: 'Classic Oxford Button-Down',
@@ -570,10 +596,10 @@ const RAW_PRODUCTS: Array<
   },
 ];
 
-export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item) => {
+export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item, idx) => {
   const slug = slugifyProductTitle(item.title);
   return {
-    id: item.id,
+    id: idx + 1,
     slug,
     title: item.title,
     brand: item.brand,
@@ -581,8 +607,11 @@ export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item) => {
     compareAtPrice: item.compareAtPrice,
     category: item.category,
     subcategory: item.subcategory,
-    tags: item.tags,
-    images: item.images,
+    tags: item.tags.map((tag) => ({ tag })),
+    images: item.images.map((url, imgIdx) => ({
+      url,
+      alt: `${item.title} view ${imgIdx + 1}`,
+    })),
     size: item.size,
     description: item.description,
     material: item.material,
@@ -596,12 +625,14 @@ export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item) => {
     ),
     averageRating: item.rating,
     reviewCount: item.reviews,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
   };
 });
 
-export const INITIAL_REVIEWS: ProductReviewItem[] = [
+export const INITIAL_REVIEWS: Review[] = [
   {
-    id: 'rev-1',
+    id: 1,
     productSlug: 'classic-oxford-button-down',
     authorName: 'Marcus Vance',
     rating: 5,
@@ -612,9 +643,10 @@ export const INITIAL_REVIEWS: ProductReviewItem[] = [
     variantColor: 'Oxford Sky',
     verifiedPurchase: true,
     createdAt: '2026-10-28T14:22:00.000Z',
+    updatedAt: '2026-10-28T14:22:00.000Z',
   },
   {
-    id: 'rev-2',
+    id: 2,
     productSlug: 'classic-oxford-button-down',
     authorName: 'Elena Rostova',
     rating: 5,
@@ -625,9 +657,10 @@ export const INITIAL_REVIEWS: ProductReviewItem[] = [
     variantColor: 'Crisp Ivory',
     verifiedPurchase: true,
     createdAt: '2026-11-04T09:15:00.000Z',
+    updatedAt: '2026-11-04T09:15:00.000Z',
   },
   {
-    id: 'rev-3',
+    id: 3,
     productSlug: 'moto-full-grain-biker-jacket',
     authorName: 'Julian Sterling',
     rating: 5,
@@ -638,9 +671,10 @@ export const INITIAL_REVIEWS: ProductReviewItem[] = [
     variantColor: 'Obsidian Black',
     verifiedPurchase: true,
     createdAt: '2026-11-08T18:40:00.000Z',
+    updatedAt: '2026-11-08T18:40:00.000Z',
   },
   {
-    id: 'rev-4',
+    id: 4,
     productSlug: 'silk-charmeuse-evening-gown',
     authorName: 'Camille Laurent',
     rating: 5,
@@ -651,9 +685,10 @@ export const INITIAL_REVIEWS: ProductReviewItem[] = [
     variantColor: 'Champagne Silk',
     verifiedPurchase: true,
     createdAt: '2026-11-10T20:05:00.000Z',
+    updatedAt: '2026-11-10T20:05:00.000Z',
   },
   {
-    id: 'rev-5',
+    id: 5,
     productSlug: 'milan-leather-chelsea-boot',
     authorName: 'Devon Brooks',
     rating: 4,
@@ -664,36 +699,6 @@ export const INITIAL_REVIEWS: ProductReviewItem[] = [
     variantColor: 'Milanese Black',
     verifiedPurchase: true,
     createdAt: '2026-11-12T11:30:00.000Z',
-  },
-];
-
-export const DEMO_USERS: StoreUserRecord[] = [
-  {
-    id: 'usr-demo-1',
-    email: 'alex.rivera@example.com',
-    name: 'Alex Rivera',
-    phone: '+1 (415) 555-0192',
-    role: 'customer',
-    authProvider: 'neon',
-    avatarUrl: null,
-    shippingAddresses: [
-      {
-        id: 'addr-1',
-        label: 'Home',
-        fullName: 'Alex Rivera',
-        streetAddress: '742 Evergreen Terrace, Suite 200',
-        city: 'San Francisco, CA',
-        postalCode: '94107',
-        country: 'United States',
-        phone: '+1 (415) 555-0192',
-        isDefault: true,
-      },
-    ],
-    wishlistProductSlugs: [
-      'moto-full-grain-biker-jacket',
-      'silk-charmeuse-evening-gown',
-    ],
-    savedCart: [],
-    createdAt: '2026-10-01T10:00:00.000Z',
+    updatedAt: '2026-11-12T11:30:00.000Z',
   },
 ];

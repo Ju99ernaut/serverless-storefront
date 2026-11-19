@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Camera, CheckCircle2, Eye, EyeOff, KeyRound, Upload, X } from 'lucide-react'
-import { postAccountAction, storefrontQueryKeys, useAuth, type OrdersResponse } from '@/context'
-import type { StoreUserRecord } from '@/data/utils'
+import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '@/context'
+import type { NeonUser } from '@/data/utils'
+import { neonAuthClient } from '@/lib/auth-client'
+import { getBillingDetails, upsertBillingDetails } from '@/lib/payload-sdk'
 import { Alert } from '../ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { Button } from '../ui/button'
@@ -14,20 +16,25 @@ import { Textarea } from '../ui/textarea'
 import { getUserInitials } from '../user-menu'
 
 interface AccountProfileTabProps {
-  user: StoreUserRecord
+  user: NeonUser
 }
 
 export function AccountProfileTab({ user }: AccountProfileTabProps) {
   const queryClient = useQueryClient()
   const { setUser } = useAuth()
 
+  const { data: billingDetails } = useQuery({
+    queryKey: storefrontQueryKeys.billingDetails(user.id),
+    queryFn: () => getBillingDetails(user.id),
+    enabled: Boolean(user.id),
+    ...CACHE_TIMES.userState,
+  })
+
   const [profileName, setProfileName] = useState(user.name || '')
   const [profileEmail, setProfileEmail] = useState(user.email || '')
-  const [profilePhone, setProfilePhone] = useState(user.phone || '')
-  const [profileAddress, setProfileAddress] = useState(
-    user.shippingAddresses?.[0]?.streetAddress || '',
-  )
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user.avatarUrl || '')
+  const [profilePhone, setProfilePhone] = useState(billingDetails?.phone || '')
+  const [profileAddress, setProfileAddress] = useState(billingDetails?.shippingAddress || '')
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user.image || '')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -39,39 +46,76 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
   useEffect(() => {
     setProfileName(user.name || '')
     setProfileEmail(user.email || '')
-    setProfilePhone(user.phone || '')
-    setProfileAddress(user.shippingAddresses?.[0]?.streetAddress || '')
-    setProfileAvatarUrl(user.avatarUrl || '')
+    setProfileAvatarUrl(user.image || '')
   }, [user])
 
+  useEffect(() => {
+    if (billingDetails) {
+      setProfilePhone(billingDetails.phone || '')
+      setProfileAddress(billingDetails.shippingAddress || '')
+    }
+  }, [billingDetails])
+
   const updateProfileMutation = useMutation({
-    mutationFn: (params: {
-      name?: string
-      newEmail?: string
-      phone?: string
-      shippingAddress?: string
-      avatarUrl?: string | null
+    mutationFn: async (params: {
+      name: string
+      newEmail: string
+      phone: string
+      shippingAddress: string
+      avatarUrl: string | null
       currentPassword?: string
       newPassword?: string
-    }) =>
-      postAccountAction({
-        action: 'update_profile',
-        email: user.email,
-        ...params,
-      }),
-    onSuccess: (res) => {
-      const prevEmail = user.email
-      setUser(res.user)
-      queryClient.setQueryData<OrdersResponse>(storefrontQueryKeys.orders(res.user.email), {
-        orders: res.orders || [],
+    }) => {
+      const { error: updateUserErr } = await neonAuthClient.updateUser({
+        name: params.name,
+        image: params.avatarUrl || undefined,
       })
-      if (prevEmail && prevEmail !== res.user.email) {
-        queryClient.removeQueries({ queryKey: storefrontQueryKeys.orders(prevEmail) })
+      if (updateUserErr) {
+        throw new Error(updateUserErr.message || 'Unable to update user profile.')
       }
+
+      if (params.newEmail.toLowerCase() !== user.email.toLowerCase()) {
+        const { error: emailErr } = await neonAuthClient.changeEmail({
+          newEmail: params.newEmail,
+        })
+        if (emailErr) {
+          throw new Error(emailErr.message || 'Unable to update email address.')
+        }
+      }
+
+      if (params.newPassword) {
+        const { error: pwErr } = await neonAuthClient.changePassword({
+          currentPassword: params.currentPassword || '',
+          newPassword: params.newPassword,
+        })
+        if (pwErr) {
+          throw new Error(pwErr.message || 'Unable to update password.')
+        }
+      }
+
+      const savedBilling = await upsertBillingDetails({
+        neonUserId: user.id,
+        phone: params.phone,
+        shippingAddress: params.shippingAddress,
+      })
+
+      return {
+        savedBilling,
+        updatedUser: {
+          ...user,
+          name: params.name,
+          email: params.newEmail,
+          image: params.avatarUrl,
+        } satisfies NeonUser,
+      }
+    },
+    onSuccess: ({ savedBilling, updatedUser }) => {
+      setUser(updatedUser)
+      queryClient.setQueryData(storefrontQueryKeys.billingDetails(user.id), savedBilling)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')
-      setProfileSavedMsg('Profile details, email, password, and avatar updated successfully.')
+      setProfileSavedMsg('Profile details, billing address, password, and avatar updated.')
     },
     onError: (err: unknown) => {
       setProfileErrorMsg(err instanceof Error ? err.message : 'Unable to save profile updates.')
@@ -131,7 +175,7 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile Picture, Identity, Password &amp; Address</CardTitle>
+        <CardTitle>Profile Picture, Identity, Password &amp; Billing Details</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSaveProfile} className="space-y-5 max-w-xl">

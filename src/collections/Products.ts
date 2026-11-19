@@ -20,11 +20,6 @@ export const Products: CollectionConfig = {
       index: true,
     },
     {
-      name: 'legacyId',
-      type: 'text',
-      index: true,
-    },
-    {
       name: 'title',
       type: 'text',
       required: true,
@@ -186,7 +181,7 @@ export const Products: CollectionConfig = {
     {
       name: 'averageRating',
       type: 'number',
-      defaultValue: 4.8,
+      defaultValue: 0,
       min: 0,
       max: 5,
     },

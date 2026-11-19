@@ -1,23 +1,81 @@
+import { defineHook, sleep } from 'workflow'
+import { start } from 'workflow/api'
 import {
   API_CONFIG,
   generateViaApi,
   sendRenderedEmailWithAttachments,
-  OrderTemplateData,
+  type OrderTemplateData,
 } from '../lib/utils/documentEmailService'
 import {
-  getRuntimeStore,
-  getPayloadIfAvailable,
-  reserveVariantStockAtomic,
-  releaseVariantStockAtomic,
-  commitVariantStockAtomic,
-} from '../lib/storefront-db'
-import { PAYMENT_OPTIONS, PaymentOptionType, StoreOrderRecord } from '../data/utils'
+  commitVariantStockViaSdk,
+  parseWorkflowDurationMs,
+  releaseVariantStockViaSdk,
+  reserveVariantStockViaSdk,
+  sdk,
+  syncCartWithPayload,
+} from '../lib/payload-sdk'
+import { PAYMENT_OPTIONS, type Order, type PaymentOptionType } from '../data/utils'
+import { applyOrderStatusStep } from './orderStatusWorkflow'
+
+export type WorkflowTimeoutValue =
+  | number
+  | `${number}ms`
+  | `${number}s`
+  | `${number}m`
+  | `${number}h`
+  | `${number}d`
+
+export const WORKFLOW_TIMEOUT_DEFAULTS = {
+  paymentWaitTimeout: (process.env.WORKFLOW_PAYMENT_WAIT_TIMEOUT || '30m') as WorkflowTimeoutValue,
+  payOnCollectionTimeout: (process.env.WORKFLOW_PAY_ON_COLLECTION_TIMEOUT ||
+    '8h') as WorkflowTimeoutValue,
+  payOnDeliveryTimeout: (process.env.WORKFLOW_PAY_ON_DELIVERY_TIMEOUT ||
+    '24h') as WorkflowTimeoutValue,
+}
+
+function sleepForTimeout(timeout: WorkflowTimeoutValue): Promise<void> {
+  return typeof timeout === 'number' ? sleep(timeout) : sleep(timeout)
+}
+
+export interface OrderPaymentHookPayload {
+  authorized: boolean
+  cardNumber?: string
+  cardholderName?: string
+  simulatePaymentFailure?: boolean
+  error?: string
+}
+
+export interface OrderFulfillmentHookPayload {
+  nextStatus: Order['orderStatus']
+  note?: string
+  deliveryFailed?: boolean
+}
+
+export function getOrderPaymentHookToken(orderId: string): string {
+  return `order-payment:${orderId}`
+}
+
+export function getOrderFulfillmentHookToken(orderId: string): string {
+  return `order-fulfillment:${orderId}`
+}
+
+export const orderPaymentHook = defineHook<OrderPaymentHookPayload>()
+export const orderFulfillmentHook = defineHook<OrderFulfillmentHookPayload>()
 
 export interface CheckoutWorkflowInput {
   idempotencyKey?: string
+  orderId?: string
   userId?: string
   paymentOption?: PaymentOptionType
   simulatePaymentFailure?: boolean
+  simulatePaymentTimeout?: boolean
+  awaitPaymentHook?: boolean
+  waitForFulfillment?: boolean
+  timeouts?: {
+    paymentWaitTimeout?: WorkflowTimeoutValue
+    payOnCollectionTimeout?: WorkflowTimeoutValue
+    payOnDeliveryTimeout?: WorkflowTimeoutValue
+  }
   customer: {
     name: string
     email: string
@@ -49,71 +107,43 @@ export interface CheckoutWorkflowInput {
 async function reserveInventoryStep(input: {
   reservationKey: string
   orderId: string
+  ttlDuration: WorkflowTimeoutValue
+  fallbackTtlMs: number
   rawItems: CheckoutWorkflowInput['items']
 }) {
   'use step'
-  const store = getRuntimeStore()
-  const reservationItems = input.rawItems.map((item) => {
-    const matchedProd = store.products.find(
-      (p) => p.id === item.id || p.slug === item.slug || p.slug === item.id,
-    )
-    const defaultVariant = matchedProd?.variants[0]
-    return {
-      productSlug: matchedProd?.slug || item.slug || item.id,
-      variantSku: item.variantSku || defaultVariant?.sku || `${item.id.toUpperCase()}-STD-M`,
-      quantity: Math.max(1, Number(item.quantity) || 1),
-    }
-  })
+  const reservationItems = input.rawItems.map((item) => ({
+    productSlug: item.slug || item.id,
+    variantSku: item.variantSku || `${item.id.toUpperCase()}-STD-M`,
+    quantity: Math.max(1, Number(item.quantity) || 1),
+  }))
 
-  const result = reserveVariantStockAtomic({
+  const ttlMs = parseWorkflowDurationMs(input.ttlDuration, input.fallbackTtlMs)
+
+  return await reserveVariantStockViaSdk({
     reservationKey: input.reservationKey,
     orderId: input.orderId,
+    ttlMs,
     items: reservationItems,
   })
-
-  if (result.success && result.reservation) {
-    const payload = await getPayloadIfAvailable()
-    if (payload) {
-      await payload
-        .create({
-          collection: 'stock-reservations',
-          data: {
-            reservationKey: result.reservation.reservationKey,
-            orderId: input.orderId,
-            status: 'RESERVED',
-            expiresAt: result.reservation.expiresAt,
-            items: result.reservation.items,
-          },
-        })
-        .catch(() => {})
-    }
-  }
-
-  return result
 }
 
 async function releaseReservedStockStep(input: { reservationKey: string; reason: string }) {
   'use step'
-  const released = releaseVariantStockAtomic(input.reservationKey, input.reason)
-  const payload = await getPayloadIfAvailable()
-  if (payload && released) {
-    await payload
-      .update({
-        collection: 'stock-reservations',
-        where: {
-          reservationKey: { equals: input.reservationKey },
-        },
-        data: {
-          status: 'RELEASED',
-          failureReason: input.reason,
-        },
-      })
-      .catch(() => {})
-  }
+  const released = await releaseVariantStockViaSdk(input.reservationKey, input.reason)
   return {
     released: Boolean(released),
     reservationKey: input.reservationKey,
     reason: input.reason,
+  }
+}
+
+async function commitOrderStockStep(input: { reservationKey: string }) {
+  'use step'
+  const committed = await commitVariantStockViaSdk(input.reservationKey)
+  return {
+    committed: Boolean(committed),
+    reservationKey: input.reservationKey,
   }
 }
 
@@ -122,6 +152,7 @@ async function processPaymentTransactionStep(input: {
   cardNumber?: string
   simulatePaymentFailure?: boolean
   grandTotal: number
+  customError?: string
 }) {
   'use step'
   const optionMeta = PAYMENT_OPTIONS.find((o) => o.id === input.paymentOption) || PAYMENT_OPTIONS[0]
@@ -138,6 +169,7 @@ async function processPaymentTransactionStep(input: {
         cardLast4,
         fulfillmentMethod: optionMeta.fulfillmentMethod,
         error:
+          input.customError ||
           'Payment authorization declined by card issuer. Reserved stock has been automatically released back to inventory.',
       }
     }
@@ -152,7 +184,6 @@ async function processPaymentTransactionStep(input: {
     }
   }
 
-  // Pay on Delivery or Pay on Collection
   return {
     authorized: true,
     paymentStatus: 'PENDING' as const,
@@ -166,12 +197,12 @@ async function processPaymentTransactionStep(input: {
   }
 }
 
-async function commitOrderAndDocumentsStep(input: {
-  reservationKey: string
+async function createOrderAndDocumentsStep(input: {
   orderId: string
   invoiceNumber: string
   receiptNumber: string
   timestamp: string
+  userId?: string
   paymentOption: PaymentOptionType
   paymentResult: {
     paymentStatus: 'PAID' | 'PENDING'
@@ -184,8 +215,6 @@ async function commitOrderAndDocumentsStep(input: {
   items: CheckoutWorkflowInput['items']
 }) {
   'use step'
-  commitVariantStockAtomic(input.reservationKey)
-
   const lineItems = input.items.map((item) => {
     const unitPrice = Number(item.price) || 0
     const quantity = Number(item.quantity) || 1
@@ -289,110 +318,74 @@ async function commitOrderAndDocumentsStep(input: {
     attachments: [invoicePdf, receiptPdf],
   })
 
-  const initialStatus =
-    input.paymentResult.fulfillmentMethod === 'COLLECTION' ? 'READY_FOR_COLLECTION' : 'CONFIRMED'
-
-  const orderRecord: StoreOrderRecord = {
-    id: `ord_${Date.now()}`,
-    orderId: input.orderId,
-    invoiceNumber: input.invoiceNumber,
-    receiptNumber: input.receiptNumber,
-    customerEmail: input.customer.email,
-    customerName: input.customer.name,
-    customerPhone: input.customer.phone,
-    shippingAddress: resolvedAddress,
-    collectionLocation: input.customer.collectionLocation,
-    paymentOption: input.paymentOption,
-    paymentMethodLabel: input.paymentResult.methodLabel,
-    fulfillmentMethod: input.paymentResult.fulfillmentMethod,
-    paymentStatus: input.paymentResult.paymentStatus,
-    orderStatus: initialStatus,
-    cardLast4: input.paymentResult.cardLast4,
-    paidAt: input.paymentResult.paidAt,
-    issuedAt: input.timestamp,
-    createdAt: input.timestamp,
-    items: lineItems,
-    totals: sharedTemplateData.totals,
-    documents: {
-      invoiceFilename: invoicePdf.filename,
-      invoiceTemplateId: invoicePdf.templateId,
-      invoicePdfUrl: invoicePdf.pdf?.url,
-      receiptFilename: receiptPdf.filename,
-      receiptTemplateId: receiptPdf.templateId,
-      receiptPdfUrl: receiptPdf.pdf?.url,
-      emailStatus: emailResult.status,
-      emailMessageId: emailResult.messageId,
-      emailPreviewUrl: emailResult.previewUrl,
-      emailTemplateId: emailResult.templateId,
-      renderedHtml: emailResult.renderedHtml,
-      payloadPreviewJson: {
-        invoicePdfApiPost: invoicePdf.payloadSent,
-        receiptPdfApiPost: receiptPdf.payloadSent,
-        emailTemplateApiPost: emailResult.payloadSent,
+  const orderRecord = await sdk.create({
+    collection: 'orders',
+    data: {
+      orderId: input.orderId,
+      invoiceNumber: input.invoiceNumber,
+      receiptNumber: input.receiptNumber,
+      neonUserId: input.userId,
+      issuedAt: input.timestamp,
+      customerEmail: input.customer.email.trim().toLowerCase(),
+      customerName: input.customer.name,
+      customerPhone: input.customer.phone,
+      shippingAddress: resolvedAddress,
+      collectionLocation: input.customer.collectionLocation,
+      paymentOption: input.paymentOption,
+      paymentMethodLabel: input.paymentResult.methodLabel,
+      fulfillmentMethod: input.paymentResult.fulfillmentMethod,
+      paymentStatus: input.paymentResult.paymentStatus,
+      orderStatus: 'CONFIRMED',
+      cardLast4: input.paymentResult.cardLast4,
+      paidAt: input.paymentResult.paidAt,
+      items: lineItems.map((i) => ({
+        productId: i.productId,
+        productSlug: i.productSlug,
+        variantSku: i.variantSku,
+        title: i.title,
+        brand: i.brand,
+        category: i.category,
+        subcategory: i.subcategory,
+        size: i.size,
+        color: i.color,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        lineTotal: i.lineTotal,
+        imageUrl: i.imageUrl,
+      })),
+      totals: sharedTemplateData.totals,
+      documents: {
+        invoiceFilename: invoicePdf.filename,
+        invoiceTemplateId: invoicePdf.templateId,
+        invoicePdfUrl: invoicePdf.pdf?.url,
+        receiptFilename: receiptPdf.filename,
+        receiptTemplateId: receiptPdf.templateId,
+        receiptPdfUrl: receiptPdf.pdf?.url,
+        emailStatus: emailResult.status,
+        emailMessageId: emailResult.messageId,
+        emailPreviewUrl: emailResult.previewUrl || undefined,
+        emailTemplateId: emailResult.templateId,
+        renderedHtml: emailResult.renderedHtml,
+        payloadPreviewJson: {
+          invoicePdfApiPost: invoicePdf.payloadSent,
+          receiptPdfApiPost: receiptPdf.payloadSent,
+          emailTemplateApiPost: emailResult.payloadSent,
+        } as unknown as Record<string, unknown>,
       },
-    },
-    statusTimeline: [
-      {
-        status: 'CONFIRMED',
-        label: 'Order Confirmed & Stock Allocated',
-        timestamp: input.timestamp,
-        note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
-        emailSent: true,
-      },
-    ],
-  }
-
-  const store = getRuntimeStore()
-  store.orders.unshift(orderRecord)
-
-  // Clear saved cart for this user if registered
-  const matchedUser = store.users.find(
-    (u) => u.email.toLowerCase() === input.customer.email.toLowerCase(),
-  )
-  if (matchedUser) {
-    matchedUser.savedCart = []
-  }
-
-  const payload = await getPayloadIfAvailable()
-  if (payload) {
-    await payload
-      .create({
-        collection: 'orders',
-        data: {
-          orderId: orderRecord.orderId,
-          invoiceNumber: orderRecord.invoiceNumber,
-          receiptNumber: orderRecord.receiptNumber,
-          customerEmail: orderRecord.customerEmail,
-          customerName: orderRecord.customerName,
-          customerPhone: orderRecord.customerPhone,
-          shippingAddress: orderRecord.shippingAddress,
-          collectionLocation: orderRecord.collectionLocation,
-          paymentOption: orderRecord.paymentOption,
-          paymentMethodLabel: orderRecord.paymentMethodLabel,
-          fulfillmentMethod: orderRecord.fulfillmentMethod,
-          paymentStatus: orderRecord.paymentStatus,
-          orderStatus: orderRecord.orderStatus,
-          cardLast4: orderRecord.cardLast4,
-          paidAt: orderRecord.paidAt,
-          items: orderRecord.items,
-          totals: orderRecord.totals,
-          documents: {
-            invoiceFilename: orderRecord.documents.invoiceFilename,
-            invoiceTemplateId: orderRecord.documents.invoiceTemplateId,
-            invoicePdfUrl: orderRecord.documents.invoicePdfUrl,
-            receiptFilename: orderRecord.documents.receiptFilename,
-            receiptTemplateId: orderRecord.documents.receiptTemplateId,
-            receiptPdfUrl: orderRecord.documents.receiptPdfUrl,
-            emailStatus: orderRecord.documents.emailStatus,
-            emailMessageId: orderRecord.documents.emailMessageId,
-            emailPreviewUrl: orderRecord.documents.emailPreviewUrl || undefined,
-            emailTemplateId: orderRecord.documents.emailTemplateId,
-            payloadPreviewJson: orderRecord.documents.payloadPreviewJson as Record<string, unknown>,
-          },
-          statusTimeline: orderRecord.statusTimeline,
+      statusTimeline: [
+        {
+          status: 'CONFIRMED',
+          label: 'Order Confirmed & Stock Reserved',
+          timestamp: input.timestamp,
+          note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
+          emailSent: true,
         },
-      })
-      .catch(() => {})
+      ],
+    },
+  })
+
+  if (input.userId) {
+    await syncCartWithPayload(input.userId, []).catch(() => {})
   }
 
   return {
@@ -405,26 +398,167 @@ async function commitOrderAndDocumentsStep(input: {
   }
 }
 
+async function runOrderFulfillmentLoop(params: {
+  orderId: string
+  reservationKey: string
+  paymentOption: PaymentOptionType
+  fulfillmentTimeout?: WorkflowTimeoutValue
+}) {
+  using fulfillmentHook = orderFulfillmentHook.create({
+    token: getOrderFulfillmentHookToken(params.orderId),
+  })
+
+  const deadlinePromise = params.fulfillmentTimeout
+    ? sleepForTimeout(params.fulfillmentTimeout).then(() => ({ timedOut: true as const }))
+    : null
+
+  const iterator = fulfillmentHook[Symbol.asyncIterator]()
+  while (true) {
+    const nextPromise = iterator.next().then((res) =>
+      res.done
+        ? ({ timedOut: true as const })
+        : ({ timedOut: false as const, event: res.value }),
+    )
+
+    const outcome = deadlinePromise
+      ? await Promise.race([nextPromise, deadlinePromise])
+      : await nextPromise
+
+    if (outcome.timedOut) {
+      const timeoutReason = `Reservation window (${String(params.fulfillmentTimeout)}) expired; reserved stock released.`
+      await releaseReservedStockStep({
+        reservationKey: params.reservationKey,
+        reason: timeoutReason,
+      })
+      await applyOrderStatusStep({
+        orderId: params.orderId,
+        nextStatus: 'CANCELLED',
+        note: timeoutReason,
+        releaseStock: false,
+      })
+      return {
+        orderId: params.orderId,
+        finalStatus: 'CANCELLED' as const,
+        stockCommitted: false,
+        stockReleased: true,
+        timedOut: true,
+      }
+    }
+
+    const { event } = outcome
+    const effectiveStatus: Order['orderStatus'] = event.deliveryFailed
+      ? 'CANCELLED'
+      : event.nextStatus
+
+    if (effectiveStatus === 'CANCELLED') {
+      const cancelReason =
+        event.note ||
+        (event.deliveryFailed
+          ? 'Delivery failed; reserved stock released.'
+          : 'Order cancelled; reserved stock released.')
+      await releaseReservedStockStep({
+        reservationKey: params.reservationKey,
+        reason: cancelReason,
+      })
+      await applyOrderStatusStep({
+        orderId: params.orderId,
+        nextStatus: 'CANCELLED',
+        note: cancelReason,
+        deliveryFailed: event.deliveryFailed,
+        releaseStock: false,
+      })
+      return {
+        orderId: params.orderId,
+        finalStatus: 'CANCELLED' as const,
+        stockCommitted: false,
+        stockReleased: true,
+        timedOut: false,
+      }
+    }
+
+    if (
+      (params.paymentOption === 'pay_then_collect' &&
+        (effectiveStatus === 'READY_FOR_COLLECTION' || effectiveStatus === 'COMPLETED')) ||
+      effectiveStatus === 'COMPLETED'
+    ) {
+      await commitOrderStockStep({ reservationKey: params.reservationKey })
+      await applyOrderStatusStep({
+        orderId: params.orderId,
+        nextStatus: effectiveStatus,
+        note: event.note,
+        commitStock: false,
+      })
+      return {
+        orderId: params.orderId,
+        finalStatus: effectiveStatus,
+        stockCommitted: true,
+        stockReleased: false,
+        timedOut: false,
+      }
+    }
+
+    await applyOrderStatusStep({
+      orderId: params.orderId,
+      nextStatus: effectiveStatus,
+      note: event.note,
+    })
+  }
+}
+
+export async function executeOrderFulfillmentWorkflow(params: {
+  orderId: string
+  reservationKey: string
+  paymentOption: PaymentOptionType
+  fulfillmentTimeout?: WorkflowTimeoutValue
+}) {
+  'use workflow'
+  return await runOrderFulfillmentLoop(params)
+}
+
 /**
  * Durable serverless checkout workflow using the `workflow` SDK.
- * Coordinates atomic stock reservation, payment authorization, rollback on failure,
- * order persistence, and ComposeIt PDF/HTML email dispatch.
+ * Coordinates atomic stock reservation, configurable payment & fulfillment windows,
+ * ComposeIt PDF/HTML email dispatch, and stock deduction or release on timeout/failure.
  */
 export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInput) {
   'use workflow'
 
   const timestamp = new Date().toISOString()
   const shortId = Math.floor(100000 + Math.random() * 900000)
-  const orderId = `ORD-${shortId}`
+  const orderId = input.orderId || `ORD-${shortId}`
   const invoiceNumber = `INV-${shortId}`
   const receiptNumber = `RCP-${shortId}`
   const reservationKey = input.idempotencyKey || `res_${orderId}`
   const paymentOption: PaymentOptionType = input.paymentOption || 'pay_and_delivery'
+  const optionMeta = PAYMENT_OPTIONS.find((o) => o.id === paymentOption) || PAYMENT_OPTIONS[0]
+
+  const paymentWaitTimeout: WorkflowTimeoutValue =
+    input.timeouts?.paymentWaitTimeout ?? WORKFLOW_TIMEOUT_DEFAULTS.paymentWaitTimeout
+  const payOnCollectionTimeout: WorkflowTimeoutValue =
+    input.timeouts?.payOnCollectionTimeout ?? WORKFLOW_TIMEOUT_DEFAULTS.payOnCollectionTimeout
+  const payOnDeliveryTimeout: WorkflowTimeoutValue =
+    input.timeouts?.payOnDeliveryTimeout ?? WORKFLOW_TIMEOUT_DEFAULTS.payOnDeliveryTimeout
+
+  const initialReservationTtl: WorkflowTimeoutValue =
+    paymentOption === 'pay_on_collection'
+      ? payOnCollectionTimeout
+      : paymentOption === 'pay_on_delivery'
+        ? payOnDeliveryTimeout
+        : paymentWaitTimeout
+
+  const fallbackTtlMs =
+    paymentOption === 'pay_on_collection'
+      ? 8 * 60 * 60 * 1000
+      : paymentOption === 'pay_on_delivery'
+        ? 24 * 60 * 60 * 1000
+        : 30 * 60 * 1000
 
   // Step 1: Reserve Stock Atomically
   const reservationOutcome = await reserveInventoryStep({
     reservationKey,
     orderId,
+    ttlDuration: initialReservationTtl,
+    fallbackTtlMs,
     rawItems: input.items,
   })
 
@@ -438,7 +572,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     }
   }
 
-  // Step 2: Process Payment (or Reserve for Pay-on-Delivery / Pay-on-Collection)
+  // Step 2: Process / Wait for Payment (30m configurable window for pay_and_delivery & pay_then_collect)
   const subTotal = input.items.reduce(
     (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1),
     0,
@@ -447,15 +581,82 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     paymentOption === 'pay_and_delivery' || paymentOption === 'pay_on_delivery' ? 12 : 0
   const grandTotal = Number((subTotal * 1.08 + deliveryFee).toFixed(2))
 
-  const paymentOutcome = await processPaymentTransactionStep({
-    paymentOption,
-    cardNumber: input.payment?.cardNumber,
-    simulatePaymentFailure: input.simulatePaymentFailure,
-    grandTotal,
-  })
+  let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
+  const requiresExternalPaymentHook =
+    optionMeta.requiresCardNow &&
+    (Boolean(input.awaitPaymentHook) ||
+      Boolean(input.simulatePaymentTimeout) ||
+      !input.payment?.cardNumber)
+
+  if (requiresExternalPaymentHook) {
+    using paymentHook = orderPaymentHook.create({
+      token: getOrderPaymentHookToken(orderId),
+    })
+
+    const paymentRace = await Promise.race([
+      paymentHook.then((payload) => ({ timedOut: false as const, payload })),
+      sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
+    ])
+
+    if (paymentRace.timedOut) {
+      const reason = `Payment not received within ${String(paymentWaitTimeout)}; workflow stopped and reserved stock released.`
+      await releaseReservedStockStep({ reservationKey, reason })
+      return {
+        success: false as const,
+        status: 408,
+        orderId,
+        reservationKey,
+        error: reason,
+        stockReleased: true,
+        timedOut: true,
+      }
+    }
+
+    paymentOutcome = await processPaymentTransactionStep({
+      paymentOption,
+      cardNumber: paymentRace.payload.cardNumber ?? input.payment?.cardNumber,
+      simulatePaymentFailure:
+        paymentRace.payload.simulatePaymentFailure ??
+        (!paymentRace.payload.authorized || input.simulatePaymentFailure),
+      grandTotal,
+      customError: paymentRace.payload.error,
+    })
+  } else if (optionMeta.requiresCardNow) {
+    const paymentRace = await Promise.race([
+      processPaymentTransactionStep({
+        paymentOption,
+        cardNumber: input.payment?.cardNumber,
+        simulatePaymentFailure: input.simulatePaymentFailure,
+        grandTotal,
+      }).then((result) => ({ timedOut: false as const, result })),
+      sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
+    ])
+
+    if (paymentRace.timedOut) {
+      const reason = `Payment authorization timed out after ${String(paymentWaitTimeout)}; reserved stock released.`
+      await releaseReservedStockStep({ reservationKey, reason })
+      return {
+        success: false as const,
+        status: 408,
+        orderId,
+        reservationKey,
+        error: reason,
+        stockReleased: true,
+        timedOut: true,
+      }
+    }
+
+    paymentOutcome = paymentRace.result
+  } else {
+    paymentOutcome = await processPaymentTransactionStep({
+      paymentOption,
+      cardNumber: input.payment?.cardNumber,
+      simulatePaymentFailure: input.simulatePaymentFailure,
+      grandTotal,
+    })
+  }
 
   if (!paymentOutcome.authorized || paymentOutcome.paymentStatus === 'FAILED') {
-    // Compensation Step: Release reserved stock immediately
     await releaseReservedStockStep({
       reservationKey,
       reason: paymentOutcome.error || 'Payment failed',
@@ -470,14 +671,21 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     }
   }
 
+  const fulfillmentTimeout: WorkflowTimeoutValue | undefined =
+    paymentOption === 'pay_on_collection'
+      ? payOnCollectionTimeout
+      : paymentOption === 'pay_on_delivery'
+        ? payOnDeliveryTimeout
+        : undefined
+
   try {
-    // Step 3 & 4: Commit Order, Decrement Stock, Generate PDFs & Send Email
-    const committed = await commitOrderAndDocumentsStep({
-      reservationKey,
+    // Step 3: Create Order, Generate Invoice/Receipt PDFs & Email (items remain reserved until fulfilled)
+    const committed = await createOrderAndDocumentsStep({
       orderId,
       invoiceNumber,
       receiptNumber,
       timestamp,
+      userId: input.userId,
       paymentOption,
       paymentResult: {
         paymentStatus: paymentOutcome.paymentStatus,
@@ -490,10 +698,38 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
       items: input.items,
     })
 
+    let fulfillmentOutcome: Awaited<ReturnType<typeof runOrderFulfillmentLoop>> | undefined
+    let fulfillmentRunId: string | undefined
+
+    if (input.waitForFulfillment) {
+      fulfillmentOutcome = await runOrderFulfillmentLoop({
+        orderId,
+        reservationKey,
+        paymentOption,
+        fulfillmentTimeout,
+      })
+    } else {
+      try {
+        const fulfillmentRun = await start(executeOrderFulfillmentWorkflow, [
+          {
+            orderId,
+            reservationKey,
+            paymentOption,
+            fulfillmentTimeout,
+          },
+        ])
+        fulfillmentRunId = fulfillmentRun.runId
+      } catch {
+        // Fulfillment can also be advanced directly via PATCH /api/storefront/orders
+      }
+    }
+
     return {
       success: true as const,
       status: 200,
       reservationKey,
+      fulfillmentRunId,
+      fulfillmentOutcome,
       order: {
         orderId,
         invoiceNumber,
@@ -501,7 +737,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
         issuedAt: timestamp,
         paymentOption,
         fulfillmentMethod: paymentOutcome.fulfillmentMethod,
-        orderStatus: committed.orderRecord.orderStatus,
+        orderStatus: fulfillmentOutcome?.finalStatus ?? committed.orderRecord.orderStatus,
         customer: committed.sharedTemplateData.customer,
         paymentSummary: committed.sharedTemplateData.paymentSummary,
         items: committed.sharedTemplateData.items,

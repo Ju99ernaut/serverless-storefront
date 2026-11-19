@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { Product } from '@/data/utils'
+import { getProductImages, type Product } from '@/data/utils'
 import { OptimizedImage } from '../ui/optimized-image'
 
 interface RelatedProductsSectionProps {
@@ -21,7 +21,7 @@ export function RelatedProductsSection({ relatedProducts }: RelatedProductsSecti
           >
             <div className="flex h-36 items-center justify-center rounded-none bg-secondary p-3">
               <OptimizedImage
-                src={rel.images[0] || '/images/shirt.png'}
+                src={getProductImages(rel)[0]}
                 alt={rel.title}
                 width={160}
                 height={160}

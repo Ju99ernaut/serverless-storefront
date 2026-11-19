@@ -43,6 +43,15 @@ export const Orders: CollectionConfig = {
       index: true,
     },
     {
+      name: 'neonUserId',
+      type: 'text',
+      index: true,
+    },
+    {
+      name: 'issuedAt',
+      type: 'text',
+    },
+    {
       name: 'customerEmail',
       type: 'text',
       required: true,
@@ -167,6 +176,7 @@ export const Orders: CollectionConfig = {
         { name: 'emailMessageId', type: 'text' },
         { name: 'emailPreviewUrl', type: 'text' },
         { name: 'emailTemplateId', type: 'text' },
+        { name: 'renderedHtml', type: 'textarea' },
         { name: 'payloadPreviewJson', type: 'json' },
       ],
     },

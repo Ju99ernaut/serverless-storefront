@@ -14,10 +14,10 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from './ui/carousel'
-import type { BannerSlide } from '../data/utils'
+import type { Banner } from '../data/utils'
 
 interface BannerCarouselProps {
-  banners: BannerSlide[]
+  banners: Banner[]
   onCategorySelect: (filter: string) => void
 }
 
@@ -96,7 +96,7 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
                     <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                       <Button
                         type="button"
-                        onClick={() => onCategorySelect(slide.ctaFilter)}
+                        onClick={() => onCategorySelect(slide.ctaFilter || 'all')}
                         className="gap-2"
                       >
                         {slide.ctaText}

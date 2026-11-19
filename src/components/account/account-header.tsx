@@ -1,11 +1,11 @@
 'use client'
 
-import type { StoreUserRecord } from '@/data/utils'
+import type { NeonUser } from '@/data/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { getUserInitials } from '../user-menu'
 
 interface AccountHeaderProps {
-  user: StoreUserRecord
+  user: NeonUser
   ordersCount: number
   wishlistCount: number
   totalCartCount: number
@@ -21,7 +21,7 @@ export function AccountHeader({
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-none border border-border bg-card p-6">
       <div className="flex items-center gap-4">
         <Avatar className="h-14 w-14 border border-primary/40">
-          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.name} /> : null}
+          {user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
           <AvatarFallback className="text-lg">
             {getUserInitials(user.name, user.email)}
           </AvatarFallback>

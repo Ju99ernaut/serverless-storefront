@@ -10,7 +10,7 @@ import 'swiper/css/effect-coverflow'
 import 'swiper/css/zoom'
 import { AlertTriangle, Check, Heart, Plus, Star } from 'lucide-react'
 import { cn } from 'cn'
-import { getProductLowestAvailableVariantStock, type Product } from '../../data/utils'
+import { getProductImages, getProductLowestAvailableVariantStock, type Product } from '../../data/utils'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { OptimizedImage } from '../ui/optimized-image'
@@ -43,6 +43,7 @@ export function GridProductCard({
   onToggleWishlist,
 }: GridProductCardProps) {
   const stockStatus = getProductLowestAvailableVariantStock(product)
+  const productImages = getProductImages(product)
 
   return (
     <div
@@ -87,7 +88,7 @@ export function GridProductCard({
           pagination={{ clickable: true }}
           onAfterInit={onLayoutChange}
         >
-          {product.images.map((imgSrc, imgIdx) => {
+          {productImages.map((imgSrc, imgIdx) => {
             const isLcpCandidate = isPriorityCard && imgIdx === 0
             return (
               <SwiperSlide key={`${product.id}-slide-${imgIdx}`} className="slider__item">
@@ -124,12 +125,12 @@ export function GridProductCard({
           <div className="flex items-center gap-1.5">
             <span
               className="inline-flex items-center gap-0.5 font-semibold text-amber-500"
-              title={`${product.averageRating.toFixed(1)} out of 5 stars`}
+              title={`${(product.averageRating ?? 0).toFixed(1)} out of 5 stars`}
             >
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
-              {product.averageRating.toFixed(1)}
+              {(product.averageRating ?? 0).toFixed(1)}
             </span>
-            <span className="text-muted-foreground">({product.reviewCount})</span>
+            <span className="text-muted-foreground">({product.reviewCount ?? 0})</span>
           </div>
         </div>
       </div>

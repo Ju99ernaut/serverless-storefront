@@ -17,8 +17,8 @@ interface CartItemProps {
 const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
   const {
     cartItemId,
-    id,
-    slug,
+    productId,
+    productSlug,
     title,
     brand,
     selectedSize,
@@ -26,12 +26,12 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
     selectedColorHex,
     price,
     quantity,
-    images,
+    imageUrl,
     maxAvailableStock = 99,
   } = item
 
-  const itemKey = cartItemId || id
-  const imageUrl = images && images[0] ? images[0] : '/images/shirt.png'
+  const itemKey = cartItemId || productId
+  const displayImage = imageUrl || '/images/shirt.png'
   const isLowStock = maxAvailableStock > 0 && maxAvailableStock <= 5
 
   const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -48,14 +48,14 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
           className="w-[85%] h-[85%] object-contain"
           width={96}
           height={96}
-          src={imageUrl}
+          src={displayImage}
           alt={title}
         />
       </div>
       <div className="flex flex-1 justify-between">
         <div className="flex flex-col">
           <Link
-            href={`/products/${slug || id}`}
+            href={`/products/${productSlug || productId}`}
             className="font-bold hover:text-primary transition-colors"
           >
             {title}

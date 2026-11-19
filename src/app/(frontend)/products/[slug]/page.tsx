@@ -12,7 +12,7 @@ import {
   useWishlist,
 } from '@/context'
 import { fetchProductBySlugWithReviews } from '@/lib/payload-sdk'
-import type { Product, ProductVariant } from '@/data/utils'
+import { getProductImages, type Product, type ProductVariant } from '@/data/utils'
 import {
   ProductDetailSkeleton,
   ProductImageGallery,
@@ -38,7 +38,7 @@ export default function ProductDetailPage() {
 
   const fallbackProduct = useMemo(() => {
     const products = catalog?.products ?? []
-    return products.find((p) => p.slug === slug || p.id === slug) || null
+    return products.find((p) => p.slug === slug || String(p.id) === slug) || null
   }, [catalog?.products, slug])
 
   const productDetailQuery = useQuery({
@@ -60,14 +60,15 @@ export default function ProductDetailPage() {
 
   // Synchronize default color and size when product loads
   useEffect(() => {
-    if (!product || !product.variants || product.variants.length === 0) return
+    const variants = product?.variants
+    if (!variants || variants.length === 0) return
     const firstInStock =
-      product.variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || product.variants[0]
+      variants.find((v) => v.stock - (v.reservedStock || 0) > 0) || variants[0]
     setSelectedColor((prev) =>
-      product.variants.some((v) => v.color === prev) ? prev : firstInStock.color,
+      variants.some((v) => v.color === prev) ? prev : firstInStock.color,
     )
     setSelectedSize((prev) =>
-      product.variants.some((v) => v.size === prev) ? prev : firstInStock.size,
+      variants.some((v) => v.size === prev) ? prev : firstInStock.size,
     )
   }, [product])
 
@@ -120,7 +121,7 @@ export default function ProductDetailPage() {
   }, [availableStock, quantity])
 
   const galleryImages = useMemo(() => {
-    const imgs = [...(product?.images || ['/images/shirt.png'])]
+    const imgs = product ? [...getProductImages(product)] : ['/images/shirt.png']
     if (activeVariant?.imageUrl && !imgs.includes(activeVariant.imageUrl)) {
       imgs.unshift(activeVariant.imageUrl)
     }
@@ -155,7 +156,7 @@ export default function ProductDetailPage() {
       {/* Product Showcase Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <ProductImageGallery
-          productId={product.id}
+          productId={String(product.id)}
           productTitle={product.title}
           galleryImages={galleryImages}
           activeVariantImageUrl={activeVariant?.imageUrl || undefined}

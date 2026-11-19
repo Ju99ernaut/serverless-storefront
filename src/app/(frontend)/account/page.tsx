@@ -12,8 +12,8 @@ import {
   useCart,
   useWishlist,
 } from '../../../context'
-import { fetchUserOrdersViaSdk, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
-import type { StoreOrderRecord } from '../../../data/utils'
+import { getOrdersByUser, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
+import type { Order } from '../../../data/utils'
 import { Alert } from '../../../components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import {
@@ -42,13 +42,12 @@ function AccountPortalContent() {
   })
   const products = catalog?.products ?? []
 
-  const { data: ordersData } = useQuery({
-    queryKey: storefrontQueryKeys.orders(user?.email),
-    queryFn: () => fetchUserOrdersViaSdk(user!.email),
-    enabled: Boolean(user?.email),
+  const { data: orders = [] } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+    queryFn: () => getOrdersByUser({ neonUserId: user?.id, email: user?.email }),
+    enabled: Boolean(user?.id || user?.email),
     ...CACHE_TIMES.orders,
   })
-  const orders = ordersData?.orders ?? []
 
   const [activeTab, setActiveTab] = useState(
     initialTab === 'wishlist' || initialTab === 'cart' || initialTab === 'profile'
@@ -74,10 +73,12 @@ function AccountPortalContent() {
     mutationFn: ({
       orderId,
       nextStatus,
+      deliveryFailed,
     }: {
       orderId: string
-      nextStatus: StoreOrderRecord['orderStatus']
-    }) => updateOrderStatusViaSdk({ orderId, nextStatus }),
+      nextStatus: Order['orderStatus']
+      deliveryFailed?: boolean
+    }) => updateOrderStatusViaSdk({ orderId, nextStatus, deliveryFailed }),
     onMutate: () => {
       setOrderNotice('')
     },
@@ -88,7 +89,9 @@ function AccountPortalContent() {
         }`,
       )
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.orders(user?.email) }),
+        queryClient.invalidateQueries({
+          queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+        }),
         queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog }),
       ])
     },
@@ -150,8 +153,12 @@ function AccountPortalContent() {
                 ? (advanceStatusMutation.variables?.orderId ?? null)
                 : null
             }
-            onAdvanceStatus={(orderId, nextStatus) =>
-              advanceStatusMutation.mutate({ orderId, nextStatus })
+            onAdvanceStatus={(orderId, nextStatus, options) =>
+              advanceStatusMutation.mutate({
+                orderId,
+                nextStatus,
+                deliveryFailed: options?.deliveryFailed,
+              })
             }
           />
         </TabsContent>

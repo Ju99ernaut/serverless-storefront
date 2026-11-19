@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { Resend } from 'resend'
 
 export const API_CONFIG = {
@@ -131,28 +132,38 @@ export async function generateViaApi({
     data,
   }
 
-  const res = await fetch(API_CONFIG.composeitApiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_CONFIG.composeitApiKey,
-    },
-    body: JSON.stringify(payload),
-  })
+  try {
+    const { data: response } = await axios.post<ComposeItApiResponse>(
+      API_CONFIG.composeitApiUrl,
+      payload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_CONFIG.composeitApiKey,
+        },
+      },
+    )
 
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`Document API failed (${res.status}): ${errorText}`)
-  }
-
-  const response = (await res.json()) as ComposeItApiResponse
-
-  return {
-    templateId,
-    filename,
-    pdf: response.pdf,
-    html: response.html,
-    payloadSent: payload,
+    return {
+      templateId,
+      filename,
+      pdf: response.pdf,
+      html: response.html,
+      payloadSent: payload,
+    }
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status ?? 'ERR'
+      const errorData = err.response?.data
+      const errorText =
+        typeof errorData === 'string'
+          ? errorData
+          : errorData
+            ? JSON.stringify(errorData)
+            : err.message
+      throw new Error(`Document API failed (${status}): ${errorText}`)
+    }
+    throw err
   }
 }
 
