@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ShoppingCart, Star, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
 import { getProductTotalAvailableStock, type Product } from '../data/utils'
+import { Button } from './ui/button'
 
 interface CompareWrapperProps {
   compareItems: Product[]
@@ -20,7 +21,7 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
         return (
           <div key={product.id} className="compare__item">
             <div className="compare__effect">
-              <div className="w-40 h-40 flex items-center justify-center rounded-none bg-secondary p-3 border border-border">
+              <div className="w-40 h-40 flex items-center justify-center rounded-md bg-secondary p-3 border border-border">
                 <OptimizedImage
                   src={product.images[0] || '/images/shirt.png'}
                   alt={product.title}
@@ -48,30 +49,25 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
                 <Star className="h-3.5 w-3.5 fill-amber-400" aria-hidden="true" />
                 {product.averageRating.toFixed(1)} ({product.reviewCount} reviews)
               </span>
-              <button
-                type="button"
-                className="action action--button action--buy compare__buy-btn"
-                onClick={() => onAddToCart(product)}
-                disabled={totalAvail <= 0}
-              >
+              <Button type="button" onClick={() => onAddToCart(product)} disabled={totalAvail <= 0}>
                 <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-                <span className="action__text">
-                  {totalAvail > 0 ? 'Add to cart' : 'Out of Stock'}
-                </span>
-              </button>
+                <span>{totalAvail > 0 ? 'Add to cart' : 'Out of Stock'}</span>
+              </Button>
             </div>
           </div>
         )
       })}
-      <button
+      <Button
         type="button"
-        className="action action--close"
+        className="absolute top-3 right-3"
         onClick={onClose}
         aria-label="Close comparison overlay"
+        variant="outline"
+        size="icon"
       >
         <X className="h-5 w-5" aria-hidden="true" />
-        <span className="action__text action__text--invisible">Close comparison overlay</span>
-      </button>
+        <span className="sr-only">Close comparison overlay</span>
+      </Button>
     </section>
   )
 }

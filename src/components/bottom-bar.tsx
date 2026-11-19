@@ -83,7 +83,7 @@ const BottomBar = forwardRef<HTMLButtonElement, BottomBarProps>(
         >
           <ShoppingCart className="h-5 w-5" aria-hidden="true" />
           <span className="text-hidden">Shopping cart</span>
-          <span className="text-[9px] font-bold absolute top-[20%] left-[10px] h-[18px] w-[18px] py-1 bg-background rounded-full">
+          <span className="text-[9px] font-bold absolute top-[20%] left-[10px] h-[18px] w-[18px] py-1 bg-primary text-white rounded-full">
             {cartCount}
           </span>
         </Button>

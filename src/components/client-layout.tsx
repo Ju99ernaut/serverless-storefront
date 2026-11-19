@@ -9,7 +9,15 @@ import ScrollToTopButton from './scroll-to-top-button'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toast'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 export function ClientLayout({ children }: { children: ReactNode }) {
   return (

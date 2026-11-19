@@ -32,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.9em 1.5em;
-  color: var(--fg-primary);
+  color: var(--foreground);
   transition:
     color 0.15s,
     background-color 0.15s;
@@ -40,13 +40,13 @@
 
 .menu__link:hover,
 .menu__link:focus {
-  color: #5c5edc;
-  background: var(--surface-elevated);
+  color: var(--primary);
+  background: var(--secondary);
 }
 
 .menu__link--current {
-  color: #5c5edc;
-  background: rgba(92, 94, 220, 0.1);
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
 .menu__link--current::before {
@@ -57,7 +57,7 @@
   left: 0;
   width: 4px;
   border-radius: 0;
-  background: #5c5edc;
+  background: var(--primary);
 }
 
 [class^='animate-'],

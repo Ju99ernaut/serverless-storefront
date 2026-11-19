@@ -8,7 +8,7 @@ import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Checkbox } from './ui/checkbox'
 import { Alert } from './ui/alert'
-import { useStore } from '../context/store-context'
+import { useAuth, useCart } from '../context'
 import { Eye, EyeOff, Lock, Mail, User as UserIcon, Info, Loader2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
@@ -38,8 +38,8 @@ const signUpSchema = z.object({
 })
 
 export default function AuthModal() {
-  const { isAuthModalOpen, setIsAuthModalOpen, authModalIntent, cartItems, setIsCartOpen } =
-    useStore()
+  const { isAuthModalOpen, setIsAuthModalOpen, authModalIntent } = useAuth()
+  const { cartItems, setIsCartOpen } = useCart()
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -263,7 +263,10 @@ export default function AuthModal() {
                         checked={field.value}
                         onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                       />
-                      <FieldLabel htmlFor="auth-signin-remember" className="font-normal cursor-pointer">
+                      <FieldLabel
+                        htmlFor="auth-signin-remember"
+                        className="font-normal cursor-pointer"
+                      >
                         Remember me
                       </FieldLabel>
                     </Field>
@@ -411,7 +414,10 @@ export default function AuthModal() {
                         checked={field.value}
                         onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                       />
-                      <FieldLabel htmlFor="auth-signup-remember" className="font-normal cursor-pointer">
+                      <FieldLabel
+                        htmlFor="auth-signup-remember"
+                        className="font-normal cursor-pointer"
+                      >
                         Remember me
                       </FieldLabel>
                     </Field>

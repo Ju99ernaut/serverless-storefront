@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, MessageSquare, Star } from 'lucide-react'
 import { cn } from 'cn'
+import { storefrontQueryKeys, type ProductDetailResponse } from '@/context'
 import type { Product, ProductReviewItem, ProductVariant, StoreUserRecord } from '@/data/utils'
 import { submitProductReviewViaSdk } from '@/lib/payload-sdk'
 import { Alert } from '../ui/alert'
@@ -21,7 +23,6 @@ interface ProductReviewsSectionProps {
   loading: boolean
   user: StoreUserRecord | null
   onOpenAuthModal: () => void
-  onReviewSubmitted: (review: ProductReviewItem, updatedProduct: Product) => Promise<void>
 }
 
 export function ProductReviewsSection({
@@ -31,48 +32,60 @@ export function ProductReviewsSection({
   loading,
   user,
   onOpenAuthModal,
-  onReviewSubmitted,
 }: ProductReviewsSectionProps) {
+  const queryClient = useQueryClient()
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewTitle, setReviewTitle] = useState('')
   const [reviewComment, setReviewComment] = useState('')
-  const [reviewSubmitting, setReviewSubmitting] = useState(false)
   const [reviewError, setReviewError] = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
 
-  const handleReviewSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!user) return
-    if (!reviewTitle.trim() || !reviewComment.trim()) {
-      setReviewError('Please enter a review headline and comment.')
-      return
-    }
-
-    setReviewSubmitting(true)
-    setReviewError('')
-    setReviewSuccess('')
-
-    try {
-      const res = await submitProductReviewViaSdk({
+  const submitReviewMutation = useMutation({
+    mutationFn: () =>
+      submitProductReviewViaSdk({
         productSlug: product.slug,
-        authorName: user.name,
-        authorEmail: user.email,
+        authorName: user!.name,
+        authorEmail: user!.email,
         rating: reviewRating,
         title: reviewTitle.trim(),
         comment: reviewComment.trim(),
         variantSize: activeVariant?.size,
         variantColor: activeVariant?.color,
-      })
-      await onReviewSubmitted(res.review, res.product)
+      }),
+    onSuccess: async (res) => {
+      queryClient.setQueryData<ProductDetailResponse>(
+        storefrontQueryKeys.productDetail(product.slug),
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                product: res.product,
+                reviews: [res.review, ...prev.reviews],
+              }
+            : prev,
+      )
+      await queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog })
       setReviewTitle('')
       setReviewComment('')
       setReviewRating(5)
       setReviewSuccess('Thank you! Your review has been published.')
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       setReviewError(err instanceof Error ? err.message : 'Unable to submit review.')
-    } finally {
-      setReviewSubmitting(false)
+    },
+  })
+
+  const handleReviewSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!user || submitReviewMutation.isPending) return
+    if (!reviewTitle.trim() || !reviewComment.trim()) {
+      setReviewError('Please enter a review headline and comment.')
+      return
     }
+
+    setReviewError('')
+    setReviewSuccess('')
+    submitReviewMutation.mutate()
   }
 
   return (
@@ -89,7 +102,7 @@ export function ProductReviewsSection({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-bold text-[var(--fg-heading)]">
+                <span className="text-4xl font-bold text-foreground">
                   {product.averageRating.toFixed(1)}
                 </span>
                 <div className="space-y-1">
@@ -186,8 +199,12 @@ export function ProductReviewsSection({
                     />
                   </div>
 
-                  <Button type="submit" disabled={reviewSubmitting} className="w-full">
-                    {reviewSubmitting ? 'Publishing Review...' : 'Submit Review'}
+                  <Button
+                    type="submit"
+                    disabled={submitReviewMutation.isPending}
+                    className="w-full"
+                  >
+                    {submitReviewMutation.isPending ? 'Publishing Review...' : 'Submit Review'}
                   </Button>
                 </form>
               ) : (
@@ -275,8 +292,7 @@ export function ProductReviewsSection({
                     </div>
                     {(rev.variantColor || rev.variantSize) && (
                       <span className="text-[11px] text-muted-foreground">
-                        Purchased:{' '}
-                        {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
+                        Purchased: {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
                       </span>
                     )}
                   </div>

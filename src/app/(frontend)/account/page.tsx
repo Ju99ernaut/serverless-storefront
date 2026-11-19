@@ -2,9 +2,17 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Heart, Mail, Package, ShoppingBag, User as UserIcon } from 'lucide-react'
-import { useStore } from '../../../context/store-context'
-import { updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
+import {
+  CACHE_TIMES,
+  fetchCatalogData,
+  storefrontQueryKeys,
+  useAuth,
+  useCart,
+  useWishlist,
+} from '../../../context'
+import { fetchUserOrdersViaSdk, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
 import type { StoreOrderRecord } from '../../../data/utils'
 import { Alert } from '../../../components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
@@ -21,29 +29,32 @@ import {
 function AccountPortalContent() {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab')
+  const queryClient = useQueryClient()
 
-  const {
-    user,
-    orders,
-    products,
-    wishlistSlugs,
-    toggleWishlist,
-    cartItems,
-    totalCartCount,
-    setIsCartOpen,
-    addToCart,
-    removeCartItem,
-    openAuthModal,
-    updateProfile,
-    refreshUserOrders,
-  } = useStore()
+  const { user, openAuthModal } = useAuth()
+  const { cartItems, totalCartCount, setIsCartOpen, addToCart, removeCartItem } = useCart()
+  const { wishlistSlugs, toggleWishlist } = useWishlist()
+
+  const { data: catalog } = useQuery({
+    queryKey: storefrontQueryKeys.catalog,
+    queryFn: fetchCatalogData,
+    ...CACHE_TIMES.catalog,
+  })
+  const products = catalog?.products ?? []
+
+  const { data: ordersData } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.email),
+    queryFn: () => fetchUserOrdersViaSdk(user!.email),
+    enabled: Boolean(user?.email),
+    ...CACHE_TIMES.orders,
+  })
+  const orders = ordersData?.orders ?? []
 
   const [activeTab, setActiveTab] = useState(
     initialTab === 'wishlist' || initialTab === 'cart' || initialTab === 'profile'
       ? initialTab
       : 'orders',
   )
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [orderNotice, setOrderNotice] = useState('')
 
   useEffect(() => {
@@ -59,29 +70,32 @@ function AccountPortalContent() {
 
   const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug))
 
-  const handleAdvanceStatus = async (
-    orderId: string,
-    nextStatus: StoreOrderRecord['orderStatus'],
-  ) => {
-    setUpdatingOrderId(orderId)
-    setOrderNotice('')
-    try {
-      const res = await updateOrderStatusViaSdk({
-        orderId,
-        nextStatus,
-      })
+  const advanceStatusMutation = useMutation({
+    mutationFn: ({
+      orderId,
+      nextStatus,
+    }: {
+      orderId: string
+      nextStatus: StoreOrderRecord['orderStatus']
+    }) => updateOrderStatusViaSdk({ orderId, nextStatus }),
+    onMutate: () => {
+      setOrderNotice('')
+    },
+    onSuccess: async (res, variables) => {
       setOrderNotice(
-        `Order ${orderId} updated to "${nextStatus}". ${
+        `Order ${variables.orderId} updated to "${variables.nextStatus}". ${
           res.emailDispatched ? 'Email status notification dispatched to your inbox.' : ''
         }`,
       )
-      await refreshUserOrders()
-    } catch (err: unknown) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.orders(user?.email) }),
+        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog }),
+      ])
+    },
+    onError: (err: unknown) => {
       setOrderNotice(err instanceof Error ? err.message : 'Unable to update order status.')
-    } finally {
-      setUpdatingOrderId(null)
-    }
-  }
+    },
+  })
 
   if (!user) {
     return (
@@ -131,8 +145,14 @@ function AccountPortalContent() {
         <TabsContent value="orders">
           <AccountOrdersTab
             orders={orders}
-            updatingOrderId={updatingOrderId}
-            onAdvanceStatus={(orderId, nextStatus) => void handleAdvanceStatus(orderId, nextStatus)}
+            updatingOrderId={
+              advanceStatusMutation.isPending
+                ? (advanceStatusMutation.variables?.orderId ?? null)
+                : null
+            }
+            onAdvanceStatus={(orderId, nextStatus) =>
+              advanceStatusMutation.mutate({ orderId, nextStatus })
+            }
           />
         </TabsContent>
 
@@ -153,7 +173,7 @@ function AccountPortalContent() {
         </TabsContent>
 
         <TabsContent value="profile">
-          <AccountProfileTab user={user} onUpdateProfile={updateProfile} />
+          <AccountProfileTab user={user} />
         </TabsContent>
       </Tabs>
     </>

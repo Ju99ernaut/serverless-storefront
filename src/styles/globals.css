@@ -5,166 +5,138 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --bg-canvas-light: #f4f5fa;
-  --bg-canvas-dark: #2a2b30;
-  --surface-card-light: #ffffff;
-  --surface-card-dark: #24252a;
-  --surface-elevated-light: #eceef6;
-  --surface-elevated-dark: #2f3038;
-  --surface-hover-light: #e2e5f0;
-  --surface-hover-dark: #383a44;
-  --surface-drawer-light: #ffffff;
-  --surface-drawer-dark: #1c1d22;
-  --surface-bar-light: #e9ebf4;
-  --surface-bar-dark: #191a1b;
-  --fg-primary-light: #18191e;
-  --fg-primary-dark: #cecece;
-  --fg-heading-light: #111216;
-  --fg-heading-dark: #f0f0f0;
-  --fg-muted-light: #5e616e;
-  --fg-muted-dark: #8e909e;
-  --border-light: rgba(24, 25, 30, 0.12);
-  --border-dark: rgba(255, 255, 255, 0.12);
-  --brand-accent: #5c5edc;
-  --brand-accent-hover: #797bed;
-
-  --bg-canvas: var(--bg-canvas-dark);
-  --surface-card: var(--surface-card-dark);
-  --surface-elevated: var(--surface-elevated-dark);
-  --surface-hover: var(--surface-hover-dark);
-  --surface-drawer: var(--surface-drawer-dark);
-  --surface-bar: var(--surface-bar-dark);
-  --fg-primary: var(--fg-primary-dark);
-  --fg-heading: var(--fg-heading-dark);
-  --fg-muted: var(--fg-muted-dark);
-  --border-color: var(--border-dark);
-
-  --scrollbar-track: #1c1d22;
-  --scrollbar-thumb: #4b4d5a;
-
   color-scheme: light dark;
-  accent-color: var(--brand-accent);
+  accent-color: var(--primary);
+
+  --scrollbar-track: #e9ebf4;
+  --scrollbar-thumb: #9699ab;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 
-  @media (prefers-color-scheme: light) {
-    --bg-canvas: var(--bg-canvas-light);
-    --surface-card: var(--surface-card-light);
-    --surface-elevated: var(--surface-elevated-light);
-    --surface-hover: var(--surface-hover-light);
-    --surface-drawer: var(--surface-drawer-light);
-    --surface-bar: var(--surface-bar-light);
-    --fg-primary: var(--fg-primary-light);
-    --fg-heading: var(--fg-heading-light);
-    --fg-muted: var(--fg-muted-light);
-    --border-color: var(--border-light);
-    --scrollbar-track: #e9ebf4;
-    --scrollbar-thumb: #9699ab;
-  }
-
-  &:has(> head > meta[name='color-scheme'][content='dark']) {
-    color-scheme: dark;
-  }
-
-  &:has(> head > meta[name='color-scheme'][content='light']) {
-    color-scheme: light;
-  }
-
   --background: oklch(1 0 0);
-
   --foreground: oklch(0.145 0 0);
-
   --card: oklch(1 0 0);
-
   --card-foreground: oklch(0.145 0 0);
-
   --popover: oklch(1 0 0);
-
   --popover-foreground: oklch(0.145 0 0);
-
-  --primary: oklch(0.205 0 0);
-
-  --primary-foreground: oklch(0.985 0 0);
-
+  --primary: #5c5edc;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
-
   --secondary-foreground: oklch(0.205 0 0);
-
   --muted: oklch(0.97 0 0);
-
   --muted-foreground: oklch(0.556 0 0);
-
   --accent: oklch(0.97 0 0);
-
   --accent-foreground: oklch(0.205 0 0);
-
   --destructive: oklch(0.577 0.245 27.325);
-
   --border: oklch(0.922 0 0);
-
   --input: oklch(0.922 0 0);
-
   --ring: oklch(0.708 0 0);
-
   --chart-1: oklch(0.87 0 0);
-
   --chart-2: oklch(0.556 0 0);
-
   --chart-3: oklch(0.439 0 0);
-
   --chart-4: oklch(0.371 0 0);
-
   --chart-5: oklch(0.269 0 0);
-
   --radius: 0.625rem;
-
   --sidebar: oklch(0.985 0 0);
-
   --sidebar-foreground: oklch(0.145 0 0);
-
-  --sidebar-primary: oklch(0.205 0 0);
-
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: oklch(0.97 0 0);
-
   --sidebar-accent-foreground: oklch(0.205 0 0);
-
   --sidebar-border: oklch(0.922 0 0);
-
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-html.light,
-:root:has(> head > meta[name='color-scheme'][content='light']) {
-  --bg-canvas: var(--bg-canvas-light);
-  --surface-card: var(--surface-card-light);
-  --surface-elevated: var(--surface-elevated-light);
-  --surface-hover: var(--surface-hover-light);
-  --surface-drawer: var(--surface-drawer-light);
-  --surface-bar: var(--surface-bar-light);
-  --fg-primary: var(--fg-primary-light);
-  --fg-heading: var(--fg-heading-light);
-  --fg-muted: var(--fg-muted-light);
-  --border-color: var(--border-light);
-  --scrollbar-track: #e9ebf4;
-  --scrollbar-thumb: #9699ab;
-}
-
-html.dark,
-:root:has(> head > meta[name='color-scheme'][content='dark']) {
-  --bg-canvas: var(--bg-canvas-dark);
-  --surface-card: var(--surface-card-dark);
-  --surface-elevated: var(--surface-elevated-dark);
-  --surface-hover: var(--surface-hover-dark);
-  --surface-drawer: var(--surface-drawer-dark);
-  --surface-bar: var(--surface-bar-dark);
-  --fg-primary: var(--fg-primary-dark);
-  --fg-heading: var(--fg-heading-dark);
-  --fg-muted: var(--fg-muted-dark);
-  --border-color: var(--border-dark);
+.dark {
   --scrollbar-track: #1c1d22;
   --scrollbar-thumb: #4b4d5a;
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #5c5edc;
+  --primary-foreground: #ffffff;
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
 
 @supports not (scrollbar-color: auto) {
@@ -212,6 +184,7 @@ body {
 button {
   cursor: pointer;
 }
+
 /* Sticky top bar with named scroll-state container */
 .overflow-anchor-parent {
   overflow-anchor: none;
@@ -353,7 +326,7 @@ button {
 }
 
 .slider .swiper-pagination .swiper-pagination-bullet {
-  background: #5c5edc;
+  background: var(--primary);
 }
 
 /* Product meta */
@@ -368,7 +341,7 @@ button {
   font-size: 0.82em;
   font-weight: 600;
   display: block;
-  color: var(--fg-muted);
+  color: var(--muted-foreground);
 }
 
 .meta__title {
@@ -376,7 +349,7 @@ button {
   font-weight: 700;
   margin: 0;
   padding: 0.35em 0 0.1em;
-  color: var(--fg-heading);
+  color: var(--foreground);
 }
 
 .meta__price {
@@ -385,49 +358,14 @@ button {
   position: absolute;
   top: 0.35em;
   right: 0.25em;
-  color: #5c5edc;
+  color: var(--primary);
 }
 
 .product--selected {
-  box-shadow: 0 0 0 2px #5c5edc;
+  box-shadow: 0 0 0 2px var(--primary);
 }
 
 /* Action style */
-.action {
-  font-family: inherit;
-  font-size: 1rem;
-  position: relative;
-  overflow: hidden;
-  margin: 0;
-  padding: 0.35em;
-  cursor: pointer;
-  color: var(--fg-heading);
-  border: none;
-  background: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-}
-
-.action:focus {
-  outline: none;
-}
-
-.action--button {
-  color: var(--fg-heading);
-  border-radius: 0;
-  transition:
-    background 0.2s,
-    color 0.2s;
-  z-index: 2;
-}
-
-.no-touch .action--button:hover {
-  color: #5c5edc;
-  outline: none;
-}
-
 .text-hidden {
   position: absolute;
   width: 1px;
@@ -440,111 +378,12 @@ button {
   border: 0;
 }
 
-.action__text {
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  font-size: 0.813em;
-  vertical-align: middle;
-  display: inline-block;
-}
-
-.action__text--invisible {
-  position: absolute;
-  top: 10px;
-  left: 40px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Add to cart button on card */
-.action--buy:hover {
-  background: #5c5edc;
-  color: #fff !important;
-  border-color: #5c5edc;
-}
-
-.no-touch .action--buy,
-.no-touch .action--compare-add,
-.no-touch .action--wishlist-add {
-  opacity: 0;
-}
-
-.no-touch .grid__item:hover .action--buy,
-.no-touch .grid__item:hover .action--compare-add,
-.no-touch .grid__item:hover .action--wishlist-add,
-.action--compare-add[data-active='true'],
-.action--wishlist-add[data-active='true'] {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-}
-
-.action--close {
-  position: absolute;
-  overflow: hidden;
-  top: 16px;
-  right: 16px;
-  font-size: 1.25em;
-  color: var(--fg-heading);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: 0;
-  width: 42px;
-  height: 42px;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    opacity 0.3s,
-    background 0.2s;
-}
-
-.view--compare + .compare .action--close {
-  pointer-events: auto;
-  opacity: 1;
-  transition-delay: 0.4s, 0s;
-}
-
-.action--close:hover,
-.action--close:focus {
-  color: #797bed;
-}
-
-.action--compare {
-  margin: 0 0 0 6px;
-  padding: 0.5em 1em;
-  opacity: 0;
-  pointer-events: none;
-  cursor: default;
-  background-color: var(--surface-elevated);
-  color: var(--fg-muted);
-  border-radius: 0;
-  transition: opacity 0.3s;
-}
-
 .compare-basket img {
   display: block;
   margin: 0 auto;
   max-width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-.compare-basket--active .action--compare {
-  opacity: 1;
-}
-
-.action--remove {
-  position: absolute;
-  overflow: hidden;
-  color: var(--fg-heading);
-  top: -4px;
-  right: -4px;
-  width: 20px;
-  height: 20px;
-  border-radius: 0;
-  background: #ef4444;
-  color: #fff;
-  padding: 0;
-  font-size: 0.65em;
 }
 
 .compare-basket {
@@ -554,8 +393,8 @@ button {
   position: fixed;
   top: 0;
   left: 0;
-  background: var(--surface-drawer);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--popover);
+  border-bottom: 1px solid var(--border);
   z-index: 1000;
   user-select: none;
   transform: translate3d(0, -100%, 0);
@@ -568,18 +407,6 @@ button {
 
 .compare-basket--active {
   transform: translate3d(0, 0, 0);
-}
-
-.product-icon {
-  display: block;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-color);
-  width: 48px;
-  height: 48px;
-  padding: 5px;
-  margin: 0 3px;
-  border-radius: 0;
-  position: relative;
 }
 
 /* comparison overlay */
@@ -620,8 +447,8 @@ button {
 .compare__item {
   height: 100%;
   width: 50%;
-  background: var(--surface-card);
-  border-right: 1px solid var(--border-color);
+  background: var(--card);
+  border-right: 1px solid var(--border);
   text-align: center;
   cursor: default;
   padding: 2em 1em;
@@ -631,7 +458,7 @@ button {
 }
 
 .compare__item:nth-of-type(2) {
-  background: var(--surface-drawer);
+  background: var(--popover);
 }
 
 .compare__item .meta__title {
@@ -641,14 +468,14 @@ button {
 
 .compare__item .meta__price {
   position: static;
-  color: #5c5edc;
+  color: var(--primary);
   font-size: 1.25rem;
 }
 
 .compare__item span[class^='meta__'] {
   display: block;
   padding: 0.65em 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border);
 }
 
 .compare__item:first-of-type:nth-last-of-type(3),
@@ -716,38 +543,6 @@ button {
   }
 }
 
-/* Active category/subcategory filter banner */
-.active-filter-banner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: var(--surface-card);
-  border: 1px solid #5c5edc;
-  border-radius: 0;
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  color: var(--fg-heading);
-  margin-top: 0.5rem;
-}
-
-.active-filter-reset {
-  background: #5c5edc;
-  border: none;
-  color: #fff;
-  border-radius: 0;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.active-filter-reset:hover {
-  background: #797bed;
-}
-
 .compare__item .compare__buy-btn {
   position: relative;
   opacity: 1;
@@ -757,102 +552,13 @@ button {
   width: auto;
   min-width: 180px;
   height: auto;
-  background-color: #5c5edc;
-  border: 1px solid #5c5edc;
-  color: #fff;
+  background-color: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--primary-foreground);
   border-radius: 0;
 }
 
 .compare__item .compare__buy-btn:hover {
-  background-color: #494bc7;
-  color: #fff;
-}
-
-@theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+  background-color: color-mix(in oklab, var(--primary) 88%, black);
+  color: var(--primary-foreground);
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import BottomBar from '../../components/bottom-bar'
 import NavBar, { type SortOption } from '../../components/nav-bar'
@@ -10,16 +11,23 @@ import BannerCarousel from '../../components/banner-carousel'
 import Grid from '../../components/grid'
 import CompareBasket from '../../components/compare-basket'
 import CompareWrapper from '../../components/compare-wrapper'
-import { useStore } from '../../context/store-context'
+import { CACHE_TIMES, fetchCatalogData, storefrontQueryKeys, useCart } from '../../context'
 import { getFilterDisplayName, type Product } from '../../data/utils'
 import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
 
 const MAX_COMPARE_ITEMS = 3
 
 export default function HomePage() {
+  const { data: catalog } = useQuery({
+    queryKey: storefrontQueryKeys.catalog,
+    queryFn: fetchCatalogData,
+    ...CACHE_TIMES.catalog,
+  })
+  const products = useMemo(() => catalog?.products ?? [], [catalog?.products])
+  const banners = useMemo(() => catalog?.banners ?? [], [catalog?.banners])
+
   const {
-    products,
-    banners,
     cartItems,
     totalCartCount,
     isCartOpen,
@@ -29,7 +37,7 @@ export default function HomePage() {
     updateCartQuantity,
     removeCartItem,
     clearCart,
-  } = useStore()
+  } = useCart()
 
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -175,7 +183,11 @@ export default function HomePage() {
 
         {hasActiveCriteria && (
           <div className="mx-auto w-[92%] max-w-[1280px] mb-2 flex justify-center">
-            <div className="active-filter-banner" role="status" aria-live="polite">
+            <div
+              className="mt-8 inline-flex p-1 pl-3 text-xs items-center gap-2 bg-card border border-primary rounded-lg"
+              role="status"
+              aria-live="polite"
+            >
               <span>
                 Showing{' '}
                 <strong>
@@ -184,16 +196,16 @@ export default function HomePage() {
                 {searchQuery.trim() ? ` matching "${searchQuery.trim()}"` : ''} (
                 {visibleProductsCount} of {products.length})
               </span>
-              <button
+              <Button
                 type="button"
-                className="active-filter-reset"
+                size="sm"
                 onClick={() => {
                   setActiveFilter('all')
                   setSearchQuery('')
                 }}
               >
                 <X className="h-3 w-3" aria-hidden="true" /> Reset
-              </button>
+              </Button>
             </div>
           </div>
         )}

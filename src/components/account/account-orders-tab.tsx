@@ -1,15 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  FileText,
-  Mail,
-  Package,
-  Truck,
-} from 'lucide-react'
+import { CheckCircle2, Clock, ExternalLink, FileText, Mail, Package, Truck } from 'lucide-react'
 import type { StoreOrderRecord } from '@/data/utils'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
@@ -77,19 +69,18 @@ export function AccountOrdersTab({
     <div className="space-y-4">
       {orders.map((order) => {
         const statusBadge = STATUS_BADGE_MAP[order.orderStatus] || STATUS_BADGE_MAP.CONFIRMED
-        const isTerminal =
-          order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED'
+        const isTerminal = order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED'
 
         return (
           <Card key={order.orderId}>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-color)]">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <CardTitle>{order.orderId}</CardTitle>
                   <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
                   <Badge variant="secondary">Payment: {order.paymentStatus}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-[var(--fg-muted)]">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Placed {new Date(order.issuedAt).toLocaleString()} &bull;{' '}
                   {order.paymentMethodLabel} &bull; {order.fulfillmentMethod}
                 </p>
@@ -133,10 +124,10 @@ export function AccountOrdersTab({
                 {order.items.map((item, idx) => (
                   <div
                     key={`${order.orderId}-item-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] p-2.5 text-xs"
+                    className="flex items-center justify-between gap-3 rounded-none border border-border bg-secondary p-2.5 text-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-none bg-[var(--surface-card)] p-1 flex items-center justify-center border border-[var(--border-color)]">
+                      <div className="h-12 w-12 rounded-none bg-card p-1 flex items-center justify-center border border-border">
                         <OptimizedImage
                           src={item.imageUrl || '/images/shirt.png'}
                           alt={item.title}
@@ -148,27 +139,25 @@ export function AccountOrdersTab({
                       <div>
                         <Link
                           href={`/products/${item.productSlug}`}
-                          className="font-bold text-[var(--fg-heading)] hover:text-[#5C5EDC]"
+                          className="font-bold text-foreground hover:text-primary"
                         >
                           {item.title}
                         </Link>
-                        <div className="text-[var(--fg-muted)]">
+                        <div className="text-muted-foreground">
                           {item.color} / Size {item.size} &bull; Qty {item.quantity} &bull; SKU{' '}
                           <code>{item.variantSku}</code>
                         </div>
                       </div>
                     </div>
-                    <span className="font-bold text-[var(--fg-heading)]">
-                      ${item.lineTotal.toFixed(2)}
-                    </span>
+                    <span className="font-bold text-foreground">${item.lineTotal.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
 
               {/* Destination & Total */}
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs border-t border-[var(--border-color)] pt-3">
-                <div className="text-[var(--fg-muted)]">
-                  <strong className="text-[var(--fg-heading)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs border-t border-border pt-3">
+                <div className="text-muted-foreground">
+                  <strong className="text-foreground">
                     {order.fulfillmentMethod === 'COLLECTION'
                       ? 'Pickup Boutique:'
                       : 'Delivery Address:'}
@@ -177,14 +166,14 @@ export function AccountOrdersTab({
                     order.collectionLocation ||
                     'Flagship Storefront Atelier'}
                 </div>
-                <div className="text-sm font-bold text-[#797BED]">
+                <div className="text-sm font-bold text-primary">
                   Total: ${order.totals.grandTotal.toFixed(2)}
                 </div>
               </div>
 
               {/* Status Timeline */}
-              <div className="space-y-2 rounded-none border border-[var(--border-color)] bg-[var(--surface-drawer)] p-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+              <div className="space-y-2 rounded-none border border-border bg-popover p-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Live Tracking &amp; Email Updates
                 </div>
                 <div className="space-y-2.5 pt-1">
@@ -199,23 +188,19 @@ export function AccountOrdersTab({
                           aria-hidden="true"
                         />
                         <div>
-                          <div className="font-semibold text-[var(--fg-heading)]">
-                            {entry.label}
-                          </div>
-                          {entry.note && (
-                            <div className="text-[var(--fg-muted)]">{entry.note}</div>
-                          )}
+                          <div className="font-semibold text-foreground">{entry.label}</div>
+                          {entry.note && <div className="text-muted-foreground">{entry.note}</div>}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-[var(--fg-muted)]">
+                        <div className="text-muted-foreground">
                           {new Date(entry.timestamp).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                         </div>
                         {entry.emailSent && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-[#797BED]">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-primary">
                             <Mail className="h-2.5 w-2.5" aria-hidden="true" />
                             Emailed
                           </span>
@@ -226,8 +211,8 @@ export function AccountOrdersTab({
                 </div>
 
                 {!isTerminal && (
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--border-color)]">
-                    <span className="text-[11px] text-[var(--fg-muted)] mr-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
+                    <span className="text-[11px] text-muted-foreground mr-1">
                       Simulate Tracking Update (Emails Customer):
                     </span>
                     <Button

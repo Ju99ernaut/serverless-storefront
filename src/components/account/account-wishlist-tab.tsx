@@ -58,7 +58,7 @@ export function AccountWishlistTab({
           <CardContent className="p-4 flex flex-col gap-3">
             <Link
               href={`/products/${item.slug}`}
-              className="flex h-40 items-center justify-center rounded-none bg-[var(--surface-elevated)] p-3"
+              className="flex h-40 items-center justify-center rounded-none bg-secondary p-3"
             >
               <OptimizedImage
                 src={item.images[0] || '/images/shirt.png'}
@@ -71,11 +71,11 @@ export function AccountWishlistTab({
             <div>
               <Link
                 href={`/products/${item.slug}`}
-                className="font-bold text-sm text-[var(--fg-heading)] hover:text-[#5C5EDC]"
+                className="font-bold text-sm text-foreground hover:text-primary"
               >
                 {item.title}
               </Link>
-              <div className="text-xs text-[var(--fg-muted)]">
+              <div className="text-xs text-muted-foreground">
                 {item.brand} &bull; ${item.price}
               </div>
             </div>

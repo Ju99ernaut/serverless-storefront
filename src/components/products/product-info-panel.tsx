@@ -189,7 +189,6 @@ export function ProductInfoPanel({
         <div className="inline-flex items-center rounded-md border border-border bg-card">
           <Button
             type="button"
-            size="sm"
             onClick={onDecreaseQuantity}
             disabled={isOutOfStock || quantity <= 1}
             aria-label="Decrease quantity"
@@ -202,7 +201,6 @@ export function ProductInfoPanel({
           </span>
           <Button
             type="button"
-            size="sm"
             onClick={onIncreaseQuantity}
             disabled={isOutOfStock || quantity >= availableStock}
             aria-label="Increase quantity"
@@ -214,7 +212,6 @@ export function ProductInfoPanel({
 
         <Button
           type="button"
-          size="sm"
           onClick={onAddToCart}
           disabled={isOutOfStock}
           className="flex-1 gap-2 font-bold"
@@ -245,7 +242,7 @@ export function ProductInfoPanel({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onToggleWishlist}
           aria-label={wishlisted ? 'Remove from loved items' : 'Love item'}
           className="gap-1.5"

@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Heart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react'
-import { useStore } from '../context/store-context'
+import { CACHE_TIMES, storefrontQueryKeys, useAuth, useWishlist } from '../context'
+import { fetchUserOrdersViaSdk } from '../lib/payload-sdk'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import {
   DropdownMenu,
@@ -35,7 +37,15 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ className = '' }: UserMenuProps) {
-  const { user, openAuthModal, signOut, wishlistSlugs, orders } = useStore()
+  const { user, openAuthModal, signOut } = useAuth()
+  const { wishlistSlugs } = useWishlist()
+  const { data: ordersData } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.email),
+    queryFn: () => fetchUserOrdersViaSdk(user!.email),
+    enabled: Boolean(user?.email),
+    ...CACHE_TIMES.orders,
+  })
+  const orders = ordersData?.orders ?? []
 
   if (!user) {
     return (

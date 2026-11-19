@@ -21,11 +21,7 @@ interface AccountCartTabProps {
   onOpenCart: () => void
 }
 
-export function AccountCartTab({
-  cartItems,
-  onRemoveCartItem,
-  onOpenCart,
-}: AccountCartTabProps) {
+export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: AccountCartTabProps) {
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
@@ -52,7 +48,7 @@ export function AccountCartTab({
               {cartItems.map((ci) => (
                 <div
                   key={ci.cartItemId}
-                  className="flex items-center justify-between gap-3 rounded-none border border-[var(--border-color)] bg-[var(--surface-elevated)] p-3 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-none border border-border bg-secondary p-3 text-sm"
                 >
                   <div className="flex items-center gap-3">
                     <OptimizedImage
@@ -60,22 +56,22 @@ export function AccountCartTab({
                       alt={ci.title}
                       width={52}
                       height={52}
-                      className="h-12 w-12 object-contain rounded-none bg-[var(--surface-card)] p-1"
+                      className="h-12 w-12 object-contain rounded-none bg-card p-1"
                     />
                     <div>
                       <Link
                         href={`/products/${ci.slug}`}
-                        className="font-bold text-[var(--fg-heading)] hover:text-[#5C5EDC]"
+                        className="font-bold text-foreground hover:text-primary"
                       >
                         {ci.title}
                       </Link>
-                      <div className="text-xs text-[var(--fg-muted)]">
+                      <div className="text-xs text-muted-foreground">
                         {ci.selectedColor} / Size {ci.selectedSize} &bull; Qty {ci.quantity}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-[#797BED]">
+                    <span className="font-bold text-primary">
                       ${(ci.price * ci.quantity).toFixed(2)}
                     </span>
                     <Button

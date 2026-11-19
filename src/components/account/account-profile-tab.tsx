@@ -1,16 +1,9 @@
 'use client'
 
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react'
-import {
-  AlertCircle,
-  Camera,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Upload,
-  X,
-} from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AlertCircle, Camera, CheckCircle2, Eye, EyeOff, KeyRound, Upload, X } from 'lucide-react'
+import { postAccountAction, storefrontQueryKeys, useAuth, type OrdersResponse } from '@/context'
 import type { StoreUserRecord } from '@/data/utils'
 import { Alert } from '../ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
@@ -22,18 +15,12 @@ import { getUserInitials } from '../user-menu'
 
 interface AccountProfileTabProps {
   user: StoreUserRecord
-  onUpdateProfile: (params: {
-    name?: string
-    newEmail?: string
-    phone?: string
-    shippingAddress?: string
-    avatarUrl?: string | null
-    currentPassword?: string
-    newPassword?: string
-  }) => Promise<StoreUserRecord | undefined>
 }
 
-export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabProps) {
+export function AccountProfileTab({ user }: AccountProfileTabProps) {
+  const queryClient = useQueryClient()
+  const { setUser } = useAuth()
+
   const [profileName, setProfileName] = useState(user.name || '')
   const [profileEmail, setProfileEmail] = useState(user.email || '')
   const [profilePhone, setProfilePhone] = useState(user.phone || '')
@@ -46,7 +33,6 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [savingProfile, setSavingProfile] = useState(false)
   const [profileSavedMsg, setProfileSavedMsg] = useState('')
   const [profileErrorMsg, setProfileErrorMsg] = useState('')
 
@@ -57,6 +43,40 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
     setProfileAddress(user.shippingAddresses?.[0]?.streetAddress || '')
     setProfileAvatarUrl(user.avatarUrl || '')
   }, [user])
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (params: {
+      name?: string
+      newEmail?: string
+      phone?: string
+      shippingAddress?: string
+      avatarUrl?: string | null
+      currentPassword?: string
+      newPassword?: string
+    }) =>
+      postAccountAction({
+        action: 'update_profile',
+        email: user.email,
+        ...params,
+      }),
+    onSuccess: (res) => {
+      const prevEmail = user.email
+      setUser(res.user)
+      queryClient.setQueryData<OrdersResponse>(storefrontQueryKeys.orders(res.user.email), {
+        orders: res.orders || [],
+      })
+      if (prevEmail && prevEmail !== res.user.email) {
+        queryClient.removeQueries({ queryKey: storefrontQueryKeys.orders(prevEmail) })
+      }
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
+      setProfileSavedMsg('Profile details, email, password, and avatar updated successfully.')
+    },
+    onError: (err: unknown) => {
+      setProfileErrorMsg(err instanceof Error ? err.message : 'Unable to save profile updates.')
+    },
+  })
 
   const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -75,8 +95,9 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
     reader.readAsDataURL(file)
   }
 
-  const handleSaveProfile = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSaveProfile = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (updateProfileMutation.isPending) return
     setProfileSavedMsg('')
     setProfileErrorMsg('')
 
@@ -96,26 +117,15 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
       }
     }
 
-    setSavingProfile(true)
-    try {
-      await onUpdateProfile({
-        name: profileName.trim(),
-        newEmail: profileEmail.trim(),
-        phone: profilePhone.trim(),
-        shippingAddress: profileAddress.trim(),
-        avatarUrl: profileAvatarUrl.trim() ? profileAvatarUrl.trim() : null,
-        currentPassword: currentPassword || undefined,
-        newPassword: newPassword || undefined,
-      })
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmNewPassword('')
-      setProfileSavedMsg('Profile details, email, password, and avatar updated successfully.')
-    } catch (err: unknown) {
-      setProfileErrorMsg(err instanceof Error ? err.message : 'Unable to save profile updates.')
-    } finally {
-      setSavingProfile(false)
-    }
+    updateProfileMutation.mutate({
+      name: profileName.trim(),
+      newEmail: profileEmail.trim(),
+      phone: profilePhone.trim(),
+      shippingAddress: profileAddress.trim(),
+      avatarUrl: profileAvatarUrl.trim() ? profileAvatarUrl.trim() : null,
+      currentPassword: currentPassword || undefined,
+      newPassword: newPassword || undefined,
+    })
   }
 
   return (
@@ -140,13 +150,13 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
           )}
 
           {/* Profile Picture Upload & URL */}
-          <div className="border border-[var(--border-color)] bg-[var(--surface-elevated)] p-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--fg-heading)]">
-              <Camera className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+          <div className="border border-border bg-secondary p-4 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+              <Camera className="h-4 w-4 text-primary" aria-hidden="true" />
               <span>Profile Picture</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              <Avatar className="h-16 w-16 border border-[#5C5EDC]/40">
+              <Avatar className="h-16 w-16 border border-primary/40">
                 {profileAvatarUrl ? (
                   <AvatarImage src={profileAvatarUrl} alt={profileName || 'Profile preview'} />
                 ) : null}
@@ -159,7 +169,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
                 <div className="flex flex-wrap items-center gap-2">
                   <label
                     htmlFor="profile-avatar-file"
-                    className="inline-flex h-9 items-center gap-1.5 border border-[var(--border-color)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--fg-heading)] hover:border-[#5C5EDC] hover:text-[#5C5EDC] transition-colors cursor-pointer"
+                    className="inline-flex h-9 items-center gap-1.5 border border-border bg-card px-3 text-xs font-semibold text-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
                   >
                     <Upload className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>Upload Photo</span>
@@ -187,7 +197,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
                 <div className="space-y-1">
                   <label
                     htmlFor="profile-avatar-url"
-                    className="text-[11px] font-semibold text-[var(--fg-muted)]"
+                    className="text-[11px] font-semibold text-muted-foreground"
                   >
                     Or paste image URL
                   </label>
@@ -205,10 +215,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label
-                htmlFor="profile-name"
-                className="text-xs font-semibold text-[var(--fg-heading)]"
-              >
+              <label htmlFor="profile-name" className="text-xs font-semibold text-foreground">
                 Full Name
               </label>
               <Input
@@ -223,10 +230,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
             </div>
 
             <div className="space-y-1">
-              <label
-                htmlFor="profile-email"
-                className="text-xs font-semibold text-[var(--fg-heading)]"
-              >
+              <label htmlFor="profile-email" className="text-xs font-semibold text-foreground">
                 Email Address
               </label>
               <Input
@@ -245,10 +249,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
           </div>
 
           <div className="space-y-1">
-            <label
-              htmlFor="profile-phone"
-              className="text-xs font-semibold text-[var(--fg-heading)]"
-            >
+            <label htmlFor="profile-phone" className="text-xs font-semibold text-foreground">
               Phone Number
             </label>
             <Input
@@ -263,10 +264,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
           </div>
 
           <div className="space-y-1">
-            <label
-              htmlFor="profile-address"
-              className="text-xs font-semibold text-[var(--fg-heading)]"
-            >
+            <label htmlFor="profile-address" className="text-xs font-semibold text-foreground">
               Default Shipping Address
             </label>
             <Textarea
@@ -280,16 +278,13 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
           </div>
 
           {/* Password Update Section */}
-          <div className="border border-[var(--border-color)] bg-[var(--surface-elevated)] p-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--fg-heading)]">
-              <KeyRound className="h-4 w-4 text-[#797BED]" aria-hidden="true" />
+          <div className="border border-border bg-secondary p-4 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+              <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
               <span>Change Password (Optional)</span>
             </div>
             <div className="space-y-1">
-              <label
-                htmlFor="current-password"
-                className="text-xs font-semibold text-[var(--fg-heading)]"
-              >
+              <label htmlFor="current-password" className="text-xs font-semibold text-foreground">
                 Current Password
               </label>
               <div className="relative">
@@ -310,7 +305,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
                     showCurrentPassword ? 'Hide current password' : 'Show current password'
                   }
                   aria-pressed={showCurrentPassword}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   {showCurrentPassword ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -323,10 +318,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label
-                  htmlFor="new-password"
-                  className="text-xs font-semibold text-[var(--fg-heading)]"
-                >
+                <label htmlFor="new-password" className="text-xs font-semibold text-foreground">
                   New Password
                 </label>
                 <div className="relative">
@@ -346,7 +338,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
                     onClick={() => setShowNewPassword((prev) => !prev)}
                     aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                     aria-pressed={showNewPassword}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--fg-muted)] hover:text-[var(--fg-heading)] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     {showNewPassword ? (
                       <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -360,7 +352,7 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
               <div className="space-y-1">
                 <label
                   htmlFor="confirm-new-password"
-                  className="text-xs font-semibold text-[var(--fg-heading)]"
+                  className="text-xs font-semibold text-foreground"
                 >
                   Confirm New Password
                 </label>
@@ -378,8 +370,8 @@ export function AccountProfileTab({ user, onUpdateProfile }: AccountProfileTabPr
             </div>
           </div>
 
-          <Button type="submit" disabled={savingProfile}>
-            {savingProfile ? 'Saving Profile...' : 'Save Changes'}
+          <Button type="submit" disabled={updateProfileMutation.isPending}>
+            {updateProfileMutation.isPending ? 'Saving Profile...' : 'Save Changes'}
           </Button>
         </form>
       </CardContent>

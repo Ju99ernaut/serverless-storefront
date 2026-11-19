@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, ShoppingCart } from 'lucide-react'
-import { useStore } from '@/context/store-context'
+import { useCart } from '@/context'
 import { Button, buttonVariants } from './ui/button'
 import Cart from './cart'
 import UserMenu from './user-menu'
@@ -21,7 +21,7 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
     updateCartQuantity,
     removeCartItem,
     clearCart,
-  } = useStore()
+  } = useCart()
 
   return (
     <>
@@ -56,6 +56,7 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
             <UserMenu />
             <Button
               type="button"
+              variant="secondary"
               size="sm"
               onClick={() => setIsCartOpen(true)}
               className="gap-1.5"

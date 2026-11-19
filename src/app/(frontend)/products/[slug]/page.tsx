@@ -1,10 +1,18 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useStore } from '@/context/store-context'
+import { useQuery } from '@tanstack/react-query'
+import {
+  CACHE_TIMES,
+  fetchCatalogData,
+  storefrontQueryKeys,
+  useAuth,
+  useCart,
+  useWishlist,
+} from '@/context'
 import { fetchProductBySlugWithReviews } from '@/lib/payload-sdk'
-import type { Product, ProductReviewItem, ProductVariant } from '@/data/utils'
+import type { Product, ProductVariant } from '@/data/utils'
 import {
   ProductDetailSkeleton,
   ProductImageGallery,
@@ -18,61 +26,37 @@ export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>()
   const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || ''
 
-  const {
-    products,
-    setIsCartOpen,
-    addToCart,
-    user,
-    isWishlisted,
-    toggleWishlist,
-    openAuthModal,
-    refreshCatalog,
-  } = useStore()
+  const { user, openAuthModal } = useAuth()
+  const { setIsCartOpen, addToCart } = useCart()
+  const { isWishlisted, toggleWishlist } = useWishlist()
 
-  const fallbackProduct = useMemo(
-    () => products.find((p) => p.slug === slug || p.id === slug) || null,
-    [products, slug],
-  )
+  const { data: catalog } = useQuery({
+    queryKey: storefrontQueryKeys.catalog,
+    queryFn: fetchCatalogData,
+    ...CACHE_TIMES.catalog,
+  })
 
-  const [product, setProduct] = useState<Product | null>(fallbackProduct)
-  const [reviews, setReviews] = useState<ProductReviewItem[]>([])
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(!fallbackProduct)
+  const fallbackProduct = useMemo(() => {
+    const products = catalog?.products ?? []
+    return products.find((p) => p.slug === slug || p.id === slug) || null
+  }, [catalog?.products, slug])
+
+  const productDetailQuery = useQuery({
+    queryKey: storefrontQueryKeys.productDetail(slug),
+    queryFn: () => fetchProductBySlugWithReviews(slug),
+    enabled: Boolean(slug),
+    ...CACHE_TIMES.productDetail,
+  })
+
+  const product = productDetailQuery.data?.product ?? fallbackProduct
+  const reviews = productDetailQuery.data?.reviews ?? []
+  const relatedProducts = productDetailQuery.data?.relatedProducts ?? []
+  const isInitialLoading = productDetailQuery.isLoading && !product
 
   const [selectedColor, setSelectedColor] = useState<string>('')
   const [selectedSize, setSelectedSize] = useState<string>('')
   const [quantity, setQuantity] = useState<number>(1)
   const [addedFeedback, setAddedFeedback] = useState(false)
-
-  useEffect(() => {
-    if (fallbackProduct && !product) {
-      setProduct(fallbackProduct)
-    }
-  }, [fallbackProduct, product])
-
-  useEffect(() => {
-    if (!slug) return
-    let cancelled = false
-    setLoading(true)
-    fetchProductBySlugWithReviews(slug)
-      .then((res) => {
-        if (cancelled) return
-        setProduct(res.product)
-        setReviews(res.reviews || [])
-        setRelatedProducts(res.relatedProducts || [])
-        setLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        if (fallbackProduct) {
-          setProduct(fallbackProduct)
-        }
-        setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [slug])
 
   // Synchronize default color and size when product loads
   useEffect(() => {
@@ -156,13 +140,7 @@ export default function ProductDetailPage() {
     setTimeout(() => setAddedFeedback(false), 3600)
   }
 
-  const handleReviewSubmitted = async (review: ProductReviewItem, updatedProduct: Product) => {
-    setReviews((prev) => [review, ...prev])
-    setProduct(updatedProduct)
-    await refreshCatalog()
-  }
-
-  if (loading && !product) {
+  if (isInitialLoading) {
     return <ProductDetailSkeleton />
   }
 
@@ -213,10 +191,9 @@ export default function ProductDetailPage() {
         product={product}
         activeVariant={activeVariant}
         reviews={reviews}
-        loading={loading}
+        loading={productDetailQuery.isLoading}
         user={user}
         onOpenAuthModal={() => openAuthModal('review')}
-        onReviewSubmitted={handleReviewSubmitted}
       />
 
       <RelatedProductsSection relatedProducts={relatedProducts} />
