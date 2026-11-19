@@ -77,8 +77,8 @@ export function CartBagStep({
             <span>${tax.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Shipping / Collection</span>
-            <span className="font-bold text-primary">From FREE ($12 Courier)</span>
+            <span className="text-muted-foreground">Delivery / Collection</span>
+            <span className="font-bold text-primary">FREE</span>
           </div>
           <Separator className="my-2" />
           <div className="flex items-center justify-between pb-1 text-base font-bold">

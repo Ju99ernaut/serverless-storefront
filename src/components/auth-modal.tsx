@@ -123,7 +123,7 @@ export default function AuthModal() {
 
   return (
     <Dialog open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-full h-full sm:h-auto sm:rounded-lg rounded-none">
         <DialogHeader>
           <DialogTitle>Account</DialogTitle>
           <DialogDescription>
