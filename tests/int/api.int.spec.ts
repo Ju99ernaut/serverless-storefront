@@ -132,6 +132,11 @@ function matchesWhere(doc: MockRecord, where: unknown): boolean {
         return false;
       }
     }
+    if ('greater_than' in op) {
+      if (String(val ?? '') <= String(op.greater_than ?? '')) {
+        return false;
+      }
+    }
   }
 
   return true;
@@ -441,36 +446,80 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
     expect(getLiveVariant(oxford.slug, variant.sku).stock).toBe(initialStock);
 
-    // 2. Concurrent / over-allocation check via Payload SDK
-    const r1 = await reserveVariantStockViaSdk({
-      reservationKey: 'res_double_1',
-      orderId: 'ORD-DBL-1',
-      items: [
-        {
-          productSlug: oxford.slug,
-          variantSku: variant.sku,
-          quantity: 2,
-        },
-      ],
-    });
-    expect(r1.success).toBe(true);
+    // 2. True concurrent race-condition check via Promise.all on same SKU (stock = 2)
+    const [r1, r2] = await Promise.all([
+      reserveVariantStockViaSdk({
+        reservationKey: 'res_double_1',
+        orderId: 'ORD-DBL-1',
+        items: [
+          {
+            productSlug: oxford.slug,
+            variantSku: variant.sku,
+            quantity: 2,
+          },
+        ],
+      }),
+      reserveVariantStockViaSdk({
+        reservationKey: 'res_double_2',
+        orderId: 'ORD-DBL-2',
+        items: [
+          {
+            productSlug: oxford.slug,
+            variantSku: variant.sku,
+            quantity: 2,
+          },
+        ],
+      }),
+    ]);
 
-    const r2 = await reserveVariantStockViaSdk({
-      reservationKey: 'res_double_2',
-      orderId: 'ORD-DBL-2',
-      items: [
-        {
-          productSlug: oxford.slug,
-          variantSku: variant.sku,
-          quantity: 1,
-        },
-      ],
-    });
-    expect(r2.success).toBe(false);
-    expect(r2.insufficientItems?.[0].available).toBe(0);
+    const outcomes = [r1, r2];
+    const succeeded = outcomes.filter((o) => o.success);
+    const rejected = outcomes.filter((o) => !o.success);
+    expect(succeeded).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].insufficientItems?.[0].available).toBe(0);
+    expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(2);
 
-    await releaseVariantStockViaSdk('res_double_1', 'Test cleanup');
+    await releaseVariantStockViaSdk(
+      succeeded[0].reservation!.reservationKey,
+      'Test cleanup'
+    );
     expect(getLiveVariant(oxford.slug, variant.sku).reservedStock).toBe(0);
+
+    // 3. Concurrent reservations on different SKUs of the same product must not overwrite each other
+    const [skuA, skuB] = await Promise.all([
+      reserveVariantStockViaSdk({
+        reservationKey: 'res_diff_sku_1',
+        orderId: 'ORD-DIFF-1',
+        items: [
+          {
+            productSlug: oxford.slug,
+            variantSku: 'PROD-1-SKY-S',
+            quantity: 1,
+          },
+        ],
+      }),
+      reserveVariantStockViaSdk({
+        reservationKey: 'res_diff_sku_2',
+        orderId: 'ORD-DIFF-2',
+        items: [
+          {
+            productSlug: oxford.slug,
+            variantSku: 'PROD-1-SKY-M',
+            quantity: 1,
+          },
+        ],
+      }),
+    ]);
+    expect(skuA.success).toBe(true);
+    expect(skuB.success).toBe(true);
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(1);
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(1);
+
+    await releaseVariantStockViaSdk('res_diff_sku_1', 'Test cleanup A');
+    await releaseVariantStockViaSdk('res_diff_sku_2', 'Test cleanup B');
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-S').reservedStock).toBe(0);
+    expect(getLiveVariant(oxford.slug, 'PROD-1-SKY-M').reservedStock).toBe(0);
   });
 
   it('exposes configurable defaults (30m payment, 8h pay-on-collection, 24h pay-on-delivery) and stops + releases stock if payment times out', async () => {
@@ -1114,7 +1163,6 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     const syncedCart = await syncCartWithPayload(neonUserId, [
       {
         product: oxford.id,
-        productId: String(oxford.id),
         productSlug: oxford.slug,
         cartItemId: 'PROD-1-SKY-M',
         variantSku: 'PROD-1-SKY-M',

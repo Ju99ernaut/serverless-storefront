@@ -163,7 +163,11 @@ const CartSidebar = ({
             }
           : undefined,
         items: items.map((item) => ({
-          id: item.productId,
+          id: String(
+            typeof item.product === 'object' && item.product !== null
+              ? item.product.id
+              : (item.product ?? item.productSlug),
+          ),
           slug: item.productSlug,
           variantSku: item.variantSku,
           title: item.title,

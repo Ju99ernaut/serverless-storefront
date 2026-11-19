@@ -17,7 +17,6 @@ interface CartItemProps {
 const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
   const {
     cartItemId,
-    productId,
     productSlug,
     title,
     brand,
@@ -30,7 +29,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
     maxAvailableStock = 99,
   } = item
 
-  const itemKey = cartItemId || productId
+  const itemKey = cartItemId || item.variantSku || productSlug
   const displayImage = imageUrl || '/images/shirt.png'
   const isLowStock = maxAvailableStock > 0 && maxAvailableStock <= 5
 
@@ -55,7 +54,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
       <div className="flex flex-1 justify-between">
         <div className="flex flex-col">
           <Link
-            href={`/products/${productSlug || productId}`}
+            href={`/products/${productSlug}`}
             className="font-bold hover:text-primary transition-colors"
           >
             {title}

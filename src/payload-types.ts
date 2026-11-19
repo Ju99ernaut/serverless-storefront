@@ -185,7 +185,6 @@ export interface Cart {
   items?:
     | {
         product?: (number | null) | Product;
-        productId: string;
         productSlug: string;
         cartItemId: string;
         variantSku: string;
@@ -620,7 +619,6 @@ export interface CartsSelect<T extends boolean = true> {
     | T
     | {
         product?: T;
-        productId?: T;
         productSlug?: T;
         cartItemId?: T;
         variantSku?: T;

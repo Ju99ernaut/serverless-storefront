@@ -26,7 +26,44 @@ export const sdk = new PayloadSDK<Config>({
   fetch: (input, init) => globalThis.fetch(input, init),
 });
 
-const activeSkuLocks = new Set<string>();
+const inventoryLockChains = new Map<string, Promise<void>>();
+
+async function acquireSingleLock(key: string): Promise<() => void> {
+  const prev = inventoryLockChains.get(key) ?? Promise.resolve();
+  let releaseFn!: () => void;
+  const current = new Promise<void>((resolve) => {
+    releaseFn = resolve;
+  });
+  const nextChain = prev.then(() => current);
+  inventoryLockChains.set(key, nextChain);
+  await prev;
+  return () => {
+    releaseFn();
+    if (inventoryLockChains.get(key) === nextChain) {
+      inventoryLockChains.delete(key);
+    }
+  };
+}
+
+async function withInventoryLock<T>(
+  keys: string[],
+  fn: () => Promise<T>
+): Promise<T> {
+  const sortedUniqueKeys = Array.from(
+    new Set(['__inventory_root__', ...keys])
+  ).sort();
+  const releases: Array<() => void> = [];
+  try {
+    for (const key of sortedUniqueKeys) {
+      releases.push(await acquireSingleLock(key));
+    }
+    return await fn();
+  } finally {
+    for (let i = releases.length - 1; i >= 0; i--) {
+      releases[i]();
+    }
+  }
+}
 
 export function parseWorkflowDurationMs(
   duration: string | number | undefined,
@@ -368,7 +405,6 @@ function normalizeCartItemsForPayload(items: CartLineItem[]): CartLineItem[] {
       typeof item.product === 'object' && item.product !== null
         ? item.product.id
         : (item.product ?? undefined),
-    productId: item.productId,
     productSlug: item.productSlug,
     cartItemId: item.cartItemId,
     variantSku: item.variantSku,
@@ -601,7 +637,7 @@ async function applyVariantInventoryAdjustments(
   }
 }
 
-export async function expireStaleReservationsViaSdk(): Promise<void> {
+async function expireStaleReservationsUnlocked(): Promise<void> {
   try {
     const nowIso = new Date().toISOString();
     const res = await sdk.find({
@@ -631,6 +667,12 @@ export async function expireStaleReservationsViaSdk(): Promise<void> {
   }
 }
 
+export async function expireStaleReservationsViaSdk(): Promise<void> {
+  return withInventoryLock(['__expire__'], () =>
+    expireStaleReservationsUnlocked()
+  );
+}
+
 export async function reserveVariantStockViaSdk(params: {
   reservationKey: string;
   orderId: string;
@@ -650,43 +692,53 @@ export async function reserveVariantStockViaSdk(params: {
     available: number;
   }>;
 }> {
-  await expireStaleReservationsViaSdk();
+  const productSlugs = params.items.map((i) => i.productSlug);
+  return withInventoryLock(productSlugs, async () => {
+    await expireStaleReservationsUnlocked();
 
-  const existingRes = await sdk.find({
-    collection: 'stock-reservations',
-    where: {
-      reservationKey: { equals: params.reservationKey },
-    },
-    limit: 1,
-  });
-  const existing = existingRes.docs?.[0];
-  if (existing && existing.status === 'RESERVED') {
-    return { success: true, reservation: existing };
-  }
-
-  for (const item of params.items) {
-    if (activeSkuLocks.has(item.variantSku)) {
-      return {
-        success: false,
-        error: `SKU ${item.variantSku} is currently locked by another concurrent checkout. Please retry.`,
-      };
-    }
-  }
-
-  try {
-    for (const item of params.items) {
-      activeSkuLocks.add(item.variantSku);
-    }
-
-    const uniqueSlugs = Array.from(new Set(params.items.map((i) => i.productSlug)));
-    const productsRes = await sdk.find({
-      collection: 'products',
+    const existingRes = await sdk.find({
+      collection: 'stock-reservations',
       where: {
-        slug: { in: uniqueSlugs },
+        reservationKey: { equals: params.reservationKey },
       },
-      limit: 100,
+      limit: 1,
     });
+    const existing = existingRes.docs?.[0];
+    if (existing && existing.status === 'RESERVED') {
+      return { success: true, reservation: existing };
+    }
+
+    const nowIso = new Date().toISOString();
+    const uniqueSlugs = Array.from(new Set(productSlugs));
+    const [productsRes, activeReservationsRes] = await Promise.all([
+      sdk.find({
+        collection: 'products',
+        where: {
+          slug: { in: uniqueSlugs },
+        },
+        limit: 100,
+      }),
+      sdk.find({
+        collection: 'stock-reservations',
+        where: {
+          status: { equals: 'RESERVED' },
+          expiresAt: { greater_than: nowIso },
+        },
+        limit: 200,
+      }),
+    ]);
+
     const products = productsRes.docs || [];
+    const activeReservedBySku = new Map<string, number>();
+    for (const resDoc of activeReservationsRes.docs || []) {
+      for (const resItem of resDoc.items || []) {
+        activeReservedBySku.set(
+          resItem.variantSku,
+          (activeReservedBySku.get(resItem.variantSku) ?? 0) +
+            (Number(resItem.quantity) || 0)
+        );
+      }
+    }
 
     const insufficient: Array<{
       variantSku: string;
@@ -699,6 +751,8 @@ export async function reserveVariantStockViaSdk(params: {
       variantSku: string;
       quantity: number;
     }> = [];
+
+    const pendingSkuQty = new Map<string, number>();
 
     for (const reqItem of params.items) {
       const product = products.find((p) => p.slug === reqItem.productSlug);
@@ -720,7 +774,13 @@ export async function reserveVariantStockViaSdk(params: {
         };
       }
 
-      const available = Math.max(0, variant.stock - variant.reservedStock);
+      const activeReservedFromLedger = activeReservedBySku.get(variant.sku) ?? 0;
+      const alreadyQueuedQty = pendingSkuQty.get(variant.sku) ?? 0;
+      const effectiveReserved =
+        Math.max(variant.reservedStock, activeReservedFromLedger) +
+        alreadyQueuedQty;
+      const available = Math.max(0, variant.stock - effectiveReserved);
+
       if (available < reqItem.quantity) {
         insufficient.push({
           variantSku: variant.sku,
@@ -728,6 +788,7 @@ export async function reserveVariantStockViaSdk(params: {
           available,
         });
       } else {
+        pendingSkuQty.set(variant.sku, alreadyQueuedQty + reqItem.quantity);
         resolvedItems.push({
           productSlug: product.slug,
           variantSku: variant.sku,
@@ -750,30 +811,55 @@ export async function reserveVariantStockViaSdk(params: {
       };
     }
 
-    await applyVariantInventoryAdjustments(resolvedItems, 'reserve');
-
     const ttlMs =
       typeof params.ttlMs === 'number' && params.ttlMs > 0
         ? params.ttlMs
         : 30 * 60 * 1000;
     const expiresAt = new Date(Date.now() + ttlMs).toISOString();
-    const reservation = await sdk.create({
-      collection: 'stock-reservations',
-      data: {
-        reservationKey: params.reservationKey,
-        orderId: params.orderId,
-        status: 'RESERVED',
-        expiresAt,
-        items: resolvedItems,
-      },
-    });
+
+    let reservation: StockReservation;
+    try {
+      reservation = await sdk.create({
+        collection: 'stock-reservations',
+        data: {
+          reservationKey: params.reservationKey,
+          orderId: params.orderId,
+          status: 'RESERVED',
+          expiresAt,
+          items: resolvedItems,
+        },
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unable to reserve inventory due to a concurrent checkout.',
+      };
+    }
+
+    try {
+      await applyVariantInventoryAdjustments(resolvedItems, 'reserve');
+    } catch (error) {
+      await sdk
+        .update({
+          collection: 'stock-reservations',
+          id: reservation.id,
+          data: {
+            status: 'RELEASED',
+            failureReason:
+              error instanceof Error
+                ? error.message
+                : 'Inventory adjustment failed',
+          },
+        })
+        .catch(() => undefined);
+      throw error;
+    }
 
     return { success: true, reservation };
-  } finally {
-    for (const item of params.items) {
-      activeSkuLocks.delete(item.variantSku);
-    }
-  }
+  });
 }
 
 async function findStockReservation(
@@ -797,63 +883,67 @@ export async function releaseVariantStockViaSdk(
   reservationKey: string,
   reason = 'Transaction failed or cancelled'
 ): Promise<StockReservation | null> {
-  const reservation = await findStockReservation(reservationKey);
-  if (!reservation) return null;
+  return withInventoryLock(['__release__', reservationKey], async () => {
+    const reservation = await findStockReservation(reservationKey);
+    if (!reservation) return null;
 
-  const items = (reservation.items || []).map((i) => ({
-    productSlug: i.productSlug,
-    variantSku: i.variantSku,
-    quantity: i.quantity,
-  }));
-
-  if (reservation.status === 'RESERVED') {
-    await applyVariantInventoryAdjustments(items, 'release_reserved');
-    return sdk.update({
-      collection: 'stock-reservations',
-      id: reservation.id,
-      data: {
-        status: 'RELEASED',
-        failureReason: reason,
-      },
-    });
-  }
-
-  if (reservation.status === 'COMMITTED') {
-    await applyVariantInventoryAdjustments(items, 'release_committed');
-    return sdk.update({
-      collection: 'stock-reservations',
-      id: reservation.id,
-      data: {
-        status: 'RELEASED',
-        failureReason: reason,
-      },
-    });
-  }
-
-  return reservation;
-}
-
-export async function commitVariantStockViaSdk(
-  reservationKey: string
-): Promise<StockReservation | null> {
-  const reservation = await findStockReservation(reservationKey);
-  if (!reservation) return null;
-
-  if (reservation.status === 'RESERVED') {
     const items = (reservation.items || []).map((i) => ({
       productSlug: i.productSlug,
       variantSku: i.variantSku,
       quantity: i.quantity,
     }));
-    await applyVariantInventoryAdjustments(items, 'commit');
-    return sdk.update({
-      collection: 'stock-reservations',
-      id: reservation.id,
-      data: {
-        status: 'COMMITTED',
-      },
-    });
-  }
 
-  return reservation;
+    if (reservation.status === 'RESERVED') {
+      await applyVariantInventoryAdjustments(items, 'release_reserved');
+      return sdk.update({
+        collection: 'stock-reservations',
+        id: reservation.id,
+        data: {
+          status: 'RELEASED',
+          failureReason: reason,
+        },
+      });
+    }
+
+    if (reservation.status === 'COMMITTED') {
+      await applyVariantInventoryAdjustments(items, 'release_committed');
+      return sdk.update({
+        collection: 'stock-reservations',
+        id: reservation.id,
+        data: {
+          status: 'RELEASED',
+          failureReason: reason,
+        },
+      });
+    }
+
+    return reservation;
+  });
+}
+
+export async function commitVariantStockViaSdk(
+  reservationKey: string
+): Promise<StockReservation | null> {
+  return withInventoryLock(['__commit__', reservationKey], async () => {
+    const reservation = await findStockReservation(reservationKey);
+    if (!reservation) return null;
+
+    if (reservation.status === 'RESERVED') {
+      const items = (reservation.items || []).map((i) => ({
+        productSlug: i.productSlug,
+        variantSku: i.variantSku,
+        quantity: i.quantity,
+      }));
+      await applyVariantInventoryAdjustments(items, 'commit');
+      return sdk.update({
+        collection: 'stock-reservations',
+        id: reservation.id,
+        data: {
+          status: 'COMMITTED',
+        },
+      });
+    }
+
+    return reservation;
+  });
 }

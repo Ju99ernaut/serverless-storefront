@@ -30,11 +30,6 @@ export const Carts: CollectionConfig = {
           relationTo: 'products',
         },
         {
-          name: 'productId',
-          type: 'text',
-          required: true,
-        },
-        {
           name: 'productSlug',
           type: 'text',
           required: true,

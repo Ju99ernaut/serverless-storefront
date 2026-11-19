@@ -28,11 +28,11 @@ const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1'
 function mergeCartItems(existing: CartLineItem[], incoming: CartLineItem[]): CartLineItem[] {
   const map = new Map<string, CartLineItem>()
   for (const item of existing) {
-    const key = item.variantSku || item.cartItemId || item.productId
+    const key = item.variantSku || item.cartItemId || item.productSlug
     map.set(key, { ...item })
   }
   for (const item of incoming) {
-    const key = item.variantSku || item.cartItemId || item.productId
+    const key = item.variantSku || item.cartItemId || item.productSlug
     const prev = map.get(key)
     if (prev) {
       map.set(key, {
@@ -217,7 +217,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ...prev,
           {
             product: liveProd.id,
-            productId: String(liveProd.id),
             productSlug: liveProd.slug,
             cartItemId: sku,
             variantSku: sku,
@@ -247,13 +246,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateCartQuantity = useCallback((cartItemId: string, nextQty: number) => {
     if (nextQty <= 0) {
       setCartItems((prev) =>
-        prev.filter((item) => item.cartItemId !== cartItemId && item.productId !== cartItemId),
+        prev.filter(
+          (item) =>
+            item.cartItemId !== cartItemId &&
+            item.variantSku !== cartItemId &&
+            item.productSlug !== cartItemId,
+        ),
       )
       return
     }
     setCartItems((prev) =>
       prev.map((item) =>
-        item.cartItemId === cartItemId || item.productId === cartItemId
+        item.cartItemId === cartItemId ||
+        item.variantSku === cartItemId ||
+        item.productSlug === cartItemId
           ? {
               ...item,
               quantity: Math.min(item.maxAvailableStock || 99, nextQty),
@@ -265,7 +271,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeCartItem = useCallback((cartItemId: string) => {
     setCartItems((prev) =>
-      prev.filter((item) => item.cartItemId !== cartItemId && item.productId !== cartItemId),
+      prev.filter(
+        (item) =>
+          item.cartItemId !== cartItemId &&
+          item.variantSku !== cartItemId &&
+          item.productSlug !== cartItemId,
+      ),
     )
   }, [])
 
