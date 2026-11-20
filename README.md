@@ -81,7 +81,41 @@ Environment variables defined in `.env.example`:
 - **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
 - **Payment Webhook Secret**: `PAYMENT_WEBHOOK_SECRET` (required for server-to-server `action: "payment"` callbacks)
 - **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & OneMoney mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
+- **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_STATE_DIR` (default `./.zimra`), `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
 - **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)
+
+### Optional: ZIMRA FDMS Fiscal Receipts & QR Code
+
+ZIMRA FDMS fiscalization (`src/lib/zimra-fdms.ts`) is **completely optional**. When the required environment variables are not set, checkout and receipt generation run normally without calling FDMS.
+
+When configured:
+
+1. **One-Time Device Registration**: Register your virtual fiscal device on the ZIMRA FDMS portal (test or production) to obtain your `deviceId`, `serialNumber`, and `activationKey`, then run a one-time registration script using `registerDevice` from `zimra-fdms`:
+
+   ```ts
+   import { registerDevice } from 'zimra-fdms'
+
+   const { keys, certificatePem } = await registerDevice(
+     { deviceId: 12345, serialNumber: 'MYPOS001', modelName: 'Server', modelVersion: 'v1' },
+     'ACTIVKEY',
+     { environment: 'test' },
+   )
+   ```
+
+   Store `certificatePem` and `keys.privateKeyPem` securely in `ZIMRA_FDMS_CERTIFICATE_PEM` and `ZIMRA_FDMS_PRIVATE_KEY_PEM` (with `\n` escaped for single-line `.env` entries).
+
+2. **Environment Configuration**:
+   - Set `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, and `ZIMRA_FDMS_PRIVATE_KEY_PEM` in `.env`.
+   - Set `ZIMRA_FDMS_ENVIRONMENT=test` for ZIMRA sandbox testing or `production` for production.
+   - Ensure `ZIMRA_FDMS_STATE_DIR` (default `./.zimra`) points to a persistent directory so the device's fiscal day state, receipt counters, and hash chain survive restarts (reconciled automatically via `device.reconcile()`).
+   - Optionally set `ZIMRA_FDMS_TAX_ID` and `ZIMRA_FDMS_TAX_PERCENT` to override the tax automatically selected from `device.getConfig().applicableTaxes`.
+
+3. **Receipt QR Code Output**:
+   - For paid orders, `createOrderAndDocumentsStep` submits the receipt to ZIMRA FDMS (automatically opening the fiscal day if closed) and attaches a `fiscal` object to the ComposeIt receipt PDF/email template payload and `order.fiscalReceipt`:
+     - `fiscal.qrData` — raw ZIMRA FDMS QR verification string
+     - `fiscal.qrCodeDataUrl` — pre-rendered PNG QR code data URL (`data:image/png;base64,...`) ready to embed in receipt templates via `<img src="{{fiscal.qrCodeDataUrl}}" />`
+     - `fiscal.deviceId`, `fiscal.fiscalDayNo`, `fiscal.receiptGlobalNo`, `fiscal.receiptCounter`, `fiscal.submittedAt`
+   - End-of-day closure can be triggered using `closeZimraFiscalDay()` from `src/lib/zimra-fdms.ts`.
 
 ### 4. Run Locally
 

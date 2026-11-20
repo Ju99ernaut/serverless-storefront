@@ -188,5 +188,18 @@ export const Orders: CollectionConfig = {
         { name: 'note', type: 'text' },
       ],
     },
+    {
+      name: 'fiscalReceipt',
+      type: 'group',
+      fields: [
+        { name: 'deviceId', type: 'number' },
+        { name: 'fiscalDayNo', type: 'number' },
+        { name: 'receiptGlobalNo', type: 'number' },
+        { name: 'receiptCounter', type: 'number' },
+        { name: 'qrData', type: 'text' },
+        { name: 'qrCodeDataUrl', type: 'textarea' },
+        { name: 'submittedAt', type: 'text' },
+      ],
+    },
   ],
 }

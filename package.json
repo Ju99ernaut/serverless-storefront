@@ -47,6 +47,7 @@
     "payload": "3.93.0",
     "paynow": "^2.2.2",
     "postcss": "^8.5.33",
+    "qrcode": "^1.5.4",
     "react": "19.2.9",
     "react-dom": "19.2.9",
     "react-hook-form": "^7.92.0",
@@ -58,6 +59,7 @@
     "tailwindcss": "^4.3.5",
     "tw-animate-css": "^1.4.0",
     "workflow": "^5.5.0",
+    "zimra-fdms": "^0.4.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -65,6 +67,7 @@
     "@testing-library/react": "16.3.0",
     "@types/node": "22.19.9",
     "@types/nodemailer": "^6.4.16",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "4.5.2",

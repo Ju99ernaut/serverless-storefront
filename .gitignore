@@ -50,3 +50,4 @@ node_modules/
 /playwright/.cache/
 /.swc
 /.pnpm-store
+/.zimra

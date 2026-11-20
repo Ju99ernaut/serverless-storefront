@@ -63,6 +63,15 @@ export interface OrderTemplateData {
     shipping: number
     grandTotal: number
   }
+  fiscal?: {
+    deviceId: number
+    fiscalDayNo?: number
+    receiptGlobalNo: number
+    receiptCounter: number
+    qrData: string
+    qrCodeDataUrl: string
+    submittedAt: string
+  }
   statusUpdateNote?: string
 }
 
@@ -282,6 +291,19 @@ export function buildOrderTemplateDataFromOrder(order: Order): OrderTemplateData
       shipping: centsToDollars(order.totals.shipping),
       grandTotal: centsToDollars(order.totals.grandTotal),
     },
+    ...(order.fiscalReceipt?.qrData
+      ? {
+          fiscal: {
+            deviceId: order.fiscalReceipt.deviceId ?? 0,
+            fiscalDayNo: order.fiscalReceipt.fiscalDayNo ?? undefined,
+            receiptGlobalNo: order.fiscalReceipt.receiptGlobalNo ?? 0,
+            receiptCounter: order.fiscalReceipt.receiptCounter ?? 0,
+            qrData: order.fiscalReceipt.qrData,
+            qrCodeDataUrl: order.fiscalReceipt.qrCodeDataUrl || '',
+            submittedAt: order.fiscalReceipt.submittedAt || issuedAt,
+          },
+        }
+      : {}),
   }
 }
 

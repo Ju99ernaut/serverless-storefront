@@ -425,6 +425,15 @@ export interface Order {
         id?: string | null;
       }[]
     | null;
+  fiscalReceipt?: {
+    deviceId?: number | null;
+    fiscalDayNo?: number | null;
+    receiptGlobalNo?: number | null;
+    receiptCounter?: number | null;
+    qrData?: string | null;
+    qrCodeDataUrl?: string | null;
+    submittedAt?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -835,6 +844,17 @@ export interface OrdersSelect<T extends boolean = true> {
         timestamp?: T;
         note?: T;
         id?: T;
+      };
+  fiscalReceipt?:
+    | T
+    | {
+        deviceId?: T;
+        fiscalDayNo?: T;
+        receiptGlobalNo?: T;
+        receiptCounter?: T;
+        qrData?: T;
+        qrCodeDataUrl?: T;
+        submittedAt?: T;
       };
   updatedAt?: T;
   createdAt?: T;

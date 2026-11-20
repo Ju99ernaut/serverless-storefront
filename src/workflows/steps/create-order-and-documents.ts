@@ -5,6 +5,7 @@ import {
   type OrderTemplateData,
 } from '../../lib/utils/document-email-service'
 import { clearUserCartServer, createOrderServer } from '../../lib/payload-server'
+import { submitFiscalReceiptIfConfigured } from '../../lib/zimra-fdms'
 import {
   calculateOrderTotalsCents,
   centsToDollars,
@@ -69,6 +70,34 @@ export async function createOrderAndDocumentsStep(input: {
       ? input.customer.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
       : input.customer.address || ''
 
+  // Optionally submit receipt to ZIMRA FDMS when configured (for paid orders) to attach fiscal QR code
+  let fiscalReceipt = null
+  if (input.paymentResult.paymentStatus === 'PAID') {
+    try {
+      fiscalReceipt = await submitFiscalReceiptIfConfigured({
+        invoiceNo: input.invoiceNumber,
+        paymentMethodLabel: input.paymentResult.methodLabel,
+        paymentOption: input.paymentOption,
+        currency: 'USD',
+        buyer: {
+          name: input.customer.name,
+          email: input.customer.email,
+          phone: input.customer.phone,
+        },
+        items: lineItems.map((item) => ({
+          title: item.title,
+          unitPriceCents: item.unitPrice,
+          quantity: item.quantity,
+        })),
+        taxCents,
+        shippingCents,
+        grandTotalCents,
+      })
+    } catch (err) {
+      console.error(`ZIMRA FDMS fiscalization failed for order ${input.orderId}:`, err)
+    }
+  }
+
   const sharedTemplateData: OrderTemplateData = {
     orderId: input.orderId,
     invoiceNumber: input.invoiceNumber,
@@ -101,6 +130,7 @@ export async function createOrderAndDocumentsStep(input: {
       shipping: centsToDollars(shippingCents),
       grandTotal: centsToDollars(grandTotalCents),
     },
+    ...(fiscalReceipt ? { fiscal: fiscalReceipt } : {}),
   }
 
   const subject = `Your Storefront Order ${input.orderId} — Invoice & Receipt (${input.paymentResult.methodLabel})`
@@ -200,6 +230,7 @@ export async function createOrderAndDocumentsStep(input: {
         note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
       },
     ],
+    ...(fiscalReceipt ? { fiscalReceipt } : {}),
   })
 
   if (input.userId) {

@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
     'file-type',
     'nodemailer',
     'paynow',
+    'zimra-fdms',
+    'qrcode',
   ],
   images: {
     localPatterns: [
