@@ -12,10 +12,11 @@ import Grid from './grid'
 import CompareBasket from './compare-basket'
 import CompareWrapper from './compare-wrapper'
 import { CACHE_TIMES, storefrontQueryKeys, useCart } from '../context'
-import { getFilterDisplayName, type Product } from '../lib/utils/data'
+import { getFilterDisplayName } from '../lib/utils/data'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { getCatalogData } from '@/lib/payload-sdk'
+import type { Product } from '@/payload-types'
 
 const MAX_COMPARE_ITEMS = 3
 

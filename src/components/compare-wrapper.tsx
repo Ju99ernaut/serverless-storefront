@@ -7,9 +7,9 @@ import {
   formatCentsAsDollars,
   getProductImages,
   getProductTotalAvailableStock,
-  type Product,
 } from '../lib/utils/data'
 import { Button } from './ui/button'
+import { Product } from '@/payload-types'
 
 interface CompareWrapperProps {
   compareItems: Product[]

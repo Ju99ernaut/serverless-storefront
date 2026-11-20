@@ -14,11 +14,11 @@ import {
   formatCentsAsDollars,
   getProductImages,
   getProductLowestAvailableVariantStock,
-  type Product,
 } from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { OptimizedImage } from '../ui/optimized-image'
+import type { Product } from '@/payload-types'
 
 interface GridProductCardProps {
   product: Product

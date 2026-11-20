@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Product, Wishlist } from '../lib/utils/data'
+import type { Product, Wishlist } from '@/payload-types'
 import {
   getWishlistByNeonUserId,
   syncWishlistWithPayload,

@@ -18,10 +18,10 @@ import {
   PAYMENT_OPTIONS,
   calculateOrderTotalsCents,
   centsToDollars,
-  type Order,
   type PaymentOptionType,
 } from '../lib/utils/data'
 import { applyOrderStatusStep } from './order-status-workflow'
+import type { Order } from '@/payload-types'
 
 export type WorkflowTimeoutValue =
   number | `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`

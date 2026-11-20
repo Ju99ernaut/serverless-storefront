@@ -7,7 +7,7 @@ import { cn } from 'cn'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { storefrontQueryKeys, type ProductDetailResponse } from '@/context'
-import type { NeonUser, Product, ProductVariant, Review } from '@/lib/utils/data'
+import type { NeonUser, ProductVariant } from '@/lib/utils/data'
 import { createProductReview } from '@/lib/payload-sdk'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
@@ -18,6 +18,7 @@ import { Input } from '../ui/input'
 import { Skeleton } from '../ui/skeleton'
 import { Textarea } from '../ui/textarea'
 import { toast } from '../ui/toast'
+import type { Product, Review } from '@/payload-types'
 
 const reviewSchema = z.object({
   rating: z.number().min(1, { message: 'Please select a rating.' }).max(5),

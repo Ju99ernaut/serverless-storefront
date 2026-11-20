@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     } = body || {}
 
     if (userId && userId !== sessionUser.id) {
-      return NextResponse.json({ error: 'Forbidden: session user mismatch.' }, { status: 403 })
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
     const customerName = customer?.name?.trim() || sessionUser.name

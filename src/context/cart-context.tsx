@@ -13,7 +13,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getProductImages, type CartLineItem, type Product } from '../lib/utils/data'
+import { getProductImages, type CartLineItem } from '../lib/utils/data'
 import { getCartByNeonUserId, syncCartWithPayload } from '../lib/payload-sdk'
 import {
   CACHE_TIMES,
@@ -22,6 +22,7 @@ import {
   type CatalogResponse,
 } from './query-keys'
 import { neonAuthClient } from '@/lib/auth-client'
+import type { Product } from '@/payload-types'
 
 const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1'
 
@@ -169,8 +170,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (product: Product, options?: AddToCartOptions) => {
       const cachedProducts =
         queryClient.getQueryData<CatalogResponse>(storefrontQueryKeys.catalog)?.products ?? []
-      const liveProd =
-        cachedProducts.find((p) => p.id === product.id || p.slug === product.slug) || product
+      const liveProd = (cachedProducts.find(
+        (p) => p.id === product.id || p.slug === product.slug,
+      ) || product) as Product
       const variants = liveProd.variants ?? []
       const defaultVariant =
         variants.find((v) => Math.max(0, v.stock - v.reservedStock) > 0) || variants[0]

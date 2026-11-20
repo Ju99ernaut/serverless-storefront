@@ -13,7 +13,6 @@ const getBaseURL = () => {
 
 export const sdk = new PayloadSDK({
   baseURL: getBaseURL(),
-  fetch: (input, init) => globalThis.fetch(input, init),
 })
 
 export async function getProducts() {
@@ -153,7 +152,7 @@ export async function getOrdersByUser(params: {
     return (res.docs || []).filter((o) =>
       Boolean(
         (neonUserId && o.neonUserId === neonUserId) ||
-          (email && o.customerEmail?.trim().toLowerCase() === email),
+        (email && o.customerEmail?.trim().toLowerCase() === email),
       ),
     )
   } catch (error) {
@@ -315,24 +314,11 @@ export async function upsertBillingDetails(params: {
 
 function normalizeCartItemsForPayload(items: CartLineItem[]): CartLineItem[] {
   return items.map((item) => ({
+    ...item,
     product:
       typeof item.product === 'object' && item.product !== null
         ? item.product.id
         : (item.product ?? undefined),
-    productSlug: item.productSlug,
-    cartItemId: item.cartItemId,
-    variantSku: item.variantSku,
-    title: item.title,
-    brand: item.brand,
-    category: item.category,
-    subcategory: item.subcategory,
-    selectedSize: item.selectedSize,
-    selectedColor: item.selectedColor,
-    selectedColorHex: item.selectedColorHex,
-    unitPrice: item.unitPrice,
-    price: item.price,
-    quantity: item.quantity,
-    maxAvailableStock: item.maxAvailableStock,
     imageUrl: item.imageUrl ?? undefined,
   }))
 }

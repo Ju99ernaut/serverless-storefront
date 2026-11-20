@@ -10,7 +10,7 @@ import {
   getOrdersByUser,
   updateOrderStatusViaSdk,
 } from '@/lib/payload-sdk'
-import { formatCentsAsDollars, type Order } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -25,6 +25,7 @@ import {
 import { OptimizedImage } from '../ui/optimized-image'
 import { toast } from '../ui/toast'
 import { neonAuthClient } from '@/lib/auth-client'
+import type { Order } from '@/payload-types'
 
 const STATUS_BADGE_MAP: Record<
   Order['orderStatus'],

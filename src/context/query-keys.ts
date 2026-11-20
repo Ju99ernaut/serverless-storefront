@@ -1,4 +1,4 @@
-import type { Banner, Order, Product, Review } from '../lib/utils/data'
+import type { Banner, Order, Product, Review } from '@/payload-types'
 
 export type AuthModalIntent = 'account' | 'checkout' | 'wishlist' | 'review'
 

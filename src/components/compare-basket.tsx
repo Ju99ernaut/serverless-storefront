@@ -2,9 +2,10 @@
 
 import { Check, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import { getProductImages, type Product } from '../lib/utils/data'
+import { getProductImages } from '../lib/utils/data'
 import { cn } from 'cn'
 import { Button } from './ui/button'
+import type { Product } from '@/payload-types'
 
 interface CompareBasketProps {
   compareItems: Product[]

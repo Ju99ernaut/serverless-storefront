@@ -9,7 +9,7 @@ export async function getServerPayload() {
 
 const inventoryLockChains = new Map<string, Promise<void>>()
 
-async function acquireSingleLock(key: string): Promise<() => void> {
+async function acquireSingleLock(key: string) {
   const prev = inventoryLockChains.get(key) ?? Promise.resolve()
   let releaseFn!: () => void
   const current = new Promise<void>((resolve) => {
@@ -41,10 +41,7 @@ async function withInventoryLock<T>(keys: string[], fn: () => Promise<T>): Promi
   }
 }
 
-export function parseWorkflowDurationMs(
-  duration: string | number | undefined,
-  fallbackMs: number,
-): number {
+export function parseWorkflowDurationMs(duration: string | number | undefined, fallbackMs: number) {
   if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
     return duration
   }
@@ -73,7 +70,7 @@ export function parseWorkflowDurationMs(
   return fallbackMs
 }
 
-export async function getOrderByOrderIdServer(orderId: string): Promise<Order | null> {
+export async function getOrderByOrderIdServer(orderId: string) {
   if (!orderId) return null
   try {
     const payload = await getServerPayload()
@@ -86,33 +83,31 @@ export async function getOrderByOrderIdServer(orderId: string): Promise<Order | 
       },
       limit: 1,
     })
-    return (res.docs?.[0] as Order | undefined) || null
+    return res.docs?.[0] || null
   } catch (error) {
     console.error(`Failed to fetch order "${orderId}":`, error)
     return null
   }
 }
 
-export async function createOrderServer(
-  data: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>,
-): Promise<Order> {
+export async function createOrderServer(data: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) {
   const payload = await getServerPayload()
-  return (await payload.create({
+  return payload.create({
     collection: 'orders',
     data,
-  })) as Order
+  })
 }
 
 export async function updateOrderServer(
   id: number,
   data: Partial<Omit<Order, 'id' | 'createdAt' | 'updatedAt'>>,
-): Promise<Order> {
+) {
   const payload = await getServerPayload()
-  return (await payload.update({
+  return payload.update({
     collection: 'orders',
     id,
     data,
-  })) as Order
+  })
 }
 
 export async function generateAndRecordOrderDocumentServer(params: {
@@ -154,7 +149,7 @@ export async function generateAndRecordOrderDocumentServer(params: {
   }
 }
 
-export async function clearUserCartServer(neonUserId: string): Promise<void> {
+export async function clearUserCartServer(neonUserId: string) {
   if (!neonUserId) return
   try {
     const payload = await getServerPayload()
@@ -183,17 +178,10 @@ export async function clearUserCartServer(neonUserId: string): Promise<void> {
 }
 
 function stripVariantIds(variants: NonNullable<Product['variants']>) {
-  return variants.map((v) => ({
-    sku: v.sku,
-    size: v.size,
-    color: v.color,
-    colorHex: v.colorHex,
-    priceOverride: v.priceOverride,
-    stock: v.stock,
-    reservedStock: v.reservedStock,
-    lowStockThreshold: v.lowStockThreshold,
-    imageUrl: v.imageUrl,
-  }))
+  return variants.map((v) => {
+    const { id: _, ...rest } = v
+    return rest
+  })
 }
 
 async function applyVariantInventoryAdjustments(
@@ -212,7 +200,7 @@ async function applyVariantInventoryAdjustments(
     limit: 100,
   })
 
-  const products = (productsRes.docs || []) as Product[]
+  const products = productsRes.docs || []
   for (const product of products) {
     const matchingItems = items.filter((i) => i.productSlug === product.slug)
     if (matchingItems.length === 0 || !product.variants) continue
@@ -252,7 +240,7 @@ async function applyVariantInventoryAdjustments(
   }
 }
 
-async function expireStaleReservationsUnlocked(): Promise<void> {
+async function expireStaleReservationsUnlocked() {
   try {
     const payload = await getServerPayload()
     const nowIso = new Date().toISOString()
@@ -265,7 +253,7 @@ async function expireStaleReservationsUnlocked(): Promise<void> {
       limit: 50,
     })
 
-    for (const reservation of (res.docs || []) as StockReservation[]) {
+    for (const reservation of res.docs || []) {
       const items = (reservation.items || []).map((i) => ({
         productSlug: i.productSlug,
         variantSku: i.variantSku,
@@ -283,7 +271,7 @@ async function expireStaleReservationsUnlocked(): Promise<void> {
   }
 }
 
-export async function expireStaleReservations(): Promise<void> {
+export async function expireStaleReservations() {
   return withInventoryLock(['__expire__'], () => expireStaleReservationsUnlocked())
 }
 
@@ -318,7 +306,7 @@ export async function reserveVariantStock(params: {
       },
       limit: 1,
     })
-    const existing = (existingRes.docs?.[0] as StockReservation | undefined) || undefined
+    const existing = existingRes.docs?.[0] || undefined
     if (existing && existing.status === 'RESERVED') {
       return { success: true, reservation: existing }
     }
@@ -343,9 +331,9 @@ export async function reserveVariantStock(params: {
       }),
     ])
 
-    const products = (productsRes.docs || []) as Product[]
+    const products = productsRes.docs || []
     const activeReservedBySku = new Map<string, number>()
-    for (const resDoc of (activeReservationsRes.docs || []) as StockReservation[]) {
+    for (const resDoc of activeReservationsRes.docs || []) {
       for (const resItem of resDoc.items || []) {
         activeReservedBySku.set(
           resItem.variantSku,
@@ -426,7 +414,7 @@ export async function reserveVariantStock(params: {
 
     let reservation: StockReservation
     try {
-      reservation = (await payload.create({
+      reservation = await payload.create({
         collection: 'stock-reservations',
         data: {
           reservationKey: params.reservationKey,
@@ -435,7 +423,7 @@ export async function reserveVariantStock(params: {
           expiresAt,
           items: resolvedItems,
         },
-      })) as StockReservation
+      })
     } catch (error) {
       return {
         success: false,
@@ -466,9 +454,7 @@ export async function reserveVariantStock(params: {
   })
 }
 
-async function findStockReservation(
-  reservationKeyOrOrderId: string,
-): Promise<StockReservation | null> {
+async function findStockReservation(reservationKeyOrOrderId: string) {
   const payload = await getServerPayload()
   const normalizedOrderId = reservationKeyOrOrderId.replace(/^res_/, '')
   const existingRes = await payload.find({
@@ -481,13 +467,13 @@ async function findStockReservation(
     },
     limit: 1,
   })
-  return (existingRes.docs?.[0] as StockReservation | undefined) || null
+  return existingRes.docs?.[0] || null
 }
 
 export async function releaseVariantStock(
   reservationKey: string,
   reason = 'Transaction failed or cancelled',
-): Promise<StockReservation | null> {
+) {
   return withInventoryLock(['__release__', reservationKey], async () => {
     const reservation = await findStockReservation(reservationKey)
     if (!reservation) return null
@@ -501,14 +487,14 @@ export async function releaseVariantStock(
     const payload = await getServerPayload()
     if (reservation.status === 'RESERVED') {
       await applyVariantInventoryAdjustments(items, 'release_reserved')
-      return (await payload.update({
+      return payload.update({
         collection: 'stock-reservations',
         id: reservation.id,
         data: {
           status: 'RELEASED',
           failureReason: reason,
         },
-      })) as StockReservation
+      })
     }
 
     if (reservation.status === 'COMMITTED') {
@@ -540,13 +526,13 @@ export async function commitVariantStock(reservationKey: string): Promise<StockR
       }))
       await applyVariantInventoryAdjustments(items, 'commit')
       const payload = await getServerPayload()
-      return (await payload.update({
+      return payload.update({
         collection: 'stock-reservations',
         id: reservation.id,
         data: {
           status: 'COMMITTED',
         },
-      })) as StockReservation
+      })
     }
 
     return reservation

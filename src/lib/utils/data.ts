@@ -1,30 +1,4 @@
-import type {
-  Banner,
-  BillingDetail,
-  Cart,
-  Category,
-  Media,
-  Order,
-  Product,
-  Review,
-  StockReservation,
-  User,
-  Wishlist,
-} from '../../payload-types'
-
-export type {
-  Banner,
-  BillingDetail,
-  Cart,
-  Category,
-  Media,
-  Order,
-  Product,
-  Review,
-  StockReservation,
-  User,
-  Wishlist,
-}
+import type { Cart, Order, Product, Wishlist } from '../../payload-types'
 
 export type PaymentOptionType = Order['paymentOption']
 export type ProductVariant = NonNullable<Product['variants']>[number]
@@ -77,7 +51,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_and_delivery',
     label: 'Pay Now & Home Delivery',
     shortLabel: 'Pay & Delivery',
-    description: 'Instant card checkout with tracked courier delivery to your doorstep.',
+    description: 'Instant express checkout with tracked courier delivery to your doorstep.',
     requiresCardNow: true,
     requiresShippingAddress: true,
     fulfillmentMethod: 'DELIVERY',
@@ -87,7 +61,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_then_collect',
     label: 'Pay Now & Store Collection',
     shortLabel: 'Pay then Collect',
-    description: 'Pay online now to lock in your items and pick up at our flagship atelier.',
+    description: 'Pay online now to lock in your items and pick up at our shop.',
     requiresCardNow: true,
     requiresShippingAddress: false,
     fulfillmentMethod: 'COLLECTION',
@@ -97,7 +71,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_on_delivery',
     label: 'Pay on Delivery (COD)',
     shortLabel: 'Pay on Delivery',
-    description: 'Reserve your clothing now and pay by card or cash when the courier arrives.',
+    description: 'Reserve your clothing now and pay when the courier arrives.',
     requiresCardNow: false,
     requiresShippingAddress: true,
     fulfillmentMethod: 'DELIVERY',

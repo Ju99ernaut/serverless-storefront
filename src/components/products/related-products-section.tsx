@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { formatCentsAsDollars, getProductImages, type Product } from '@/lib/utils/data'
+import { formatCentsAsDollars, getProductImages } from '@/lib/utils/data'
 import { OptimizedImage } from '../ui/optimized-image'
+import type { Product } from '@/payload-types'
 
 interface RelatedProductsSectionProps {
   relatedProducts: Product[]

@@ -7,7 +7,6 @@ import {
   verifyPaymentWebhookSecret,
 } from '@/lib/auth'
 import { generateAndRecordOrderDocumentServer, getOrderByOrderIdServer } from '@/lib/payload-server'
-import type { Order } from '@/lib/utils/data'
 import {
   getOrderFulfillmentHookToken,
   getOrderPaymentHookToken,
@@ -15,6 +14,7 @@ import {
   orderPaymentHook,
 } from '@/workflows/checkout-workflow'
 import { executeOrderStatusUpdateWorkflow } from '@/workflows/order-status-workflow'
+import type { Order } from '@/payload-types'
 
 const VALID_ORDER_STATUSES = new Set<Order['orderStatus']>([
   'PENDING',
@@ -60,7 +60,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'orderId is required.' }, { status: 400 })
     }
 
-    // 1. Payment webhook / authorization callback — strictly restricted to authorized payment webhook or admin/staff
     if (action === 'payment') {
       if (!isPaymentWebhookAuthorized && !isAuthorizedOperator) {
         if (!sessionUser) {
@@ -102,14 +101,12 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
-    // All remaining actions require an authenticated user or Payload admin
     if (!sessionUser && !isPayloadAdmin) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
     }
 
     const existingOrder = await getOrderByOrderIdServer(orderId)
 
-    // 2. On-demand Invoice / Receipt generation via ComposeIt — allowed for order owner or admin/staff
     if (action === 'generate_document') {
       if (!existingOrder) {
         return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 })
@@ -128,7 +125,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(result)
     }
 
-    // 3. Order status advancement / fulfillment transitions
     if (!nextStatus && !deliveryFailed) {
       return NextResponse.json({ error: 'orderId and nextStatus are required.' }, { status: 400 })
     }
@@ -145,7 +141,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 })
     }
 
-    // Determine whether this transition requires admin / authorized fulfillment staff
     const isCustomerSelfCancel = resolvedStatus === 'CANCELLED' && !deliveryFailed
 
     if (!isAuthorizedOperator) {

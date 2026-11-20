@@ -36,10 +36,8 @@ import {
   centsToDollars,
   formatCentsAsDollars,
   getProductLowestAvailableVariantStock,
-  type Order,
-  type Product,
-  type Review,
 } from '@/lib/utils/data'
+import type { Product, Review } from '@/payload-types'
 
 type MockRecord = Record<string, unknown> & {
   id: number

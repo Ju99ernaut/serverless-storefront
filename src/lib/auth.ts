@@ -4,11 +4,9 @@ import type { Order } from '../payload-types'
 import { getServerPayload } from './payload-server'
 
 export const neonAuth = createNeonAuth({
-  baseUrl: process.env.NEON_AUTH_BASE_URL || 'http://localhost:3000/api/auth',
+  baseUrl: process.env.NEON_AUTH_BASE_URL!,
   cookies: {
-    secret:
-      process.env.DB_SECRET ||
-      'default-storefront-payload-secret-key-at-least-32-chars',
+    secret: process.env.DB_SECRET!,
   },
   logLevel: 'silent',
 })
@@ -65,15 +63,10 @@ export async function getServerNeonUser(): Promise<AuthenticatedNeonUser | null>
   try {
     const { data: session } = await neonAuth.getSession()
     const user = session?.user
-    if (!user?.id) {
+    if (!user) {
       return null
     }
-    return {
-      id: String(user.id),
-      email: String(user.email || '').trim().toLowerCase(),
-      name: String(user.name || ''),
-      role: (user as { role?: string | null }).role ?? null,
-    }
+    return user
   } catch {
     return null
   }

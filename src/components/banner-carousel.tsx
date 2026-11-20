@@ -14,7 +14,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from './ui/carousel'
-import type { Banner } from '../lib/utils/data'
+import type { Banner } from '@/payload-types'
 
 interface BannerCarouselProps {
   banners: Banner[]
