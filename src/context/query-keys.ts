@@ -1,4 +1,3 @@
-import { getCatalogData } from '@/lib/payload-sdk'
 import type { Banner, Order, Product, Review } from '../lib/utils/data'
 
 export type AuthModalIntent = 'account' | 'checkout' | 'wishlist' | 'review'
@@ -26,22 +25,23 @@ export interface OrdersResponse {
   orders: Order[]
 }
 
+// 60 * 1000 is 1 minute
 export const CACHE_TIMES = {
   catalog: {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   },
   productDetail: {
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   },
   orders: {
-    staleTime: 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   },
   userState: {
-    staleTime: 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   },
 } as const
 
@@ -55,8 +55,4 @@ export const storefrontQueryKeys = {
   cart: (neonUserId?: string | null) => ['storefront-cart', (neonUserId || '').trim()] as const,
   wishlist: (neonUserId?: string | null) =>
     ['storefront-wishlist', (neonUserId || '').trim()] as const,
-}
-
-export async function fetchCatalogData(): Promise<CatalogResponse> {
-  return getCatalogData()
 }

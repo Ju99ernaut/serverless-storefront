@@ -17,8 +17,8 @@ import {
   syncWishlistWithPayload,
   toggleWishlistItemInPayload,
 } from '../lib/payload-sdk'
-import { useAuth } from './auth-context'
 import { CACHE_TIMES, storefrontQueryKeys } from './query-keys'
+import { neonAuthClient } from '@/lib/auth-client'
 
 interface WishlistContextValue {
   wishlistSlugs: string[]
@@ -30,7 +30,8 @@ const WishlistContext = createContext<WishlistContextValue | null>(null)
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
   const [guestWishlist, setGuestWishlist] = useState<string[]>([])
   const mergedGuestForUserRef = useRef<string | null>(null)
 
@@ -42,16 +43,18 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   })
 
   const { mutateAsync: syncWishlistMutateAsync } = useMutation({
-    mutationFn: (params: { neonUserId: string; items: NonNullable<Wishlist['items']> }) =>
-      syncWishlistWithPayload(params.neonUserId, params.items),
+    mutationFn: (params: { neonUserId: string; items: NonNullable<Wishlist['items']> }) => {
+      return syncWishlistWithPayload(params.neonUserId, params.items)
+    },
     onSuccess: (updatedWishlist, variables) => {
       queryClient.setQueryData(storefrontQueryKeys.wishlist(variables.neonUserId), updatedWishlist)
     },
   })
 
   const { mutateAsync: toggleWishlistMutateAsync } = useMutation({
-    mutationFn: (params: { neonUserId: string; product: Pick<Product, 'id' | 'slug'> }) =>
-      toggleWishlistItemInPayload(params.neonUserId, params.product),
+    mutationFn: (params: { neonUserId: string; product: Pick<Product, 'id' | 'slug'> }) => {
+      return toggleWishlistItemInPayload(params.neonUserId, params.product)
+    },
     onSuccess: (updatedWishlist, variables) => {
       queryClient.setQueryData(storefrontQueryKeys.wishlist(variables.neonUserId), updatedWishlist)
     },

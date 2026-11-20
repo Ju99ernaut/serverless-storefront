@@ -38,7 +38,7 @@ const signUpSchema = z.object({
 })
 
 export default function AuthModal() {
-  const { isAuthModalOpen, setIsAuthModalOpen, authModalIntent, setUser } = useAuth()
+  const { isAuthModalOpen, setIsAuthModalOpen, authModalIntent } = useAuth()
   const { cartItems, setIsCartOpen } = useCart()
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
@@ -69,25 +69,13 @@ export default function AuthModal() {
 
   const signUpWithEmailMutation = useMutation({
     mutationFn: async (values: z.infer<typeof signUpSchema>) => {
-      const { data, error } = await neonAuthClient.signUp.email({
+      const { error } = await neonAuthClient.signUp.email({
         ...values,
       })
 
       if (error) {
         toast.add({ type: 'error', description: error.message || 'An unknown error occurred.' })
         throw new Error(error.message || 'An unknown error occurred.')
-      }
-
-      if (data?.user) {
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          image: data.user.image ?? null,
-          emailVerified: data.user.emailVerified,
-          createdAt: data.user.createdAt,
-          updatedAt: data.user.updatedAt,
-        })
       }
 
       toast.add({
@@ -100,25 +88,13 @@ export default function AuthModal() {
 
   const loginWithEmailMutation = useMutation({
     mutationFn: async (values: z.infer<typeof loginSchema>) => {
-      const { data, error } = await neonAuthClient.signIn.email({
+      const { error } = await neonAuthClient.signIn.email({
         ...values,
       })
 
       if (error) {
         toast.add({ type: 'error', description: error.message || 'An unknown error occurred.' })
         throw new Error(error.message || 'An unknown error occurred.')
-      }
-
-      if (data?.user) {
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          image: data.user.image ?? null,
-          emailVerified: data.user.emailVerified,
-          createdAt: data.user.createdAt,
-          updatedAt: data.user.updatedAt,
-        })
       }
 
       toast.add({ type: 'success', description: 'Signed in successfully.' })

@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from 'cn'
-import { CACHE_TIMES, fetchCatalogData, storefrontQueryKeys, useWishlist } from '../../context'
+import { CACHE_TIMES, storefrontQueryKeys, useWishlist } from '../../context'
 import type { Product } from '../../lib/utils/data'
 import { GridSkeleton } from './grid-skeleton'
 import { GridEmptyState } from './grid-empty-state'
 import { GridProductCard } from './grid-product-card'
+import { getCatalogData } from '@/lib/payload-sdk'
 
 interface ItemPosition {
   visible: boolean
@@ -42,7 +43,7 @@ const Grid = ({
   const { isWishlisted, toggleWishlist } = useWishlist()
   const { isLoading: isCatalogLoading } = useQuery({
     queryKey: storefrontQueryKeys.catalog,
-    queryFn: fetchCatalogData,
+    queryFn: getCatalogData,
     ...CACHE_TIMES.catalog,
   })
   const gridRef = useRef<HTMLElement | null>(null)

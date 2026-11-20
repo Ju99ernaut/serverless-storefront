@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Clock, FileText, Loader2, Package, Truck } from 'lucide-react'
-import { storefrontQueryKeys, useAuth } from '@/context'
+import { storefrontQueryKeys } from '@/context'
 import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
 import { formatCentsAsDollars, type Order } from '@/lib/utils/data'
 import { Badge } from '../ui/badge'
@@ -20,6 +20,7 @@ import {
 } from '../ui/empty'
 import { OptimizedImage } from '../ui/optimized-image'
 import { toast } from '../ui/toast'
+import { neonAuthClient } from '@/lib/auth-client'
 
 const STATUS_BADGE_MAP: Record<
   Order['orderStatus'],
@@ -49,7 +50,8 @@ export function AccountOrdersTab({
   updatingOrderId,
   onAdvanceStatus,
 }: AccountOrdersTabProps) {
-  const { user } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
   const queryClient = useQueryClient()
   const [generatingKey, setGeneratingKey] = useState<string | null>(null)
   const isAuthorizedOperator = Boolean(
@@ -247,7 +249,9 @@ export function AccountOrdersTab({
                       >
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{doc.documentType}</Badge>
-                          <span className="font-semibold text-foreground">{doc.documentNumber}</span>
+                          <span className="font-semibold text-foreground">
+                            {doc.documentNumber}
+                          </span>
                           <span className="text-muted-foreground">{doc.filename}</span>
                         </div>
                         <span className="text-muted-foreground">

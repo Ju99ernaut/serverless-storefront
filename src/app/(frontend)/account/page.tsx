@@ -4,15 +4,8 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Heart, Mail, Package, ShoppingBag, User as UserIcon } from 'lucide-react'
-import {
-  CACHE_TIMES,
-  fetchCatalogData,
-  storefrontQueryKeys,
-  useAuth,
-  useCart,
-  useWishlist,
-} from '../../../context'
-import { getOrdersByUser, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
+import { CACHE_TIMES, storefrontQueryKeys, useAuth, useCart, useWishlist } from '../../../context'
+import { getCatalogData, getOrdersByUser, updateOrderStatusViaSdk } from '../../../lib/payload-sdk'
 import type { Order } from '../../../lib/utils/data'
 import { Alert } from '../../../components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
@@ -25,19 +18,22 @@ import {
   AccountSkeleton,
   AccountWishlistTab,
 } from '../../../components/account'
+import { neonAuthClient } from '@/lib/auth-client'
 
 function AccountPortalContent() {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab')
   const queryClient = useQueryClient()
 
-  const { user, openAuthModal } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
+  const { openAuthModal } = useAuth()
   const { cartItems, totalCartCount, setIsCartOpen, addToCart, removeCartItem } = useCart()
   const { wishlistSlugs, toggleWishlist } = useWishlist()
 
   const { data: catalog } = useQuery({
     queryKey: storefrontQueryKeys.catalog,
-    queryFn: fetchCatalogData,
+    queryFn: getCatalogData,
     ...CACHE_TIMES.catalog,
   })
   const products = catalog?.products ?? []

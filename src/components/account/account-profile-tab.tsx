@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Camera, CheckCircle2, Eye, EyeOff, KeyRound, Upload, X } from 'lucide-react'
-import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '@/context'
+import { CACHE_TIMES, storefrontQueryKeys } from '@/context'
 import type { NeonUser } from '@/lib/utils/data'
 import { neonAuthClient } from '@/lib/auth-client'
 import { getBillingDetails, upsertBillingDetails } from '@/lib/payload-sdk'
@@ -21,7 +21,6 @@ interface AccountProfileTabProps {
 
 export function AccountProfileTab({ user }: AccountProfileTabProps) {
   const queryClient = useQueryClient()
-  const { setUser } = useAuth()
 
   const { data: billingDetails } = useQuery({
     queryKey: storefrontQueryKeys.billingDetails(user.id),
@@ -110,7 +109,6 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
       }
     },
     onSuccess: ({ savedBilling, updatedUser }) => {
-      setUser(updatedUser)
       queryClient.setQueryData(storefrontQueryKeys.billingDetails(user.id), savedBilling)
       setCurrentPassword('')
       setNewPassword('')

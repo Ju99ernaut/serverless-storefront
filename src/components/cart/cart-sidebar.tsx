@@ -6,11 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '../../context'
-import {
-  PAYMENT_OPTIONS,
-  calculateOrderTotalsCents,
-  type CartLineItem,
-} from '../../lib/utils/data'
+import { PAYMENT_OPTIONS, calculateOrderTotalsCents, type CartLineItem } from '../../lib/utils/data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { getBillingDetails } from '@/lib/payload-sdk'
 import { Drawer, DrawerContent } from '../ui/drawer'
@@ -26,6 +22,7 @@ import {
   type CheckoutFormValues,
   type CheckoutSuccessResponse,
 } from './checkout-schema'
+import { neonAuthClient } from '@/lib/auth-client'
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -45,7 +42,9 @@ const CartSidebar = ({
   onClearCart,
 }: CartSidebarProps) => {
   const queryClient = useQueryClient()
-  const { user, openAuthModal } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
+  const { openAuthModal } = useAuth()
   const isMobile = useIsMobile()
   const baseId = useId()
 

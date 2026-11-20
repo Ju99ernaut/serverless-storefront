@@ -3,16 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import {
-  CACHE_TIMES,
-  fetchCatalogData,
-  storefrontQueryKeys,
-  useAuth,
-  useCart,
-  useWishlist,
-} from '@/context'
-import { fetchProductBySlugWithReviews } from '@/lib/payload-sdk'
-import { getProductImages, type Product, type ProductVariant } from '@/lib/utils/data'
+import { CACHE_TIMES, storefrontQueryKeys, useAuth, useCart, useWishlist } from '@/context'
+import { fetchProductBySlugWithReviews, getCatalogData } from '@/lib/payload-sdk'
+import { getProductImages, type ProductVariant } from '@/lib/utils/data'
 import {
   ProductDetailSkeleton,
   ProductImageGallery,
@@ -21,18 +14,21 @@ import {
   ProductReviewsSection,
   RelatedProductsSection,
 } from '@/components/products'
+import { neonAuthClient } from '@/lib/auth-client'
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>()
   const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || ''
 
-  const { user, openAuthModal } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
+  const { openAuthModal } = useAuth()
   const { setIsCartOpen, addToCart } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
 
   const { data: catalog } = useQuery({
     queryKey: storefrontQueryKeys.catalog,
-    queryFn: fetchCatalogData,
+    queryFn: getCatalogData,
     ...CACHE_TIMES.catalog,
   })
 

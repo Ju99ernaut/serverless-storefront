@@ -11,17 +11,18 @@ import BannerCarousel from '../../components/banner-carousel'
 import Grid from '../../components/grid'
 import CompareBasket from '../../components/compare-basket'
 import CompareWrapper from '../../components/compare-wrapper'
-import { CACHE_TIMES, fetchCatalogData, storefrontQueryKeys, useCart } from '../../context'
+import { CACHE_TIMES, storefrontQueryKeys, useCart } from '../../context'
 import { getFilterDisplayName, type Product } from '../../lib/utils/data'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
+import { getCatalogData } from '@/lib/payload-sdk'
 
 const MAX_COMPARE_ITEMS = 3
 
 export default function HomePage() {
   const { data: catalog } = useQuery({
     queryKey: storefrontQueryKeys.catalog,
-    queryFn: fetchCatalogData,
+    queryFn: getCatalogData,
     ...CACHE_TIMES.catalog,
   })
   const products = useMemo(() => catalog?.products ?? [], [catalog?.products])

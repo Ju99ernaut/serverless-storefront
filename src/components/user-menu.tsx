@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { Button } from './ui/button'
+import { neonAuthClient } from '@/lib/auth-client'
 
 export function getUserInitials(name?: string | null, email?: string | null): string {
   const cleanName = String(name || '').trim()
@@ -37,7 +38,9 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ className = '' }: UserMenuProps) {
-  const { user, openAuthModal, signOut } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
+  const { openAuthModal, signOut } = useAuth()
   const { wishlistSlugs } = useWishlist()
   const { data: orders = [] } = useQuery({
     queryKey: storefrontQueryKeys.orders(user?.id || user?.email),

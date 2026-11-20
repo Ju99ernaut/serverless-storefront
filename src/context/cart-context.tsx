@@ -15,13 +15,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getProductImages, type CartLineItem, type Product } from '../lib/utils/data'
 import { getCartByNeonUserId, syncCartWithPayload } from '../lib/payload-sdk'
-import { useAuth } from './auth-context'
 import {
   CACHE_TIMES,
   storefrontQueryKeys,
   type AddToCartOptions,
   type CatalogResponse,
 } from './query-keys'
+import { neonAuthClient } from '@/lib/auth-client'
 
 const GUEST_CART_STORAGE_KEY = 'the_store_guest_cart_v1'
 
@@ -63,7 +63,8 @@ const CartContext = createContext<CartContextValue | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
   const [cartItems, setCartItems] = useState<CartLineItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCartAnimating, setIsCartAnimating] = useState(false)
@@ -79,8 +80,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   })
 
   const { mutate: syncCartMutate } = useMutation({
-    mutationFn: (params: { neonUserId: string; items: CartLineItem[] }) =>
-      syncCartWithPayload(params.neonUserId, params.items),
+    mutationFn: (params: { neonUserId: string; items: CartLineItem[] }) => {
+      return syncCartWithPayload(params.neonUserId, params.items)
+    },
     onSuccess: (updatedCart, variables) => {
       queryClient.setQueryData(storefrontQueryKeys.cart(variables.neonUserId), updatedCart)
     },

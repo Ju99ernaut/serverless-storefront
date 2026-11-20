@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, FileText, Loader2 } from 'lucide-react'
-import { storefrontQueryKeys, useAuth } from '@/context'
+import { storefrontQueryKeys } from '@/context'
 import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
 import { formatCentsAsDollars } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
@@ -20,6 +20,7 @@ import {
 import { Separator } from '../ui/separator'
 import { toast } from '../ui/toast'
 import type { CheckoutSuccessResponse } from './checkout-schema'
+import { neonAuthClient } from '@/lib/auth-client'
 
 interface CartOrderSuccessStepProps {
   orderResult: CheckoutSuccessResponse
@@ -27,7 +28,8 @@ interface CartOrderSuccessStepProps {
 }
 
 export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessStepProps) {
-  const { user } = useAuth()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
   const queryClient = useQueryClient()
   const [generatingType, setGeneratingType] = useState<'INVOICE' | 'RECEIPT' | null>(null)
 
