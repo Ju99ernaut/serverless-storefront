@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Clock, CreditCard, Loader2, Store, Truck } from 'lucide-react'
+import { ArrowLeft, Clock, CreditCard, Loader2, Smartphone, Store, Truck } from 'lucide-react'
 import { Controller, type UseFormReturn } from 'react-hook-form'
 import {
   PAYMENT_OPTIONS,
@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Separator } from '../ui/separator'
 import { Textarea } from '../ui/textarea'
 import { CheckoutCardFields } from './checkout-card-fields'
+import { CheckoutMobilePaymentFields } from './checkout-mobile-payment-fields'
 import {
   COLLECTION_LOCATIONS,
   type CheckoutFormValues,
@@ -73,6 +74,8 @@ export function CartCheckoutStep({
   onBackToCart,
   onSubmit,
 }: CartCheckoutStepProps) {
+  const paymentProvider = form.watch('paymentProvider')
+
   return (
     <>
       <DrawerHeader className="border-b border-border pb-3">
@@ -290,9 +293,46 @@ export function CartCheckoutStep({
             </FieldGroup>
           </FieldSet>
 
-          {/* Card details only if payment is upfront */}
+          {/* Express Mobile (Paynow) or Card details if payment is upfront */}
           {selectedPaymentMeta.requiresCardNow && (
-            <CheckoutCardFields control={form.control} baseId={baseId} />
+            <div className="space-y-3">
+              <Controller
+                name="paymentProvider"
+                control={form.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={field.value === 'paynow_mobile' ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => field.onChange('paynow_mobile')}
+                      aria-pressed={field.value === 'paynow_mobile'}
+                    >
+                      <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Paynow Mobile</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={field.value === 'card' ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => field.onChange('card')}
+                      aria-pressed={field.value === 'card'}
+                    >
+                      <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Card</span>
+                    </Button>
+                  </div>
+                )}
+              />
+
+              {paymentProvider === 'paynow_mobile' ? (
+                <CheckoutMobilePaymentFields control={form.control} baseId={baseId} />
+              ) : (
+                <CheckoutCardFields control={form.control} baseId={baseId} />
+              )}
+            </div>
           )}
 
           <div className="space-y-1.5 pt-1 text-sm">

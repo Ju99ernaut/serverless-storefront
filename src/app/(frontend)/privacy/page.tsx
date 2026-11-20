@@ -7,9 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Storefront Atelier',
+  title: 'Privacy Policy',
   description:
     'Privacy Policy describing how Storefront Atelier collects, authenticates, stores, and protects customer information.',
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    type: 'website',
+    url: '/privacy',
+    title: 'Privacy Policy — Storefront Atelier',
+    description:
+      'How Storefront Atelier collects, uses, and protects your personal information when you browse, sign in, and place orders.',
+  },
 }
 
 export default function PrivacyPolicyPage() {

@@ -23,6 +23,7 @@ import {
   EmptyTitle,
 } from '../ui/empty'
 import { OptimizedImage } from '../ui/optimized-image'
+import { Skeleton } from '../ui/skeleton'
 import { toast } from '../ui/toast'
 import { neonAuthClient } from '@/lib/auth-client'
 import type { Order } from '@/payload-types'
@@ -41,7 +42,7 @@ const STATUS_BADGE_MAP: Record<
 }
 
 export function AccountOrdersTab() {
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const queryClient = useQueryClient()
   const [generatingKey, setGeneratingKey] = useState<string | null>(null)
@@ -131,12 +132,37 @@ export function AccountOrdersTab() {
     })
   }
 
-  const { data: orders = [] } = useQuery({
+  const { data: orders = [], isLoading: isOrdersLoading } = useQuery({
     queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
     queryFn: () => getOrdersByUser({ neonUserId: user?.id, email: user?.email }),
     enabled: Boolean(user?.id || user?.email),
     ...CACHE_TIMES.orders,
   })
+
+  if (isSessionPending || isOrdersLoading) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading orders">
+        {Array.from({ length: 2 }).map((_, idx) => (
+          <Card key={idx}>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-44" />
+                <Skeleton className="h-3.5 w-64" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-32 rounded-md" />
+                <Skeleton className="h-8 w-32 rounded-md" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-3">
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-20 w-full rounded-lg" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
 
   if (orders.length === 0) {
     return (

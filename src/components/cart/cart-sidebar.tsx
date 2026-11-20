@@ -14,15 +14,19 @@ import { toast } from '../ui/toast'
 import { CartBagStep } from './cart-bag-step'
 import { CartCheckoutStep } from './cart-checkout-step'
 import { CartEmptyState } from './cart-empty-state'
+import { CartMobilePaymentStep } from './cart-mobile-payment-step'
 import { CartOrderSuccessStep } from './cart-order-success-step'
 import {
   COLLECTION_LOCATIONS,
   DEFAULT_SHIPPING_ADDRESS,
   checkoutSchema,
+  type CheckoutApiResponse,
   type CheckoutFormValues,
+  type CheckoutPendingMobilePaymentResponse,
   type CheckoutSuccessResponse,
 } from './checkout-schema'
 import { neonAuthClient } from '@/lib/auth-client'
+import type { Order } from '@/payload-types'
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -42,14 +46,17 @@ const CartSidebar = ({
   onClearCart,
 }: CartSidebarProps) => {
   const queryClient = useQueryClient()
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const { openAuthModal } = useAuth()
   const isMobile = useIsMobile()
   const baseId = useId()
 
-  const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart')
+  const [step, setStep] = useState<'cart' | 'checkout' | 'mobile_payment' | 'success'>('cart')
   const [orderResult, setOrderResult] = useState<CheckoutSuccessResponse | null>(null)
+  const [pendingMobilePayment, setPendingMobilePayment] =
+    useState<CheckoutPendingMobilePaymentResponse | null>(null)
+  const [mobilePaymentStatus, setMobilePaymentStatus] = useState<string>('sent')
 
   const { data: billingDetails } = useQuery({
     queryKey: storefrontQueryKeys.billingDetails(user?.id),
@@ -63,6 +70,9 @@ const CartSidebar = ({
     mode: 'onTouched',
     defaultValues: {
       paymentOption: 'pay_and_delivery',
+      paymentProvider: 'paynow_mobile',
+      mobileMethod: 'ecocash',
+      mobileNumber: billingDetails?.phone || '',
       customerName: user?.name || 'Alex Rivera',
       customerEmail: user?.email || 'alex.rivera@example.com',
       customerPhone: billingDetails?.phone || '+1 (415) 555-0192',
@@ -72,7 +82,6 @@ const CartSidebar = ({
       ccNumber: '4242 4242 4242 4242',
       ccExp: '08/29',
       ccCsc: '842',
-      simulatePaymentFailure: false,
     },
   })
 
@@ -118,6 +127,8 @@ const CartSidebar = ({
     if (!isOpen) {
       setStep('cart')
       setOrderResult(null)
+      setPendingMobilePayment(null)
+      setMobilePaymentStatus('sent')
     }
   }, [isOpen])
 
@@ -131,10 +142,13 @@ const CartSidebar = ({
   const handleCloseSidebar = () => {
     setStep('cart')
     setOrderResult(null)
+    setPendingMobilePayment(null)
+    setMobilePaymentStatus('sent')
     onClose()
   }
 
   const handleProceedToCheckout = () => {
+    if (isSessionPending) return
     if (!user) {
       onClose()
       openAuthModal('checkout')
@@ -149,11 +163,10 @@ const CartSidebar = ({
         PAYMENT_OPTIONS.find((opt) => opt.id === values.paymentOption) || PAYMENT_OPTIONS[0]
       const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
-      const { data } = await axios.post<CheckoutSuccessResponse>('/api/checkout', {
+      const { data } = await axios.post<CheckoutApiResponse>('/api/checkout', {
         idempotencyKey,
         userId: user?.id,
         paymentOption: values.paymentOption,
-        simulatePaymentFailure: values.simulatePaymentFailure,
         customer: {
           name: values.customerName.trim(),
           email: values.customerEmail.trim(),
@@ -165,11 +178,18 @@ const CartSidebar = ({
             meta.fulfillmentMethod === 'COLLECTION' ? values.collectionLocation : undefined,
         },
         payment: meta.requiresCardNow
-          ? {
-              cardholderName: values.ccName.trim(),
-              cardNumber: values.ccNumber.replace(/\s+/g, ''),
-              expiry: values.ccExp.trim(),
-            }
+          ? values.paymentProvider === 'paynow_mobile'
+            ? {
+                provider: 'paynow_mobile' as const,
+                mobileMethod: values.mobileMethod,
+                mobileNumber: values.mobileNumber.trim(),
+              }
+            : {
+                provider: 'card' as const,
+                cardholderName: values.ccName.trim(),
+                cardNumber: values.ccNumber.replace(/\s+/g, ''),
+                expiry: values.ccExp.trim(),
+              }
           : undefined,
         items: items.map((item) => ({
           id: String(
@@ -194,6 +214,18 @@ const CartSidebar = ({
       return data
     },
     onSuccess: async (data) => {
+      if ('pendingPayment' in data && data.pendingPayment) {
+        setPendingMobilePayment(data)
+        setMobilePaymentStatus('sent')
+        setStep('mobile_payment')
+        toast.add({
+          type: 'info',
+          title: 'Mobile payment prompt sent',
+          description: `Check your ${data.mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'} phone (${data.mobileNumber}) to complete payment.`,
+        })
+        return
+      }
+
       setOrderResult(data)
       setStep('success')
       onClearCart()
@@ -242,6 +274,120 @@ const CartSidebar = ({
     },
   })
 
+  const pollMobilePaymentMutation = useMutation({
+    mutationFn: async (pending: CheckoutPendingMobilePaymentResponse) => {
+      const { data } = await axios.post<{
+        orderId: string
+        status: string
+        paid: boolean
+        failed: boolean
+        pending: boolean
+        error?: string
+        order?: Order | null
+      }>('/api/gateways/paynow/status', {
+        orderId: pending.orderId,
+        pollUrl: pending.pollUrl,
+        mobileMethod: pending.mobileMethod,
+        mobileNumber: pending.mobileNumber,
+      })
+      return data
+    },
+    onSuccess: async (data) => {
+      setMobilePaymentStatus(data.status)
+
+      if (data.paid) {
+        const currentValues = checkoutForm.getValues()
+        const orderDoc = data.order
+        const walletLabel =
+          pendingMobilePayment?.mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'
+
+        setOrderResult({
+          success: true,
+          order: {
+            orderId: orderDoc?.orderId || data.orderId,
+            invoiceNumber: orderDoc?.invoiceNumber || `INV-${data.orderId.replace('ORD-', '')}`,
+            receiptNumber: orderDoc?.receiptNumber || `RCP-${data.orderId.replace('ORD-', '')}`,
+            issuedAt: orderDoc?.issuedAt || new Date().toISOString(),
+            paymentOption: orderDoc?.paymentOption || currentValues.paymentOption,
+            fulfillmentMethod:
+              orderDoc?.fulfillmentMethod || selectedPaymentMeta.fulfillmentMethod,
+            orderStatus: orderDoc?.orderStatus || 'CONFIRMED',
+            paymentSummary: {
+              method: orderDoc?.paymentMethodLabel || `Paynow ${walletLabel}`,
+              status: orderDoc?.paymentStatus || 'PAID',
+            },
+            totals: orderDoc?.totals || {
+              subTotal,
+              tax,
+              shipping: shippingFee,
+              grandTotal,
+            },
+          },
+          documents: {
+            invoice: {
+              filename: `Invoice-${orderDoc?.invoiceNumber || data.orderId}.pdf`,
+              templateId: '',
+            },
+            receipt: {
+              filename: `Receipt-${orderDoc?.receiptNumber || data.orderId}.pdf`,
+              templateId: '',
+            },
+          },
+          email: {
+            status: 'sent',
+            messageId: '',
+            to: orderDoc?.customerEmail || currentValues.customerEmail,
+            subject: `Order ${data.orderId} Confirmed`,
+            templateId: '',
+            attachmentsCount: 2,
+          },
+        })
+        setPendingMobilePayment(null)
+        setStep('success')
+        onClearCart()
+        toast.add({
+          type: 'success',
+          description: `Paynow payment received! Order ${data.orderId} confirmed.`,
+        })
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+          }),
+          queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.cart(user?.id) }),
+          queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog }),
+        ])
+      } else if (data.failed) {
+        setPendingMobilePayment(null)
+        setStep('checkout')
+        await queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog })
+        toast.add({
+          type: 'error',
+          title: 'Mobile payment not completed',
+          description:
+            data.error ||
+            `Paynow reported status "${data.status}". Reserved stock has been released.`,
+        })
+      }
+    },
+    onError: (err: unknown) => {
+      toast.add({
+        type: 'error',
+        description:
+          err instanceof Error ? err.message : 'Unable to check Paynow transaction status.',
+      })
+    },
+  })
+
+  useEffect(() => {
+    if (step !== 'mobile_payment' || !pendingMobilePayment || !isOpen) return
+    const intervalId = window.setInterval(() => {
+      if (!pollMobilePaymentMutation.isPending) {
+        pollMobilePaymentMutation.mutate(pendingMobilePayment)
+      }
+    }, 4000)
+    return () => window.clearInterval(intervalId)
+  }, [step, pendingMobilePayment, isOpen, pollMobilePaymentMutation])
+
   const onSubmitCheckout = (values: CheckoutFormValues) => {
     if (checkoutMutation.isPending || isEmpty) return
     checkoutMutation.mutate(values)
@@ -262,6 +408,17 @@ const CartSidebar = ({
       <DrawerContent>
         {step === 'success' && orderResult ? (
           <CartOrderSuccessStep orderResult={orderResult} onClose={handleCloseSidebar} />
+        ) : step === 'mobile_payment' && pendingMobilePayment ? (
+          <CartMobilePaymentStep
+            pendingPayment={pendingMobilePayment}
+            paymentStatus={mobilePaymentStatus}
+            isChecking={pollMobilePaymentMutation.isPending}
+            onCheckStatus={() => pollMobilePaymentMutation.mutate(pendingMobilePayment)}
+            onBackToCheckout={() => {
+              setPendingMobilePayment(null)
+              setStep('checkout')
+            }}
+          />
         ) : isEmpty ? (
           <CartEmptyState />
         ) : step === 'checkout' ? (
@@ -285,6 +442,7 @@ const CartSidebar = ({
             subTotal={subTotal}
             tax={tax}
             isAuthenticated={Boolean(user)}
+            isSessionPending={isSessionPending}
             onUpdateQuantity={onUpdateQuantity}
             onRemoveItem={onRemoveItem}
             onClearCart={onClearCart}

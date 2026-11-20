@@ -1,6 +1,6 @@
 'use client'
 
-import { Lock } from 'lucide-react'
+import { Loader2, Lock } from 'lucide-react'
 import { formatCentsAsDollars, type CartLineItem } from '../../lib/utils/data'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
@@ -14,6 +14,7 @@ interface CartBagStepProps {
   subTotal: number
   tax: number
   isAuthenticated: boolean
+  isSessionPending?: boolean
   onUpdateQuantity: (cartItemId: string, nextQty: number) => void
   onRemoveItem: (cartItemId: string) => void
   onClearCart: () => void
@@ -26,6 +27,7 @@ export function CartBagStep({
   subTotal,
   tax,
   isAuthenticated,
+  isSessionPending = false,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
@@ -58,7 +60,7 @@ export function CartBagStep({
       </div>
 
       <DrawerFooter className="border-t border-border bg-popover pt-3">
-        {!isAuthenticated && (
+        {!isAuthenticated && !isSessionPending && (
           <Alert>
             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             <span className="text-xs">
@@ -87,10 +89,23 @@ export function CartBagStep({
           </div>
         </div>
 
-        <Button type="button" size="lg" className="w-full" onClick={onProceedToCheckout}>
-          {isAuthenticated
-            ? `Proceed to Checkout (${estimatedTotal})`
-            : 'Sign In / Register to Checkout'}
+        <Button
+          type="button"
+          size="lg"
+          className="w-full"
+          disabled={isSessionPending}
+          onClick={onProceedToCheckout}
+        >
+          {isSessionPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Checking session...</span>
+            </>
+          ) : isAuthenticated ? (
+            `Proceed to Checkout (${estimatedTotal})`
+          ) : (
+            'Sign In / Register to Checkout'
+          )}
         </Button>
       </DrawerFooter>
     </>

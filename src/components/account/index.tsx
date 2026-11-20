@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Heart, Package, ShoppingBag, User as UserIcon } from 'lucide-react'
 import { CACHE_TIMES, storefrontQueryKeys, useCart, useWishlist } from '../../context'
 import { getCatalogData, getOrdersByUser } from '../../lib/payload-sdk'
+import { Card, CardContent, CardHeader } from '../ui/card'
+import { Skeleton } from '../ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { neonAuthClient } from '@/lib/auth-client'
 import { AccountHeader } from './account-header'
@@ -19,7 +21,7 @@ export function AccountPortalContent() {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab')
 
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const { totalCartCount } = useCart()
   const { wishlistSlugs } = useWishlist()
@@ -56,6 +58,44 @@ export function AccountPortalContent() {
   }, [initialTab])
 
   const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug))
+
+  if (isSessionPending) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading account">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-lg border border-border bg-card p-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-14 w-14 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-52" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-16 w-24 rounded-lg" />
+            <Skeleton className="h-16 w-24 rounded-lg" />
+            <Skeleton className="h-16 w-24 rounded-lg" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-9 w-36 rounded-md" />
+          <Skeleton className="h-9 w-32 rounded-md" />
+          <Skeleton className="h-9 w-28 rounded-md" />
+          <Skeleton className="h-9 w-36 rounded-md" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   if (!user) {
     return <AccountGuestPrompt />

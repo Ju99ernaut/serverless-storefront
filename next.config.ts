@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
     'sharp',
     'file-type',
     'nodemailer',
+    'paynow',
   ],
   images: {
     localPatterns: [
@@ -37,6 +38,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '**.r2.cloudflarestorage.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
       },
     ],
   },

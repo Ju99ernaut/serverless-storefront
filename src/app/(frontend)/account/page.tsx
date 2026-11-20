@@ -1,6 +1,24 @@
 import { Suspense } from 'react'
+import type { Metadata } from 'next'
 import { AccountPortalContent } from '@/components/account'
 import { AccountSkeleton } from '@/components/account/account-skeleton'
+
+export const metadata: Metadata = {
+  title: 'My Account',
+  description:
+    'Manage your Storefront Atelier orders, live delivery tracking, invoices, saved shopping bag, loved items, and profile details.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+  openGraph: {
+    type: 'website',
+    url: '/account',
+    title: 'My Account — Storefront Atelier',
+    description:
+      'Manage your Storefront Atelier orders, live delivery tracking, invoices, saved bag, and profile settings.',
+  },
+}
 
 export default function AccountPage() {
   return (

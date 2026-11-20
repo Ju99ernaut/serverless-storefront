@@ -1,6 +1,7 @@
 'use client'
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { Skeleton } from '../ui/skeleton'
 import { getUserInitials } from '../user-menu'
 import { neonAuthClient } from '@/lib/auth-client'
 import { CACHE_TIMES, storefrontQueryKeys, useCart, useWishlist } from '@/context'
@@ -8,7 +9,7 @@ import { getOrdersByUser } from '@/lib/payload-sdk'
 import { useQuery } from '@tanstack/react-query'
 
 export function AccountHeader() {
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const { totalCartCount } = useCart()
   const { wishlistSlugs } = useWishlist()
@@ -22,6 +23,29 @@ export function AccountHeader() {
   })
 
   const ordersCount = orders.length
+
+  if (isSessionPending) {
+    return (
+      <div
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-lg border border-border bg-card p-6"
+        aria-busy="true"
+        aria-label="Loading account header"
+      >
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-14 w-14 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-52" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-16 w-24 rounded-lg" />
+          <Skeleton className="h-16 w-24 rounded-lg" />
+          <Skeleton className="h-16 w-24 rounded-lg" />
+        </div>
+      </div>
+    )
+  }
 
   if (!user) return null
 

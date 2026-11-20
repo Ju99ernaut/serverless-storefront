@@ -377,14 +377,16 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     const initialStock = variant.stock
     expect(initialStock).toBe(2)
 
-    // 1. Simulate failed payment checkout -> Workflow reserves then compensates/releases stock
+    // 1. Declined payment via payment provider hook -> Workflow reserves then compensates/releases stock
+    const failedOrderId = 'ORD-TEST-FAIL-1'
     const failedReq = new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idempotencyKey: 'res_test_fail_1',
+        orderId: failedOrderId,
         paymentOption: 'pay_and_delivery',
-        simulatePaymentFailure: true,
+        awaitPaymentHook: true,
         customer: {
           name: 'Alex Rivera',
           email: 'alex.rivera@example.com',
@@ -414,7 +416,14 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       }),
     })
 
-    const failedRes = await postCheckout(failedReq)
+    const failedResPromise = postCheckout(failedReq)
+    await waitForWorkflowHook(getOrderPaymentHookToken(failedOrderId))
+    await orderPaymentHook.resume(getOrderPaymentHookToken(failedOrderId), {
+      authorized: false,
+      cardNumber: '4242424242424242',
+      error: 'Payment declined by provider.',
+    })
+    const failedRes = await failedResPromise
     expect(failedRes.status).toBe(402)
     const failedBody = await failedRes.json()
     expect(failedBody.stockReleased).toBe(true)

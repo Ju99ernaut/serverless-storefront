@@ -538,3 +538,69 @@ export async function commitVariantStock(reservationKey: string): Promise<StockR
     return reservation
   })
 }
+
+export async function getProductBySlugServer(slug: string): Promise<Product | null> {
+  if (!slug) return null
+  try {
+    const payload = await getServerPayload()
+    const bySlug = await payload.find({
+      collection: 'products',
+      where: {
+        slug: {
+          equals: slug,
+        },
+      },
+      limit: 1,
+    })
+    if (bySlug.docs?.[0]) {
+      return bySlug.docs[0]
+    }
+
+    if (/^\d+$/.test(slug)) {
+      const byId = await payload.find({
+        collection: 'products',
+        where: {
+          id: {
+            equals: Number(slug),
+          },
+        },
+        limit: 1,
+      })
+      return byId.docs?.[0] || null
+    }
+
+    return null
+  } catch (error) {
+    console.error(`Failed to fetch product "${slug}" on server:`, error)
+    return null
+  }
+}
+
+export async function getFeaturedProductServer(): Promise<Product | null> {
+  try {
+    const payload = await getServerPayload()
+    const featured = await payload.find({
+      collection: 'products',
+      where: {
+        size: {
+          equals: 'large',
+        },
+      },
+      sort: '-averageRating',
+      limit: 1,
+    })
+    if (featured.docs?.[0]) {
+      return featured.docs[0]
+    }
+
+    const fallback = await payload.find({
+      collection: 'products',
+      sort: '-averageRating',
+      limit: 1,
+    })
+    return fallback.docs?.[0] || null
+  } catch (error) {
+    console.error('Failed to fetch featured product on server:', error)
+    return null
+  }
+}

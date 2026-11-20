@@ -1,10 +1,23 @@
 import { z } from 'zod'
 import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
+import type { PaynowMobileMethod } from '@/lib/paynow'
 
 export type PaymentOptionMeta = (typeof PAYMENT_OPTIONS)[number]
 
+export interface CheckoutPendingMobilePaymentResponse {
+  success: true
+  pendingPayment: true
+  workflowRunId?: string
+  orderId: string
+  pollUrl: string
+  instructions: string
+  mobileMethod: PaynowMobileMethod
+  mobileNumber: string
+}
+
 export interface CheckoutSuccessResponse {
   success: boolean
+  pendingPayment?: false
   reservationKey?: string
   documentHistory?: Array<{
     documentType: 'INVOICE' | 'RECEIPT'
@@ -52,6 +65,8 @@ export interface CheckoutSuccessResponse {
   }
 }
 
+export type CheckoutApiResponse = CheckoutSuccessResponse | CheckoutPendingMobilePaymentResponse
+
 export const COLLECTION_LOCATIONS = [
   'Flagship Storefront Atelier — 450 Mercer St, SoHo',
   'Midtown Boutique — 685 Fifth Ave, Lounge B',
@@ -68,6 +83,9 @@ export const checkoutSchema = z
       'pay_on_delivery',
       'pay_on_collection',
     ]),
+    paymentProvider: z.enum(['paynow_mobile', 'card']),
+    mobileMethod: z.enum(['ecocash', 'onemoney']),
+    mobileNumber: z.string(),
     customerName: z
       .string()
       .trim()
@@ -85,7 +103,6 @@ export const checkoutSchema = z
     ccNumber: z.string(),
     ccExp: z.string(),
     ccCsc: z.string(),
-    simulatePaymentFailure: z.boolean(),
   })
   .superRefine((values, ctx) => {
     const meta =
@@ -107,7 +124,18 @@ export const checkoutSchema = z
       })
     }
 
-    if (meta.requiresCardNow) {
+    if (meta.requiresCardNow && values.paymentProvider === 'paynow_mobile') {
+      const digits = values.mobileNumber.replace(/\D/g, '')
+      if (digits.length < 9 || digits.length > 13) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['mobileNumber'],
+          message: 'Enter a valid mobile money number (e.g. 0777 000 000).',
+        })
+      }
+    }
+
+    if (meta.requiresCardNow && values.paymentProvider === 'card') {
       if (!values.ccName.trim()) {
         ctx.addIssue({
           code: 'custom',

@@ -36,6 +36,7 @@ interface ProductReviewsSectionProps {
   reviews: Review[]
   loading: boolean
   user?: NeonUser | null
+  isSessionPending?: boolean
   onOpenAuthModal: () => void
 }
 
@@ -45,6 +46,7 @@ export function ProductReviewsSection({
   reviews,
   loading,
   user,
+  isSessionPending = false,
   onOpenAuthModal,
 }: ProductReviewsSectionProps) {
   const queryClient = useQueryClient()
@@ -136,7 +138,17 @@ export function ProductReviewsSection({
                 </div>
               </div>
 
-              {user ? (
+              {isSessionPending ? (
+                <div
+                  className="border-t border-border pt-4 space-y-3"
+                  aria-busy="true"
+                  aria-label="Checking account session"
+                >
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+              ) : user ? (
                 <form
                   onSubmit={reviewForm.handleSubmit((values) => {
                     if (!user || submitReviewMutation.isPending) return

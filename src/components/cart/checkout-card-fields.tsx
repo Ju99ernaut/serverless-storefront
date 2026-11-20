@@ -1,7 +1,6 @@
 'use client'
 
 import { Controller, type Control } from 'react-hook-form'
-import { Checkbox } from '../ui/checkbox'
 import {
   Field,
   FieldDescription,
@@ -126,33 +125,6 @@ export function CheckoutCardFields({ control, baseId }: CheckoutCardFieldsProps)
             )}
           />
         </div>
-
-        <Controller
-          name="simulatePaymentFailure"
-          control={control}
-          render={({ field }) => (
-            <Field
-              orientation="horizontal"
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-amber-600 dark:text-amber-400"
-            >
-              <Checkbox
-                id={`${baseId}-simulate-fail`}
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                className="mt-0.5"
-              />
-              <FieldLabel
-                htmlFor={`${baseId}-simulate-fail`}
-                className="cursor-pointer text-xs font-normal leading-snug text-amber-600 dark:text-amber-400"
-              >
-                <span>
-                  <strong>Simulate Failed Payment:</strong> Test Workflow SDK rollback &amp;
-                  automatic release of reserved stock.
-                </span>
-              </FieldLabel>
-            </Field>
-          )}
-        />
       </FieldGroup>
     </FieldSet>
   )

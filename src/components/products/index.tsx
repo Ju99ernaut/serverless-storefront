@@ -18,7 +18,7 @@ export function ProductDetails() {
   const params = useParams<{ slug: string }>()
   const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || ''
 
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const { openAuthModal } = useAuth()
   const { setIsCartOpen, addToCart } = useCart()
@@ -183,6 +183,7 @@ export function ProductDetails() {
         reviews={reviews}
         loading={productDetailQuery.isLoading}
         user={user}
+        isSessionPending={isSessionPending}
         onOpenAuthModal={() => openAuthModal('review')}
       />
 

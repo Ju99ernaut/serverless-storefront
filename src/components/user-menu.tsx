@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, Heart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react'
+import { ChevronDown, Heart, Loader2, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react'
 import { CACHE_TIMES, storefrontQueryKeys, useAuth, useWishlist } from '../context'
 import { getOrdersByUser } from '../lib/payload-sdk'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
@@ -38,7 +38,7 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ className = '' }: UserMenuProps) {
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
   const { openAuthModal, signOut } = useAuth()
   const { wishlistSlugs } = useWishlist()
@@ -48,6 +48,21 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
     enabled: Boolean(user?.id || user?.email),
     ...CACHE_TIMES.orders,
   })
+
+  if (isSessionPending) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled
+        aria-label="Loading account"
+        className={className}
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+      </Button>
+    )
+  }
 
   if (!user) {
     return (

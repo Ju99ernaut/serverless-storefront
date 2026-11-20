@@ -1,23 +1,75 @@
 'use client'
 
-import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
+import { useState, useEffect, type ChangeEvent } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Camera, CheckCircle2, Eye, EyeOff, KeyRound, Upload, X } from 'lucide-react'
+import { Camera, Eye, EyeOff, KeyRound, Loader2, Upload, X } from 'lucide-react'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { CACHE_TIMES, storefrontQueryKeys } from '@/context'
-import type { NeonUser } from '@/lib/utils/data'
 import { neonAuthClient } from '@/lib/auth-client'
 import { getBillingDetails, upsertBillingDetails } from '@/lib/payload-sdk'
-import { Alert } from '../ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Field, FieldError, FieldGroup, FieldLabel } from '../ui/field'
 import { Input } from '../ui/input'
+import { Skeleton } from '../ui/skeleton'
 import { Textarea } from '../ui/textarea'
+import { toast } from '../ui/toast'
 import { getUserInitials } from '../user-menu'
+
+const profileSchema = z
+  .object({
+    name: z.string().trim().min(1, {
+      message: 'Full name is required.',
+    }),
+    email: z.email({ message: 'Please enter a valid email address.' }),
+    phone: z.string(),
+    shippingAddress: z.string(),
+    avatarUrl: z.string().refine(
+      (val) => {
+        const trimmed = val.trim()
+        if (!trimmed) return true
+        if (trimmed.startsWith('data:image/')) return true
+        return z.url().safeParse(trimmed).success
+      },
+      { message: 'Please enter a valid image URL.' },
+    ),
+    currentPassword: z.string(),
+    newPassword: z.string(),
+    confirmNewPassword: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.newPassword) {
+      if (data.newPassword.length < 6) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['newPassword'],
+          message: 'New password must be at least 6 characters long.',
+        })
+      }
+      if (data.newPassword !== data.confirmNewPassword) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['confirmNewPassword'],
+          message: 'New password and confirmation do not match.',
+        })
+      }
+    } else if (data.confirmNewPassword) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['confirmNewPassword'],
+        message: 'New password and confirmation do not match.',
+      })
+    }
+  })
+
+type ProfileFormValues = z.infer<typeof profileSchema>
 
 export function AccountProfileTab() {
   const queryClient = useQueryClient()
-  const { data: sessionData } = neonAuthClient.useSession()
+  const { data: sessionData, isPending: isSessionPending } = neonAuthClient.useSession()
   const user = sessionData?.user
 
   const { data: billingDetails } = useQuery({
@@ -27,63 +79,81 @@ export function AccountProfileTab() {
     ...CACHE_TIMES.userState,
   })
 
-  const [profileName, setProfileName] = useState(user?.name || '')
-  const [profileEmail, setProfileEmail] = useState(user?.email || '')
-  const [profilePhone, setProfilePhone] = useState(billingDetails?.phone || '')
-  const [profileAddress, setProfileAddress] = useState(billingDetails?.shippingAddress || '')
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.image || '')
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const profileForm = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: billingDetails?.phone || '',
+      shippingAddress: billingDetails?.shippingAddress || '',
+      avatarUrl: user?.image || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmNewPassword: '',
+    },
+  })
+
+  const { reset, getValues, setValue, setError, clearErrors } = profileForm
+
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [profileSavedMsg, setProfileSavedMsg] = useState('')
-  const [profileErrorMsg, setProfileErrorMsg] = useState('')
 
   useEffect(() => {
-    setProfileName(user?.name || '')
-    setProfileEmail(user?.email || '')
-    setProfileAvatarUrl(user?.image || '')
-  }, [user])
+    if (!user) return
+    reset({
+      ...getValues(),
+      name: user.name || '',
+      email: user.email || '',
+      avatarUrl: user.image || '',
+    })
+  }, [user, reset, getValues])
 
   useEffect(() => {
-    if (billingDetails) {
-      setProfilePhone(billingDetails.phone || '')
-      setProfileAddress(billingDetails.shippingAddress || '')
-    }
-  }, [billingDetails])
+    if (!billingDetails) return
+    reset({
+      ...getValues(),
+      phone: billingDetails.phone || '',
+      shippingAddress: billingDetails.shippingAddress || '',
+    })
+  }, [billingDetails, reset, getValues])
+
+  const watchedAvatarUrl = profileForm.watch('avatarUrl')
+  const watchedName = profileForm.watch('name')
+  const watchedEmail = profileForm.watch('email')
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (params: {
-      name: string
-      newEmail: string
-      phone: string
-      shippingAddress: string
-      avatarUrl: string | null
-      currentPassword?: string
-      newPassword?: string
-    }) => {
+    mutationFn: async (values: ProfileFormValues) => {
+      if (!user) {
+        throw new Error('You must be signed in to update your profile.')
+      }
+
+      const trimmedName = values.name.trim()
+      const trimmedEmail = values.email.trim()
+      const trimmedPhone = values.phone.trim()
+      const trimmedAddress = values.shippingAddress.trim()
+      const trimmedAvatarUrl = values.avatarUrl.trim() || undefined
+
       const { error: updateUserErr } = await neonAuthClient.updateUser({
-        name: params.name,
-        image: params.avatarUrl || undefined,
+        name: trimmedName,
+        image: trimmedAvatarUrl,
       })
       if (updateUserErr) {
         throw new Error(updateUserErr.message || 'Unable to update user profile.')
       }
 
-      if (params.newEmail.toLowerCase() !== user.email.toLowerCase()) {
+      if (trimmedEmail.toLowerCase() !== user.email.toLowerCase()) {
         const { error: emailErr } = await neonAuthClient.changeEmail({
-          newEmail: params.newEmail,
+          newEmail: trimmedEmail,
         })
         if (emailErr) {
           throw new Error(emailErr.message || 'Unable to update email address.')
         }
       }
 
-      if (params.newPassword) {
+      if (values.newPassword) {
         const { error: pwErr } = await neonAuthClient.changePassword({
-          currentPassword: params.currentPassword || '',
-          newPassword: params.newPassword,
+          currentPassword: values.currentPassword || '',
+          newPassword: values.newPassword,
         })
         if (pwErr) {
           throw new Error(pwErr.message || 'Unable to update password.')
@@ -91,30 +161,28 @@ export function AccountProfileTab() {
       }
 
       const savedBilling = await upsertBillingDetails({
-        neonUserId: user?.id || '',
-        phone: params.phone,
-        shippingAddress: params.shippingAddress,
+        neonUserId: user.id,
+        phone: trimmedPhone,
+        shippingAddress: trimmedAddress,
       })
 
-      return {
-        savedBilling,
-        updatedUser: {
-          ...user,
-          name: params.name,
-          email: params.newEmail,
-          image: params.avatarUrl,
-        } satisfies NeonUser,
-      }
+      return savedBilling
     },
-    onSuccess: ({ savedBilling, updatedUser }) => {
+    onSuccess: (savedBilling) => {
       queryClient.setQueryData(storefrontQueryKeys.billingDetails(user?.id), savedBilling)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmNewPassword('')
-      setProfileSavedMsg('Profile details, billing address, password, and avatar updated.')
+      setValue('currentPassword', '')
+      setValue('newPassword', '')
+      setValue('confirmNewPassword', '')
+      toast.add({
+        type: 'success',
+        description: 'Profile details, billing address, password, and avatar updated.',
+      })
     },
     onError: (err: unknown) => {
-      setProfileErrorMsg(err instanceof Error ? err.message : 'Unable to save profile updates.')
+      toast.add({
+        type: 'error',
+        description: err instanceof Error ? err.message : 'Unable to save profile updates.',
+      })
     },
   })
 
@@ -122,50 +190,43 @@ export function AccountProfileTab() {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 1_500_000) {
-      setProfileErrorMsg('Please select an image smaller than 1.5 MB.')
+      setError('avatarUrl', { message: 'Please select an image smaller than 1.5 MB.' })
       return
     }
-    setProfileErrorMsg('')
+    clearErrors('avatarUrl')
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setProfileAvatarUrl(reader.result)
+        setValue('avatarUrl', reader.result, { shouldDirty: true, shouldValidate: true })
       }
     }
     reader.readAsDataURL(file)
   }
 
-  const handleSaveProfile = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (updateProfileMutation.isPending) return
-    setProfileSavedMsg('')
-    setProfileErrorMsg('')
-
-    if (!profileName.trim() || !profileEmail.trim()) {
-      setProfileErrorMsg('Full name and email address are required.')
-      return
-    }
-
-    if (newPassword) {
-      if (newPassword.length < 6) {
-        setProfileErrorMsg('New password must be at least 6 characters long.')
-        return
-      }
-      if (newPassword !== confirmNewPassword) {
-        setProfileErrorMsg('New password and confirmation do not match.')
-        return
-      }
-    }
-
-    updateProfileMutation.mutate({
-      name: profileName.trim(),
-      newEmail: profileEmail.trim(),
-      phone: profilePhone.trim(),
-      shippingAddress: profileAddress.trim(),
-      avatarUrl: profileAvatarUrl.trim() ? profileAvatarUrl.trim() : null,
-      currentPassword: currentPassword || undefined,
-      newPassword: newPassword || undefined,
-    })
+  if (isSessionPending) {
+    return (
+      <Card aria-busy="true" aria-label="Loading profile">
+        <CardHeader>
+          <CardTitle>Profile Picture, Identity, Password &amp; Billing Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5 max-w-xl">
+          <div className="border border-border bg-secondary p-4 flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-9 w-32" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-10 w-32" />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -174,243 +235,268 @@ export function AccountProfileTab() {
         <CardTitle>Profile Picture, Identity, Password &amp; Billing Details</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSaveProfile} className="space-y-5 max-w-xl">
-          {profileErrorMsg && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-              <span className="text-xs">{profileErrorMsg}</span>
-            </Alert>
-          )}
+        <form
+          id="account-profile"
+          onSubmit={profileForm.handleSubmit((values) => updateProfileMutation.mutate(values))}
+          className="space-y-5 max-w-xl"
+        >
+          <FieldGroup>
+            {/* Profile Picture Upload & URL */}
+            <div className="border border-border bg-secondary p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                <Camera className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Profile Picture</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <Avatar className="h-16 w-16 border border-primary/40">
+                  {watchedAvatarUrl ? (
+                    <AvatarImage src={watchedAvatarUrl} alt={watchedName || 'Profile preview'} />
+                  ) : null}
+                  <AvatarFallback className="text-base">
+                    {getUserInitials(watchedName, watchedEmail)}
+                  </AvatarFallback>
+                </Avatar>
 
-          {profileSavedMsg && (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-              <span className="text-xs">{profileSavedMsg}</span>
-            </Alert>
-          )}
-
-          {/* Profile Picture Upload & URL */}
-          <div className="border border-border bg-secondary p-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
-              <Camera className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span>Profile Picture</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <Avatar className="h-16 w-16 border border-primary/40">
-                {profileAvatarUrl ? (
-                  <AvatarImage src={profileAvatarUrl} alt={profileName || 'Profile preview'} />
-                ) : null}
-                <AvatarFallback className="text-base">
-                  {getUserInitials(profileName, profileEmail)}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1 min-w-[200px] space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor="profile-avatar-file"
-                    className="inline-flex h-9 items-center gap-1.5 border border-border bg-card px-3 text-xs font-semibold text-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
-                  >
-                    <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Upload Photo</span>
-                    <input
-                      id="profile-avatar-file"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarFileChange}
-                      className="sr-only"
-                    />
-                  </label>
-                  {profileAvatarUrl && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setProfileAvatarUrl('')}
-                      className="gap-1.5"
+                <div className="flex-1 min-w-[200px] space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label
+                      htmlFor="profile-avatar-file"
+                      className="inline-flex h-9 items-center gap-1.5 border border-border bg-card px-3 text-xs font-semibold text-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
                     >
-                      <X className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Remove Photo</span>
-                    </Button>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label
-                    htmlFor="profile-avatar-url"
-                    className="text-[11px] font-semibold text-muted-foreground"
-                  >
-                    Or paste image URL
-                  </label>
-                  <Input
-                    id="profile-avatar-url"
-                    type="url"
-                    value={profileAvatarUrl.startsWith('data:') ? '' : profileAvatarUrl}
-                    onChange={(e) => setProfileAvatarUrl(e.target.value)}
-                    placeholder="https://example.com/avatar.jpg"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label htmlFor="profile-name" className="text-xs font-semibold text-foreground">
-                Full Name
-              </label>
-              <Input
-                id="profile-name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="profile-email" className="text-xs font-semibold text-foreground">
-                Email Address
-              </label>
-              <Input
-                id="profile-email"
-                name="username"
-                type="email"
-                autoComplete="username"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                value={profileEmail}
-                onChange={(e) => setProfileEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="profile-phone" className="text-xs font-semibold text-foreground">
-              Phone Number
-            </label>
-            <Input
-              id="profile-phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              value={profilePhone}
-              onChange={(e) => setProfilePhone(e.target.value)}
-              placeholder="+1 (415) 555-0192"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="profile-address" className="text-xs font-semibold text-foreground">
-              Default Shipping Address
-            </label>
-            <Textarea
-              id="profile-address"
-              name="street-address"
-              autoComplete="street-address"
-              value={profileAddress}
-              onChange={(e) => setProfileAddress(e.target.value)}
-              placeholder="Street address, suite, city, postal code"
-            />
-          </div>
-
-          {/* Password Update Section */}
-          <div className="border border-border bg-secondary p-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
-              <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span>Change Password (Optional)</span>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="current-password" className="text-xs font-semibold text-foreground">
-                Current Password
-              </label>
-              <div className="relative">
-                <Input
-                  id="current-password"
-                  name="current-password"
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Required only if modifying an existing password"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  aria-label={
-                    showCurrentPassword ? 'Hide current password' : 'Show current password'
-                  }
-                  aria-pressed={showCurrentPassword}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  {showCurrentPassword ? (
-                    <EyeOff className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label htmlFor="new-password" className="text-xs font-semibold text-foreground">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Input
-                    id="new-password"
-                    name="new-password"
-                    type={showNewPassword ? 'text' : 'password'}
-                    minLength={6}
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 6 characters"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword((prev) => !prev)}
-                    aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
-                    aria-pressed={showNewPassword}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Eye className="h-4 w-4" aria-hidden="true" />
+                      <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Upload Photo</span>
+                      <input
+                        id="profile-avatar-file"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarFileChange}
+                        className="sr-only"
+                      />
+                    </label>
+                    {watchedAvatarUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          clearErrors('avatarUrl')
+                          setValue('avatarUrl', '', { shouldDirty: true, shouldValidate: true })
+                        }}
+                        className="gap-1.5"
+                      >
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Remove Photo</span>
+                      </Button>
                     )}
-                  </button>
+                  </div>
+                  <Controller
+                    name="avatarUrl"
+                    control={profileForm.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel
+                          htmlFor="profile-avatar-url"
+                          className="text-[11px] font-semibold text-muted-foreground"
+                        >
+                          Or paste image URL
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id="profile-avatar-url"
+                          aria-invalid={fieldState.invalid}
+                          value={field.value.startsWith('data:') ? '' : field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          placeholder="https://example.com/avatar.jpg"
+                        />
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-1">
-                <label
-                  htmlFor="confirm-new-password"
-                  className="text-xs font-semibold text-foreground"
-                >
-                  Confirm New Password
-                </label>
-                <Input
-                  id="confirm-new-password"
-                  name="confirm-new-password"
-                  type={showNewPassword ? 'text' : 'password'}
-                  minLength={6}
-                  autoComplete="new-password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  placeholder="Re-enter new password"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Controller
+                name="name"
+                control={profileForm.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="profile-name">Full Name</FieldLabel>
+                    <Input
+                      {...field}
+                      id="profile-name"
+                      type="text"
+                      autoComplete="name"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="email"
+                control={profileForm.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="profile-email">Email Address</FieldLabel>
+                    <Input
+                      {...field}
+                      id="profile-email"
+                      autoComplete="username"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+            </div>
+
+            <Controller
+              name="phone"
+              control={profileForm.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="profile-phone">Phone Number</FieldLabel>
+                  <Input
+                    {...field}
+                    id="profile-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    aria-invalid={fieldState.invalid}
+                    placeholder="+1 (415) 555-0192"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="shippingAddress"
+              control={profileForm.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="profile-address">Default Shipping Address</FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="profile-address"
+                    autoComplete="street-address"
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Street address, suite, city, postal code"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            {/* Password Update Section */}
+            <div className="border border-border bg-secondary p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Change Password (Optional)</span>
+              </div>
+
+              <Controller
+                name="currentPassword"
+                control={profileForm.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="current-password">Current Password</FieldLabel>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        id="current-password"
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Required only if modifying an existing password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        aria-label={
+                          showCurrentPassword ? 'Hide current password' : 'Show current password'
+                        }
+                        aria-pressed={showCurrentPassword}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Controller
+                  name="newPassword"
+                  control={profileForm.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="new-password">New Password</FieldLabel>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          id="new-password"
+                          type={showNewPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          aria-invalid={fieldState.invalid}
+                          placeholder="At least 6 characters"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword((prev) => !prev)}
+                          aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                          aria-pressed={showNewPassword}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="h-4 w-4" aria-hidden="true" />
+                          ) : (
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name="confirmNewPassword"
+                  control={profileForm.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="confirm-new-password">Confirm New Password</FieldLabel>
+                      <Input
+                        {...field}
+                        id="confirm-new-password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Re-enter new password"
+                      />
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
                 />
               </div>
             </div>
-          </div>
+          </FieldGroup>
 
           <Button type="submit" disabled={updateProfileMutation.isPending}>
+            {updateProfileMutation.isPending && <Loader2 className="size-4 animate-spin" />}{' '}
             {updateProfileMutation.isPending ? 'Saving Profile...' : 'Save Changes'}
           </Button>
         </form>

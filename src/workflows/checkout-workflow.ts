@@ -1,55 +1,36 @@
 import { defineHook, sleep } from 'workflow'
 import { start } from 'workflow/api'
 import {
-  API_CONFIG,
-  generateViaApi,
-  sendRenderedEmailWithAttachments,
-  type OrderTemplateData,
-} from '../lib/utils/document-email-service'
-import {
-  clearUserCartServer,
-  commitVariantStock,
-  createOrderServer,
-  parseWorkflowDurationMs,
-  releaseVariantStock,
-  reserveVariantStock,
-} from '../lib/payload-server'
-import {
   PAYMENT_OPTIONS,
   calculateOrderTotalsCents,
-  centsToDollars,
   type PaymentOptionType,
 } from '../lib/utils/data'
-import { applyOrderStatusStep } from './order-status-workflow'
 import type { Order } from '@/payload-types'
+import { applyOrderStatusStep } from './steps/apply-order-status'
+import { commitOrderStockStep } from './steps/commit-order-stock'
+import { createOrderAndDocumentsStep } from './steps/create-order-and-documents'
+import { initiatePaynowMobilePaymentStep } from './steps/initiate-paynow-mobile-payment'
+import { processPaymentTransactionStep } from './steps/process-payment-transaction'
+import { releaseReservedStockStep } from './steps/release-reserved-stock'
+import { reserveInventoryStep } from './steps/reserve-inventory'
+import {
+  WORKFLOW_TIMEOUT_DEFAULTS,
+  type CheckoutWorkflowInput,
+  type OrderFulfillmentHookPayload,
+  type OrderPaymentHookPayload,
+  type WorkflowTimeoutValue,
+} from './types'
 
-export type WorkflowTimeoutValue =
-  number | `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`
-
-export const WORKFLOW_TIMEOUT_DEFAULTS = {
-  paymentWaitTimeout: (process.env.WORKFLOW_PAYMENT_WAIT_TIMEOUT || '30m') as WorkflowTimeoutValue,
-  payOnCollectionTimeout: (process.env.WORKFLOW_PAY_ON_COLLECTION_TIMEOUT ||
-    '8h') as WorkflowTimeoutValue,
-  payOnDeliveryTimeout: (process.env.WORKFLOW_PAY_ON_DELIVERY_TIMEOUT ||
-    '24h') as WorkflowTimeoutValue,
+export {
+  WORKFLOW_TIMEOUT_DEFAULTS,
+  type CheckoutWorkflowInput,
+  type OrderFulfillmentHookPayload,
+  type OrderPaymentHookPayload,
+  type WorkflowTimeoutValue,
 }
 
 function sleepForTimeout(timeout: WorkflowTimeoutValue): Promise<void> {
   return typeof timeout === 'number' ? sleep(timeout) : sleep(timeout)
-}
-
-export interface OrderPaymentHookPayload {
-  authorized: boolean
-  cardNumber?: string
-  cardholderName?: string
-  simulatePaymentFailure?: boolean
-  error?: string
-}
-
-export interface OrderFulfillmentHookPayload {
-  nextStatus: Order['orderStatus']
-  note?: string
-  deliveryFailed?: boolean
 }
 
 export function getOrderPaymentHookToken(orderId: string): string {
@@ -62,347 +43,6 @@ export function getOrderFulfillmentHookToken(orderId: string): string {
 
 export const orderPaymentHook = defineHook<OrderPaymentHookPayload>()
 export const orderFulfillmentHook = defineHook<OrderFulfillmentHookPayload>()
-
-export interface CheckoutWorkflowInput {
-  idempotencyKey?: string
-  orderId?: string
-  userId?: string
-  paymentOption?: PaymentOptionType
-  simulatePaymentFailure?: boolean
-  simulatePaymentTimeout?: boolean
-  awaitPaymentHook?: boolean
-  waitForFulfillment?: boolean
-  timeouts?: {
-    paymentWaitTimeout?: WorkflowTimeoutValue
-    payOnCollectionTimeout?: WorkflowTimeoutValue
-    payOnDeliveryTimeout?: WorkflowTimeoutValue
-  }
-  customer: {
-    name: string
-    email: string
-    address?: string
-    phone?: string
-    collectionLocation?: string
-  }
-  payment?: {
-    cardholderName?: string
-    cardNumber?: string
-    expiry?: string
-  }
-  items: Array<{
-    id: string
-    slug?: string
-    variantSku?: string
-    title: string
-    brand: string
-    category: string
-    subcategory: string
-    size?: string
-    color?: string
-    price: number
-    quantity: number
-    images?: string[]
-  }>
-}
-
-async function reserveInventoryStep(input: {
-  reservationKey: string
-  orderId: string
-  ttlDuration: WorkflowTimeoutValue
-  fallbackTtlMs: number
-  rawItems: CheckoutWorkflowInput['items']
-}) {
-  'use step'
-  const reservationItems = input.rawItems.map((item) => ({
-    productSlug: item.slug || item.id,
-    variantSku: item.variantSku || `${item.id.toUpperCase()}-STD-M`,
-    quantity: Math.max(1, Number(item.quantity) || 1),
-  }))
-
-  const ttlMs = parseWorkflowDurationMs(input.ttlDuration, input.fallbackTtlMs)
-
-  return await reserveVariantStock({
-    reservationKey: input.reservationKey,
-    orderId: input.orderId,
-    ttlMs,
-    items: reservationItems,
-  })
-}
-
-async function releaseReservedStockStep(input: { reservationKey: string; reason: string }) {
-  'use step'
-  const released = await releaseVariantStock(input.reservationKey, input.reason)
-  return {
-    released: Boolean(released),
-    reservationKey: input.reservationKey,
-    reason: input.reason,
-  }
-}
-
-async function commitOrderStockStep(input: { reservationKey: string }) {
-  'use step'
-  const committed = await commitVariantStock(input.reservationKey)
-  return {
-    committed: Boolean(committed),
-    reservationKey: input.reservationKey,
-  }
-}
-
-async function processPaymentTransactionStep(input: {
-  paymentOption: PaymentOptionType
-  cardNumber?: string
-  simulatePaymentFailure?: boolean
-  grandTotal: number
-  customError?: string
-}) {
-  'use step'
-  const optionMeta = PAYMENT_OPTIONS.find((o) => o.id === input.paymentOption) || PAYMENT_OPTIONS[0]
-
-  const cleanCard = (input.cardNumber || '').replace(/\D/g, '')
-  const cardLast4 = cleanCard.slice(-4) || (optionMeta.requiresCardNow ? '4242' : 'N/A')
-
-  if (optionMeta.requiresCardNow) {
-    if (input.simulatePaymentFailure || cleanCard.endsWith('0000')) {
-      return {
-        authorized: false,
-        paymentStatus: 'FAILED' as const,
-        methodLabel: `${optionMeta.shortLabel} (Card •••• ${cardLast4})`,
-        cardLast4,
-        fulfillmentMethod: optionMeta.fulfillmentMethod,
-        error:
-          input.customError ||
-          'Payment authorization declined by card issuer. Reserved stock has been automatically released back to inventory.',
-      }
-    }
-
-    return {
-      authorized: true,
-      paymentStatus: 'PAID' as const,
-      methodLabel: `${optionMeta.shortLabel} (Card •••• ${cardLast4})`,
-      cardLast4,
-      fulfillmentMethod: optionMeta.fulfillmentMethod,
-      paidAt: new Date().toISOString(),
-    }
-  }
-
-  return {
-    authorized: true,
-    paymentStatus: 'PENDING' as const,
-    methodLabel:
-      input.paymentOption === 'pay_on_delivery'
-        ? 'Pay on Delivery (Cash/Card on Courier Arrival)'
-        : 'Pay on Collection (In-Store Payment at Pickup)',
-    cardLast4: 'PAY-LATER',
-    fulfillmentMethod: optionMeta.fulfillmentMethod,
-    paidAt: 'Due upon ' + (optionMeta.fulfillmentMethod === 'DELIVERY' ? 'delivery' : 'collection'),
-  }
-}
-
-async function createOrderAndDocumentsStep(input: {
-  orderId: string
-  invoiceNumber: string
-  receiptNumber: string
-  timestamp: string
-  userId?: string
-  paymentOption: PaymentOptionType
-  paymentResult: {
-    paymentStatus: 'PAID' | 'PENDING'
-    methodLabel: string
-    cardLast4: string
-    fulfillmentMethod: 'DELIVERY' | 'COLLECTION'
-    paidAt?: string
-  }
-  customer: CheckoutWorkflowInput['customer']
-  items: CheckoutWorkflowInput['items']
-}) {
-  'use step'
-  const lineItems = input.items.map((item) => {
-    const unitPrice = Math.round(Number(item.price) || 0)
-    const quantity = Math.max(1, Math.round(Number(item.quantity) || 1))
-    const slug = item.slug || item.id
-    const defaultSku = `${item.id.toUpperCase()}-STD-${item.size || 'M'}`
-    return {
-      id: item.id,
-      productId: item.id,
-      productSlug: slug,
-      variantSku: item.variantSku || defaultSku,
-      title: item.title,
-      brand: item.brand,
-      category: item.category,
-      subcategory: item.subcategory,
-      size: item.size || 'M',
-      color: item.color || 'Signature',
-      quantity,
-      unitPrice,
-      lineTotal: unitPrice * quantity,
-      imageUrl: item.images?.[0] || '/images/shirt.png',
-    }
-  })
-
-  const { subTotalCents, taxCents, shippingCents, grandTotalCents } = calculateOrderTotalsCents(
-    lineItems.map((item) => ({ unitPriceCents: item.unitPrice, quantity: item.quantity })),
-    input.paymentResult.fulfillmentMethod,
-  )
-  const orderTotals = {
-    subTotal: subTotalCents,
-    tax: taxCents,
-    shipping: shippingCents,
-    grandTotal: grandTotalCents,
-  }
-
-  const resolvedAddress =
-    input.paymentResult.fulfillmentMethod === 'COLLECTION'
-      ? input.customer.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
-      : input.customer.address || ''
-
-  const sharedTemplateData: OrderTemplateData = {
-    orderId: input.orderId,
-    invoiceNumber: input.invoiceNumber,
-    receiptNumber: input.receiptNumber,
-    issuedAt: input.timestamp,
-    currency: 'USD',
-    customer: {
-      name: input.customer.name,
-      email: input.customer.email,
-      address: resolvedAddress,
-      phone: input.customer.phone,
-      collectionLocation: input.customer.collectionLocation,
-    },
-    paymentSummary: {
-      method: input.paymentResult.methodLabel,
-      paymentOption: input.paymentOption,
-      fulfillmentMethod: input.paymentResult.fulfillmentMethod,
-      cardLast4: input.paymentResult.cardLast4,
-      status: input.paymentResult.paymentStatus,
-      paidAt: input.paymentResult.paidAt || input.timestamp,
-    },
-    items: lineItems.map((item) => ({
-      ...item,
-      unitPrice: centsToDollars(item.unitPrice),
-      lineTotal: centsToDollars(item.lineTotal),
-    })),
-    totals: {
-      subTotal: centsToDollars(subTotalCents),
-      tax: centsToDollars(taxCents),
-      shipping: centsToDollars(shippingCents),
-      grandTotal: centsToDollars(grandTotalCents),
-    },
-  }
-
-  const subject = `Your Storefront Order ${input.orderId} — Invoice & Receipt (${input.paymentResult.methodLabel})`
-
-  const [invoicePdf, receiptPdf, renderedEmail] = await Promise.all([
-    generateViaApi({
-      templateId: API_CONFIG.templates.invoicePdf,
-      formats: ['pdf'],
-      filename: `Invoice-${input.invoiceNumber}.pdf`,
-      data: {
-        documentType: 'INVOICE',
-        ...sharedTemplateData,
-      },
-    }),
-    generateViaApi({
-      templateId: API_CONFIG.templates.receiptPdf,
-      formats: ['pdf'],
-      filename: `Receipt-${input.receiptNumber}.pdf`,
-      data: {
-        documentType: 'RECEIPT',
-        ...sharedTemplateData,
-      },
-    }),
-    generateViaApi({
-      templateId: API_CONFIG.templates.receiptEmail,
-      formats: ['html'],
-      data: {
-        documentType: 'EMAIL',
-        subject,
-        ...sharedTemplateData,
-      },
-    }),
-  ])
-
-  const emailResult = await sendRenderedEmailWithAttachments({
-    to: input.customer.email,
-    subject,
-    renderedEmail,
-    attachments: [invoicePdf, receiptPdf],
-  })
-
-  const orderRecord = await createOrderServer({
-    orderId: input.orderId,
-    invoiceNumber: input.invoiceNumber,
-    receiptNumber: input.receiptNumber,
-    neonUserId: input.userId,
-    issuedAt: input.timestamp,
-    customerEmail: input.customer.email.trim().toLowerCase(),
-    customerName: input.customer.name,
-    customerPhone: input.customer.phone,
-    shippingAddress: resolvedAddress,
-    collectionLocation: input.customer.collectionLocation,
-    paymentOption: input.paymentOption,
-    paymentMethodLabel: input.paymentResult.methodLabel,
-    fulfillmentMethod: input.paymentResult.fulfillmentMethod,
-    paymentStatus: input.paymentResult.paymentStatus,
-    orderStatus: 'CONFIRMED',
-    cardLast4: input.paymentResult.cardLast4,
-    paidAt: input.paymentResult.paidAt,
-    items: lineItems.map((i) => ({
-      productId: i.productId,
-      productSlug: i.productSlug,
-      variantSku: i.variantSku,
-      title: i.title,
-      brand: i.brand,
-      category: i.category,
-      subcategory: i.subcategory,
-      size: i.size,
-      color: i.color,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      lineTotal: i.lineTotal,
-      imageUrl: i.imageUrl,
-    })),
-    totals: orderTotals,
-    documentHistory: [
-      {
-        documentType: 'INVOICE',
-        documentNumber: input.invoiceNumber,
-        filename: invoicePdf.filename || `Invoice-${input.invoiceNumber}.pdf`,
-        templateId: invoicePdf.templateId,
-        generatedAt: input.timestamp,
-      },
-      {
-        documentType: 'RECEIPT',
-        documentNumber: input.receiptNumber,
-        filename: receiptPdf.filename || `Receipt-${input.receiptNumber}.pdf`,
-        templateId: receiptPdf.templateId,
-        generatedAt: input.timestamp,
-      },
-    ],
-    statusTimeline: [
-      {
-        status: 'CONFIRMED',
-        label: 'Order Confirmed & Stock Reserved',
-        timestamp: input.timestamp,
-        note: `Fulfillment: ${input.paymentResult.fulfillmentMethod} • Payment: ${input.paymentResult.methodLabel}`,
-      },
-    ],
-  })
-
-  if (input.userId) {
-    await clearUserCartServer(input.userId).catch(() => {})
-  }
-
-  return {
-    orderRecord,
-    sharedTemplateData,
-    orderLineItems: lineItems,
-    orderTotals,
-    invoicePdf,
-    receiptPdf,
-    renderedEmail,
-    emailResult,
-  }
-}
 
 async function runOrderFulfillmentLoop(params: {
   orderId: string
@@ -579,7 +219,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   }
 
   // Step 2: Process / Wait for Payment (30m configurable window for pay_and_delivery & pay_then_collect)
-  const { grandTotalCents: grandTotal } = calculateOrderTotalsCents(
+  const { taxCents, shippingCents, grandTotalCents: grandTotal } = calculateOrderTotalsCents(
     input.items.map((i) => ({
       unitPriceCents: Math.round(Number(i.price) || 0),
       quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
@@ -587,12 +227,51 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     optionMeta.fulfillmentMethod,
   )
 
+  const isPaynowMobile =
+    optionMeta.requiresCardNow && input.payment?.provider === 'paynow_mobile'
+
+  if (isPaynowMobile && !input.payment?.pollUrl) {
+    const mobileNumber = input.payment?.mobileNumber || input.customer.phone || ''
+    const mobileMethod = input.payment?.mobileMethod || 'ecocash'
+
+    const paynowItems = [
+      ...input.items.map((i) => ({
+        title: `${i.title} x${Math.max(1, Math.round(Number(i.quantity) || 1))}`,
+        amountCents:
+          Math.round(Number(i.price) || 0) * Math.max(1, Math.round(Number(i.quantity) || 1)),
+      })),
+      ...(taxCents > 0 ? [{ title: 'Tax (8%)', amountCents: taxCents }] : []),
+      ...(shippingCents > 0 ? [{ title: 'Courier Delivery', amountCents: shippingCents }] : []),
+    ]
+
+    const initResult = await initiatePaynowMobilePaymentStep({
+      orderId,
+      authEmail: input.customer.email,
+      phone: mobileNumber,
+      method: mobileMethod,
+      items: paynowItems,
+    })
+
+    if (!initResult.success) {
+      await releaseReservedStockStep({
+        reservationKey,
+        reason: initResult.error || 'Paynow mobile payment initiation failed',
+      })
+      return {
+        success: false as const,
+        status: 402,
+        orderId,
+        reservationKey,
+        error: initResult.error || 'Unable to initiate Paynow mobile payment.',
+        stockReleased: true,
+      }
+    }
+  }
+
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
   const requiresExternalPaymentHook =
     optionMeta.requiresCardNow &&
-    (Boolean(input.awaitPaymentHook) ||
-      Boolean(input.simulatePaymentTimeout) ||
-      !input.payment?.cardNumber)
+    (Boolean(input.awaitPaymentHook) || isPaynowMobile || !input.payment?.cardNumber)
 
   if (requiresExternalPaymentHook) {
     using paymentHook = orderPaymentHook.create({
@@ -621,9 +300,9 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     paymentOutcome = await processPaymentTransactionStep({
       paymentOption,
       cardNumber: paymentRace.payload.cardNumber ?? input.payment?.cardNumber,
-      simulatePaymentFailure:
-        paymentRace.payload.simulatePaymentFailure ??
-        (!paymentRace.payload.authorized || input.simulatePaymentFailure),
+      mobileMethod: paymentRace.payload.mobileMethod ?? input.payment?.mobileMethod,
+      mobileNumber: paymentRace.payload.mobileNumber ?? input.payment?.mobileNumber,
+      authorized: paymentRace.payload.authorized,
       grandTotal,
       customError: paymentRace.payload.error,
     })
@@ -632,7 +311,6 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
       processPaymentTransactionStep({
         paymentOption,
         cardNumber: input.payment?.cardNumber,
-        simulatePaymentFailure: input.simulatePaymentFailure,
         grandTotal,
       }).then((result) => ({ timedOut: false as const, result })),
       sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
@@ -657,7 +335,6 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     paymentOutcome = await processPaymentTransactionStep({
       paymentOption,
       cardNumber: input.payment?.cardNumber,
-      simulatePaymentFailure: input.simulatePaymentFailure,
       grandTotal,
     })
   }

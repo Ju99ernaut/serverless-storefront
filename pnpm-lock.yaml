@@ -86,6 +86,9 @@ importers:
       payload:
         specifier: 3.93.0
         version: 3.93.0(bufferutil@4.2.0)(graphql@16.15.0)(typescript@5.7.3)
+      paynow:
+        specifier: ^2.2.2
+        version: 2.2.2
       postcss:
         specifier: ^8.5.33
         version: 8.5.33
@@ -4673,6 +4676,9 @@ packages:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
 
+  js-sha512@0.9.0:
+    resolution: {integrity: sha512-mirki9WS/SUahm+1TbAPkqvbCiCfOAAsyXeHxK1UkullnJVVqoJG2pL9ObvT05CN+tM7fxhfYm0NbXn+1hWoZg==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -5366,6 +5372,10 @@ packages:
     hasBin: true
     peerDependencies:
       graphql: ^16.8.1
+
+  paynow@2.2.2:
+    resolution: {integrity: sha512-v8uKtOtMDo8abfjo/inzQ14hKXmEVH1AwEyku5BhsyrxN6AbttGpSoGk5q/wSc8adzFYzdgo79wNfHmRyJTeTw==}
+    engines: {node: '>=14.0.0'}
 
   pg-cloudflare@1.4.1:
     resolution: {integrity: sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ==}
@@ -11311,6 +11321,8 @@ snapshots:
 
   joycon@3.1.1: {}
 
+  js-sha512@0.9.0: {}
+
   js-tokens@4.0.0: {}
 
   js-yaml@4.3.2:
@@ -12142,6 +12154,14 @@ snapshots:
       - supports-color
       - typescript
       - utf-8-validate
+
+  paynow@2.2.2:
+    dependencies:
+      axios: 1.21.1
+      js-sha512: 0.9.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   pg-cloudflare@1.4.1:
     optional: true

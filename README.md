@@ -1,5 +1,7 @@
 # The Store (`serverless-store`)
 
+> **Status: Testing Phase** — This project is currently in its testing phase. Features, workflows, payment provider integrations, and data schemas are actively being tested and refined before production launch.
+
 A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon Postgres, Neon Managed Better Auth, the Vercel Workflow SDK, Cloudflare R2 media storage, ComposeIt on-demand PDF/HTML templates, and Resend transactional emails.
 
 ## Features
@@ -78,6 +80,7 @@ Environment variables defined in `.env.example`:
 - **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
 - **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
 - **Payment Webhook Secret**: `PAYMENT_WEBHOOK_SECRET` (required for server-to-server `action: "payment"` callbacks)
+- **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & OneMoney mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
 - **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)
 
 ### 4. Run Locally

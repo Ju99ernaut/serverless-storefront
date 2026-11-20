@@ -52,7 +52,6 @@ export async function PATCH(request: NextRequest) {
       authorized,
       cardNumber,
       cardholderName,
-      simulatePaymentFailure,
       error: paymentError,
     } = body || {}
 
@@ -91,7 +90,6 @@ export async function PATCH(request: NextRequest) {
         authorized: Boolean(authorized),
         cardNumber,
         cardholderName,
-        simulatePaymentFailure: Boolean(simulatePaymentFailure),
         error: paymentError,
       })
       return NextResponse.json({

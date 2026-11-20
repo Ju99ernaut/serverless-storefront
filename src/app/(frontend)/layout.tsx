@@ -4,11 +4,31 @@ import NextTopLoader from 'nextjs-toploader'
 import '../../styles/globals.css'
 import '../../styles/filters.css'
 import { ClientLayout } from '@/components/client-layout'
+import { getSiteUrl } from '@/lib/og-image'
 
 export const metadata: Metadata = {
-  title: 'Storefront Atelier — Curated Clothing & Footwear',
+  metadataBase: new URL(getSiteUrl()),
+  applicationName: 'Storefront Atelier',
+  title: {
+    default: 'Storefront Atelier — Curated Clothing & Footwear',
+    template: '%s — Storefront Atelier',
+  },
   description:
-    'Modern clothing storefront powered by Payload CMS, Cloudflare R2, ImageKit, Neon Managed Better Auth, and Workflow SDK durable stock tracking.',
+    'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
+  openGraph: {
+    type: 'website',
+    siteName: 'Storefront Atelier',
+    locale: 'en_US',
+    title: 'Storefront Atelier — Curated Clothing & Footwear',
+    description:
+      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Storefront Atelier — Curated Clothing & Footwear',
+    description:
+      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier.',
+  },
   manifest: '/manifest.json',
   icons: {
     icon: [

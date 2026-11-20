@@ -7,9 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Storefront Atelier',
+  title: 'Terms of Service',
   description:
-    'Terms of Service governing accounts, durable stock reservation, checkout, payments, and orders on Storefront Atelier.',
+    'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront Atelier.',
+  alternates: {
+    canonical: '/terms',
+  },
+  openGraph: {
+    type: 'website',
+    url: '/terms',
+    title: 'Terms of Service — Storefront Atelier',
+    description:
+      'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront Atelier.',
+  },
 }
 
 export default function TermsOfServicePage() {
