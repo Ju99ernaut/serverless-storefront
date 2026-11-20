@@ -13,13 +13,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../ui/empty'
+import { useAuth, useCart } from '@/context'
 
-interface AccountGuestPromptProps {
-  totalCartCount: number
-  onOpenAuthModal: () => void
-}
+export function AccountGuestPrompt() {
+  const { totalCartCount } = useCart()
+  const { openAuthModal } = useAuth()
 
-export function AccountGuestPrompt({ totalCartCount, onOpenAuthModal }: AccountGuestPromptProps) {
   return (
     <Card className="mx-auto max-w-lg">
       <CardContent className="p-6">
@@ -32,9 +31,8 @@ export function AccountGuestPrompt({ totalCartCount, onOpenAuthModal }: AccountG
               Sign in to manage orders &amp; saved wardrobe
             </EmptyTitle>
             <EmptyDescription>
-              Create an account or sign in via Neon Managed Better Auth (Email or Google) to track
-              orders, download Invoice/Receipt PDFs, sync your saved bag, and receive email shipping
-              updates.
+              Create an account or sign in via email or Google to track orders, download
+              Invoice/Receipt PDFs, sync your saved bag, and see delivery updates.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="w-full max-w-none space-y-4">
@@ -42,13 +40,13 @@ export function AccountGuestPrompt({ totalCartCount, onOpenAuthModal }: AccountG
               <Alert>
                 <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span className="text-xs">
-                  You currently have <strong>{totalCartCount}</strong> item(s) in your guest{' '}
-                  <code>localStorage</code> bag &mdash; signing in will merge them automatically.
+                  You currently have <strong>{totalCartCount}</strong> item(s) in your bag &mdash;
+                  signing in will merge them automatically.
                 </span>
               </Alert>
             )}
             <div className="flex flex-wrap justify-center gap-3">
-              <Button type="button" onClick={onOpenAuthModal}>
+              <Button type="button" onClick={() => openAuthModal('account')}>
                 Sign In / Create Account
               </Button>
               <Link className={buttonVariants({ variant: 'outline' })} href="/">

@@ -34,7 +34,7 @@ interface ProductReviewsSectionProps {
   activeVariant?: ProductVariant
   reviews: Review[]
   loading: boolean
-  user: NeonUser | null
+  user?: NeonUser | null
   onOpenAuthModal: () => void
 }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ShoppingBag, Trash2 } from 'lucide-react'
-import { formatCentsAsDollars, type CartLineItem } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -14,14 +14,11 @@ import {
   EmptyTitle,
 } from '../ui/empty'
 import { OptimizedImage } from '../ui/optimized-image'
+import { useCart } from '@/context'
 
-interface AccountCartTabProps {
-  cartItems: CartLineItem[]
-  onRemoveCartItem: (cartItemId: string) => void
-  onOpenCart: () => void
-}
+export function AccountCartTab() {
+  const { cartItems, removeCartItem, setIsCartOpen } = useCart()
 
-export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: AccountCartTabProps) {
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
@@ -48,7 +45,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
               {cartItems.map((ci) => (
                 <div
                   key={ci.cartItemId}
-                  className="flex items-center justify-between gap-3 rounded-none border border-border bg-secondary p-3 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary p-3 text-sm"
                 >
                   <div className="flex items-center gap-3">
                     <OptimizedImage
@@ -56,7 +53,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
                       alt={ci.title}
                       width={52}
                       height={52}
-                      className="h-12 w-12 object-contain rounded-none bg-card p-1"
+                      className="h-12 w-12 object-contain rounded-lg bg-card p-1"
                     />
                     <div>
                       <Link
@@ -79,7 +76,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
                       size="icon"
                       variant="ghost"
                       aria-label={`Remove ${ci.title}`}
-                      onClick={() => onRemoveCartItem(ci.cartItemId)}
+                      onClick={() => removeCartItem(ci.cartItemId)}
                     >
                       <Trash2 className="h-4 w-4 text-rose-500" />
                     </Button>
@@ -88,7 +85,7 @@ export function AccountCartTab({ cartItems, onRemoveCartItem, onOpenCart }: Acco
               ))}
             </div>
             <div className="flex justify-end pt-2">
-              <Button type="button" onClick={onOpenCart}>
+              <Button type="button" onClick={() => setIsCartOpen(true)}>
                 Open Checkout Drawer
               </Button>
             </div>

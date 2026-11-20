@@ -15,25 +15,23 @@ import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { getUserInitials } from '../user-menu'
 
-interface AccountProfileTabProps {
-  user: NeonUser
-}
-
-export function AccountProfileTab({ user }: AccountProfileTabProps) {
+export function AccountProfileTab() {
   const queryClient = useQueryClient()
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
 
   const { data: billingDetails } = useQuery({
-    queryKey: storefrontQueryKeys.billingDetails(user.id),
-    queryFn: () => getBillingDetails(user.id),
-    enabled: Boolean(user.id),
+    queryKey: storefrontQueryKeys.billingDetails(user?.id),
+    queryFn: () => getBillingDetails(user?.id || ''),
+    enabled: Boolean(user?.id),
     ...CACHE_TIMES.userState,
   })
 
-  const [profileName, setProfileName] = useState(user.name || '')
-  const [profileEmail, setProfileEmail] = useState(user.email || '')
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [profileEmail, setProfileEmail] = useState(user?.email || '')
   const [profilePhone, setProfilePhone] = useState(billingDetails?.phone || '')
   const [profileAddress, setProfileAddress] = useState(billingDetails?.shippingAddress || '')
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user.image || '')
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.image || '')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -43,9 +41,9 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
   const [profileErrorMsg, setProfileErrorMsg] = useState('')
 
   useEffect(() => {
-    setProfileName(user.name || '')
-    setProfileEmail(user.email || '')
-    setProfileAvatarUrl(user.image || '')
+    setProfileName(user?.name || '')
+    setProfileEmail(user?.email || '')
+    setProfileAvatarUrl(user?.image || '')
   }, [user])
 
   useEffect(() => {
@@ -93,7 +91,7 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
       }
 
       const savedBilling = await upsertBillingDetails({
-        neonUserId: user.id,
+        neonUserId: user?.id || '',
         phone: params.phone,
         shippingAddress: params.shippingAddress,
       })
@@ -109,7 +107,7 @@ export function AccountProfileTab({ user }: AccountProfileTabProps) {
       }
     },
     onSuccess: ({ savedBilling, updatedUser }) => {
-      queryClient.setQueryData(storefrontQueryKeys.billingDetails(user.id), savedBilling)
+      queryClient.setQueryData(storefrontQueryKeys.billingDetails(user?.id), savedBilling)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')

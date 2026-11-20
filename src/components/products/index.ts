@@ -1,6 +1,0 @@
-export { ProductImageGallery } from './product-image-gallery'
-export { ProductInfoPanel } from './product-info-panel'
-export { ProductReviewsSection } from './product-reviews-section'
-export { RelatedProductsSection } from './related-products-section'
-export { ProductDetailSkeleton } from './product-detail-skeleton'
-export { ProductNotFound } from './product-not-found'

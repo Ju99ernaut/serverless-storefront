@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
-import { formatCentsAsDollars, getProductImages, type Product } from '@/lib/utils/data'
+import { formatCentsAsDollars, getProductImages } from '@/lib/utils/data'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -14,18 +14,22 @@ import {
   EmptyTitle,
 } from '../ui/empty'
 import { OptimizedImage } from '../ui/optimized-image'
+import { CACHE_TIMES, storefrontQueryKeys, useCart, useWishlist } from '@/context'
+import { useQuery } from '@tanstack/react-query'
+import { getCatalogData } from '@/lib/payload-sdk'
 
-interface AccountWishlistTabProps {
-  lovedProducts: Product[]
-  onAddToCart: (product: Product) => void
-  onToggleWishlist: (product: Product) => void
-}
+export function AccountWishlistTab() {
+  const { addToCart } = useCart()
+  const { wishlistSlugs, toggleWishlist } = useWishlist()
 
-export function AccountWishlistTab({
-  lovedProducts,
-  onAddToCart,
-  onToggleWishlist,
-}: AccountWishlistTabProps) {
+  const { data: catalog } = useQuery({
+    queryKey: storefrontQueryKeys.catalog,
+    queryFn: getCatalogData,
+    ...CACHE_TIMES.catalog,
+  })
+  const products = catalog?.products ?? []
+  const lovedProducts = products.filter((p) => wishlistSlugs.includes(p.slug))
+
   if (lovedProducts.length === 0) {
     return (
       <Card>
@@ -58,7 +62,7 @@ export function AccountWishlistTab({
           <CardContent className="p-4 flex flex-col gap-3">
             <Link
               href={`/products/${item.slug}`}
-              className="flex h-40 items-center justify-center rounded-none bg-secondary p-3"
+              className="flex h-40 items-center justify-center rounded-lg bg-secondary p-3"
             >
               <OptimizedImage
                 src={getProductImages(item)[0]}
@@ -84,7 +88,7 @@ export function AccountWishlistTab({
                 type="button"
                 size="sm"
                 className="flex-1 gap-1.5"
-                onClick={() => onAddToCart(item)}
+                onClick={() => addToCart(item)}
               >
                 <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Add to Bag</span>
@@ -94,7 +98,7 @@ export function AccountWishlistTab({
                 size="icon"
                 variant="outline"
                 aria-label={`Remove ${item.title} from loved items`}
-                onClick={() => onToggleWishlist(item)}
+                onClick={() => void toggleWishlist(item)}
               >
                 <Trash2 className="h-4 w-4 text-rose-500" />
               </Button>

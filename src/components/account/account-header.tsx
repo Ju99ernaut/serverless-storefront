@@ -1,24 +1,32 @@
 'use client'
 
-import type { NeonUser } from '@/lib/utils/data'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { getUserInitials } from '../user-menu'
+import { neonAuthClient } from '@/lib/auth-client'
+import { CACHE_TIMES, storefrontQueryKeys, useCart, useWishlist } from '@/context'
+import { getOrdersByUser } from '@/lib/payload-sdk'
+import { useQuery } from '@tanstack/react-query'
 
-interface AccountHeaderProps {
-  user: NeonUser
-  ordersCount: number
-  wishlistCount: number
-  totalCartCount: number
-}
+export function AccountHeader() {
+  const { data: sessionData } = neonAuthClient.useSession()
+  const user = sessionData?.user
+  const { totalCartCount } = useCart()
+  const { wishlistSlugs } = useWishlist()
+  const wishlistCount = wishlistSlugs.length
 
-export function AccountHeader({
-  user,
-  ordersCount,
-  wishlistCount,
-  totalCartCount,
-}: AccountHeaderProps) {
+  const { data: orders = [] } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+    queryFn: () => getOrdersByUser({ neonUserId: user?.id, email: user?.email }),
+    enabled: Boolean(user?.id || user?.email),
+    ...CACHE_TIMES.orders,
+  })
+
+  const ordersCount = orders.length
+
+  if (!user) return null
+
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-none border border-border bg-card p-6">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-lg border border-border bg-card p-6">
       <div className="flex items-center gap-4">
         <Avatar className="h-14 w-14 border border-primary/40">
           {user.image ? <AvatarImage src={user.image} alt={user.name} /> : null}
@@ -35,15 +43,15 @@ export function AccountHeader({
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-none border border-border bg-secondary px-4 py-2.5">
+        <div className="rounded-lg border border-border bg-secondary px-4 py-2.5">
           <div className="text-lg font-bold text-foreground">{ordersCount}</div>
           <div className="text-[11px] text-muted-foreground">Orders</div>
         </div>
-        <div className="rounded-none border border-border bg-secondary px-4 py-2.5">
+        <div className="rounded-lg border border-border bg-secondary px-4 py-2.5">
           <div className="text-lg font-bold text-foreground">{wishlistCount}</div>
           <div className="text-[11px] text-muted-foreground">Loved</div>
         </div>
-        <div className="rounded-none border border-border bg-secondary px-4 py-2.5">
+        <div className="rounded-lg border border-border bg-secondary px-4 py-2.5">
           <div className="text-lg font-bold text-foreground">{totalCartCount}</div>
           <div className="text-[11px] text-muted-foreground">Saved Bag</div>
         </div>

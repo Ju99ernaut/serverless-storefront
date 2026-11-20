@@ -2,10 +2,14 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Clock, FileText, Loader2, Package, Truck } from 'lucide-react'
-import { storefrontQueryKeys } from '@/context'
-import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
+import { CACHE_TIMES, storefrontQueryKeys } from '@/context'
+import {
+  generateOrderDocumentViaSdk,
+  getOrdersByUser,
+  updateOrderStatusViaSdk,
+} from '@/lib/payload-sdk'
 import { formatCentsAsDollars, type Order } from '@/lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
@@ -35,21 +39,7 @@ const STATUS_BADGE_MAP: Record<
   CANCELLED: { label: 'Cancelled & Stock Released', variant: 'destructive' },
 }
 
-interface AccountOrdersTabProps {
-  orders: Order[]
-  updatingOrderId: string | null
-  onAdvanceStatus: (
-    orderId: string,
-    nextStatus: Order['orderStatus'],
-    options?: { deliveryFailed?: boolean },
-  ) => void
-}
-
-export function AccountOrdersTab({
-  orders,
-  updatingOrderId,
-  onAdvanceStatus,
-}: AccountOrdersTabProps) {
+export function AccountOrdersTab() {
   const { data: sessionData } = neonAuthClient.useSession()
   const user = sessionData?.user
   const queryClient = useQueryClient()
@@ -90,6 +80,61 @@ export function AccountOrdersTab({
     onSettled: () => {
       setGeneratingKey(null)
     },
+  })
+
+  const advanceStatusMutation = useMutation({
+    mutationFn: ({
+      orderId,
+      nextStatus,
+      deliveryFailed,
+    }: {
+      orderId: string
+      nextStatus: Order['orderStatus']
+      deliveryFailed?: boolean
+    }) => updateOrderStatusViaSdk({ orderId, nextStatus, deliveryFailed }),
+    onSuccess: async (res, variables) => {
+      toast.add({
+        type: 'success',
+        description: `Order ${variables.orderId} updated to "${variables.nextStatus}". ${
+          res.emailDispatched ? 'Email status notification dispatched to your inbox.' : ''
+        }`,
+      })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+        }),
+        queryClient.invalidateQueries({ queryKey: storefrontQueryKeys.catalog }),
+      ])
+    },
+    onError: (err: unknown) => {
+      toast.add({
+        type: 'error',
+        description: err instanceof Error ? err.message : 'Unable to update order status.',
+      })
+    },
+  })
+
+  const updatingOrderId = advanceStatusMutation.isPending
+    ? (advanceStatusMutation.variables?.orderId ?? null)
+    : null
+
+  const onAdvanceStatus = (
+    orderId: string,
+    nextStatus: Order['orderStatus'],
+    options?: { deliveryFailed?: boolean },
+  ) => {
+    advanceStatusMutation.mutate({
+      orderId,
+      nextStatus,
+      deliveryFailed: options?.deliveryFailed,
+    })
+  }
+
+  const { data: orders = [] } = useQuery({
+    queryKey: storefrontQueryKeys.orders(user?.id || user?.email),
+    queryFn: () => getOrdersByUser({ neonUserId: user?.id, email: user?.email }),
+    enabled: Boolean(user?.id || user?.email),
+    ...CACHE_TIMES.orders,
   })
 
   if (orders.length === 0) {
@@ -186,10 +231,10 @@ export function AccountOrdersTab({
                 {(order.items ?? []).map((item, idx) => (
                   <div
                     key={`${order.orderId}-item-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-none border border-border bg-secondary p-2.5 text-xs"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary p-2.5 text-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-none bg-card p-1 flex items-center justify-center border border-border">
+                      <div className="h-12 w-12 rounded-lg bg-card p-1 flex items-center justify-center border border-border">
                         <OptimizedImage
                           src={item.imageUrl || '/images/shirt.png'}
                           alt={item.title}
@@ -237,7 +282,7 @@ export function AccountOrdersTab({
 
               {/* Invoices & Receipts History */}
               {docHistory.length > 0 && (
-                <div className="space-y-2 rounded-none border border-border bg-popover p-4">
+                <div className="space-y-2 rounded-lg border border-border bg-popover p-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Invoices &amp; Receipts History
                   </div>
@@ -264,7 +309,7 @@ export function AccountOrdersTab({
               )}
 
               {/* Status Timeline */}
-              <div className="space-y-2 rounded-none border border-border bg-popover p-4">
+              <div className="space-y-2 rounded-lg border border-border bg-popover p-4">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Live Tracking Updates
                 </div>
