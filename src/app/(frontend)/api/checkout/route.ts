@@ -3,7 +3,7 @@ import { getServerNeonUser } from '@/lib/auth'
 import {
   executeDurableCheckoutWorkflow,
   type CheckoutWorkflowInput,
-} from '@/workflows/checkoutWorkflow'
+} from '@/workflows/checkout-workflow'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,10 +32,7 @@ export async function POST(request: NextRequest) {
     } = body || {}
 
     if (userId && userId !== sessionUser.id) {
-      return NextResponse.json(
-        { error: 'Forbidden: session user mismatch.' },
-        { status: 403 },
-      )
+      return NextResponse.json({ error: 'Forbidden: session user mismatch.' }, { status: 403 })
     }
 
     const customerName = customer?.name?.trim() || sessionUser.name
@@ -49,10 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: 'Cannot checkout with an empty cart.' },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: 'Cannot checkout with an empty cart.' }, { status: 400 })
     }
 
     const result = await executeDurableCheckoutWorkflow({
@@ -83,19 +77,16 @@ export async function POST(request: NextRequest) {
           orderId: 'orderId' in result ? result.orderId : undefined,
           stockReleased: result.stockReleased,
           timedOut: 'timedOut' in result ? result.timedOut : false,
-          insufficientItems:
-            'insufficientItems' in result ? result.insufficientItems : undefined,
+          insufficientItems: 'insufficientItems' in result ? result.insufficientItems : undefined,
         },
-        { status: result.status || 400 }
-      );
+        { status: result.status || 400 },
+      )
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(result)
   } catch (error: unknown) {
     const message =
-      error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred during checkout.';
-    return NextResponse.json({ error: message }, { status: 500 });
+      error instanceof Error ? error.message : 'An unexpected error occurred during checkout.'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

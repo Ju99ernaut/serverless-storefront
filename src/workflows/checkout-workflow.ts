@@ -5,7 +5,7 @@ import {
   generateViaApi,
   sendRenderedEmailWithAttachments,
   type OrderTemplateData,
-} from '../lib/utils/documentEmailService'
+} from '../lib/utils/document-email-service'
 import {
   clearUserCartServer,
   commitVariantStock,
@@ -21,7 +21,7 @@ import {
   type Order,
   type PaymentOptionType,
 } from '../lib/utils/data'
-import { applyOrderStatusStep } from './orderStatusWorkflow'
+import { applyOrderStatusStep } from './order-status-workflow'
 
 export type WorkflowTimeoutValue =
   number | `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`

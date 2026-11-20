@@ -1,7 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import type { Order, Product, StockReservation } from '../payload-types'
-import { generateOrderDocumentOnDemand } from './utils/documentEmailService'
+import { generateOrderDocumentOnDemand } from './utils/document-email-service'
 
 export async function getServerPayload() {
   return getPayload({ config })

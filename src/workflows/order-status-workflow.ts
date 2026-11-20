@@ -2,7 +2,7 @@ import {
   API_CONFIG,
   generateViaApi,
   sendRenderedEmailWithAttachments,
-} from '../lib/utils/documentEmailService'
+} from '../lib/utils/document-email-service'
 import {
   commitVariantStock,
   getOrderByOrderIdServer,

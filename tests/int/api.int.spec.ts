@@ -19,12 +19,7 @@ import {
   upsertBillingDetails,
 } from '@/lib/payload-sdk'
 import { releaseVariantStock, reserveVariantStock } from '@/lib/payload-server'
-import {
-  isAdminAccess,
-  ordersAccess,
-  ownerByNeonUserIdAccess,
-  reviewsAccess,
-} from '@/lib/access'
+import { isAdminAccess, ordersAccess, ownerByNeonUserIdAccess, reviewsAccess } from '@/lib/access'
 import type { PayloadRequest } from 'payload'
 import {
   WORKFLOW_TIMEOUT_DEFAULTS,
@@ -33,7 +28,7 @@ import {
   getOrderPaymentHookToken,
   orderFulfillmentHook,
   orderPaymentHook,
-} from '@/workflows/checkoutWorkflow'
+} from '@/workflows/checkout-workflow'
 import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from './products'
 import {
   DELIVERY_FEE_CENTS,

@@ -6,18 +6,15 @@ import {
   isAuthorizedPayloadAdminRequest,
   verifyPaymentWebhookSecret,
 } from '@/lib/auth'
-import {
-  generateAndRecordOrderDocumentServer,
-  getOrderByOrderIdServer,
-} from '@/lib/payload-server'
+import { generateAndRecordOrderDocumentServer, getOrderByOrderIdServer } from '@/lib/payload-server'
 import type { Order } from '@/lib/utils/data'
 import {
   getOrderFulfillmentHookToken,
   getOrderPaymentHookToken,
   orderFulfillmentHook,
   orderPaymentHook,
-} from '@/workflows/checkoutWorkflow'
-import { executeOrderStatusUpdateWorkflow } from '@/workflows/orderStatusWorkflow'
+} from '@/workflows/checkout-workflow'
+import { executeOrderStatusUpdateWorkflow } from '@/workflows/order-status-workflow'
 
 const VALID_ORDER_STATUSES = new Set<Order['orderStatus']>([
   'PENDING',
@@ -170,10 +167,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    if (
-      existingOrder.orderStatus === 'COMPLETED' ||
-      existingOrder.orderStatus === 'CANCELLED'
-    ) {
+    if (existingOrder.orderStatus === 'COMPLETED' || existingOrder.orderStatus === 'CANCELLED') {
       return NextResponse.json(
         {
           error: `Order ${orderId} is already ${existingOrder.orderStatus} and cannot be modified.`,
