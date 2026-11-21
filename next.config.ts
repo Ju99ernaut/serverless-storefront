@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     'payload',
     '@payloadcms/db-vercel-postgres',
-    '@payloadcms/storage-s3',
     'sharp',
     'file-type',
     'nodemailer',
