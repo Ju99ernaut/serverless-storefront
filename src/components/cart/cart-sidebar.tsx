@@ -18,7 +18,6 @@ import { CartMobilePaymentStep } from './cart-mobile-payment-step'
 import { CartOrderSuccessStep } from './cart-order-success-step'
 import {
   COLLECTION_LOCATIONS,
-  DEFAULT_SHIPPING_ADDRESS,
   checkoutSchema,
   type CheckoutApiResponse,
   type CheckoutFormValues,
@@ -73,15 +72,15 @@ const CartSidebar = ({
       paymentProvider: 'paynow_mobile',
       mobileMethod: 'ecocash',
       mobileNumber: billingDetails?.phone || '',
-      customerName: user?.name || 'Alex Rivera',
-      customerEmail: user?.email || 'alex.rivera@example.com',
-      customerPhone: billingDetails?.phone || '+1 (415) 555-0192',
-      shippingAddress: billingDetails?.shippingAddress || DEFAULT_SHIPPING_ADDRESS,
+      customerName: user?.name || '',
+      customerEmail: user?.email || '',
+      customerPhone: billingDetails?.phone || '',
+      shippingAddress: billingDetails?.shippingAddress || '',
       collectionLocation: COLLECTION_LOCATIONS[0],
-      ccName: user?.name || 'Alex Rivera',
-      ccNumber: '4242 4242 4242 4242',
-      ccExp: '08/29',
-      ccCsc: '842',
+      ccName: user?.name || '',
+      ccNumber: '',
+      ccExp: '',
+      ccCsc: '',
     },
   })
 
@@ -309,8 +308,7 @@ const CartSidebar = ({
             receiptNumber: orderDoc?.receiptNumber || `RCP-${data.orderId.replace('ORD-', '')}`,
             issuedAt: orderDoc?.issuedAt || new Date().toISOString(),
             paymentOption: orderDoc?.paymentOption || currentValues.paymentOption,
-            fulfillmentMethod:
-              orderDoc?.fulfillmentMethod || selectedPaymentMeta.fulfillmentMethod,
+            fulfillmentMethod: orderDoc?.fulfillmentMethod || selectedPaymentMeta.fulfillmentMethod,
             orderStatus: orderDoc?.orderStatus || 'CONFIRMED',
             paymentSummary: {
               method: orderDoc?.paymentMethodLabel || `Paynow ${walletLabel}`,

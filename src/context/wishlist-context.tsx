@@ -19,6 +19,7 @@ import {
 } from '../lib/payload-sdk'
 import { CACHE_TIMES, storefrontQueryKeys } from './query-keys'
 import { neonAuthClient } from '@/lib/auth-client'
+import { toast } from '../components/ui/toast'
 
 interface WishlistContextValue {
   wishlistSlugs: string[]
@@ -52,11 +53,73 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   })
 
   const { mutateAsync: toggleWishlistMutateAsync } = useMutation({
+    mutationKey: ['wishlist', 'toggle'],
     mutationFn: (params: { neonUserId: string; product: Pick<Product, 'id' | 'slug'> }) => {
       return toggleWishlistItemInPayload(params.neonUserId, params.product)
     },
+    onMutate: async (variables) => {
+      const queryKey = storefrontQueryKeys.wishlist(variables.neonUserId)
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousWishlist = queryClient.getQueryData<Wishlist | null>(queryKey)
+
+      queryClient.setQueryData<Wishlist | null>(queryKey, (current) => {
+        const existingItems = current?.items ?? []
+        const alreadyExists = existingItems.some(
+          (item) => item.productSlug === variables.product.slug,
+        )
+        const nextItems = alreadyExists
+          ? existingItems.filter((item) => item.productSlug !== variables.product.slug)
+          : [
+              ...existingItems,
+              {
+                product: variables.product.id,
+                productSlug: variables.product.slug,
+              },
+            ]
+
+        if (current) {
+          return {
+            ...current,
+            items: nextItems,
+          }
+        }
+
+        const now = new Date().toISOString()
+        return {
+          id: -1,
+          neonUserId: variables.neonUserId,
+          items: nextItems,
+          createdAt: now,
+          updatedAt: now,
+        }
+      })
+
+      return { previousWishlist, queryKey }
+    },
+    onError: (_error, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(context.queryKey, context.previousWishlist)
+      }
+      toast.add({
+        type: 'error',
+        description: 'Could not update your loved items. Please try again.',
+      })
+    },
     onSuccess: (updatedWishlist, variables) => {
-      queryClient.setQueryData(storefrontQueryKeys.wishlist(variables.neonUserId), updatedWishlist)
+      if (queryClient.isMutating({ mutationKey: ['wishlist', 'toggle'] }) <= 1) {
+        queryClient.setQueryData(
+          storefrontQueryKeys.wishlist(variables.neonUserId),
+          updatedWishlist,
+        )
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      if (queryClient.isMutating({ mutationKey: ['wishlist', 'toggle'] }) <= 1) {
+        void queryClient.invalidateQueries({
+          queryKey: storefrontQueryKeys.wishlist(variables.neonUserId),
+        })
+      }
     },
   })
 
@@ -110,13 +173,17 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      await toggleWishlistMutateAsync({
-        neonUserId: user.id,
-        product: {
-          id: product.id,
-          slug: product.slug,
-        },
-      })
+      try {
+        await toggleWishlistMutateAsync({
+          neonUserId: user.id,
+          product: {
+            id: product.id,
+            slug: product.slug,
+          },
+        })
+      } catch {
+        // Handled by mutation onError rollback + toast
+      }
     },
     [user, toggleWishlistMutateAsync],
   )

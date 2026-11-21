@@ -109,19 +109,19 @@ export function AccountPortalContent() {
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="orders" className="gap-1.5">
             <Package className="h-4 w-4" aria-hidden="true" />
-            <span>Orders &amp; Tracking ({orders.length})</span>
+            <span className="hidden sm:inline">Orders &amp; Tracking ({orders.length})</span>
           </TabsTrigger>
           <TabsTrigger value="wishlist" className="gap-1.5">
             <Heart className="h-4 w-4" aria-hidden="true" />
-            <span>Loved Items ({lovedProducts.length})</span>
+            <span className="hidden sm:inline">Loved Items ({lovedProducts.length})</span>
           </TabsTrigger>
           <TabsTrigger value="cart" className="gap-1.5">
             <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-            <span>Saved Bag ({totalCartCount})</span>
+            <span className="hidden sm:inline">Saved Bag ({totalCartCount})</span>
           </TabsTrigger>
           <TabsTrigger value="profile" className="gap-1.5">
             <UserIcon className="h-4 w-4" aria-hidden="true" />
-            <span>Profile &amp; Address</span>
+            <span className="hidden sm:inline">Profile &amp; Address</span>
           </TabsTrigger>
         </TabsList>
 

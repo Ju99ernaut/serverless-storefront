@@ -1,11 +1,16 @@
+import { sql } from '@payloadcms/db-vercel-postgres'
 import QRCode from 'qrcode'
 import {
   FiscalDevice,
+  NodeTransport,
+  PemSigner,
   cents,
   type DeviceIdentity,
   type MoneyType,
+  type Storage,
   type TaxDefinition,
 } from 'zimra-fdms'
+import { getServerPayload } from './payload-server'
 
 export interface FiscalReceiptData {
   deviceId: number
@@ -37,6 +42,24 @@ export interface SubmitFiscalReceiptParams {
   grandTotalCents: number
 }
 
+interface DrizzleLike {
+  execute: (query: unknown) => Promise<{ rows?: Array<Record<string, unknown>> }>
+}
+
+interface PoolClientLike {
+  query: (text: string, values?: unknown[]) => Promise<unknown>
+  release: () => void
+}
+
+interface PoolLike {
+  connect: () => Promise<PoolClientLike>
+}
+
+interface PayloadDbLike {
+  drizzle?: DrizzleLike
+  pool?: PoolLike
+}
+
 function normalizePem(raw: string | undefined): string {
   if (!raw) return ''
   return raw.replace(/\\n/g, '\n').trim()
@@ -63,7 +86,6 @@ function getZimraConfig() {
     rawEnv === 'production' || rawEnv === 'prod' ? 'production' : 'test'
   const modelName = process.env.ZIMRA_FDMS_MODEL_NAME?.trim() || 'Server'
   const modelVersion = process.env.ZIMRA_FDMS_MODEL_VERSION?.trim() || 'v1'
-  const stateDir = process.env.ZIMRA_FDMS_STATE_DIR?.trim() || './.zimra'
   const currency = (process.env.ZIMRA_FDMS_CURRENCY?.trim() || 'USD').toUpperCase()
 
   const identity: DeviceIdentity = {
@@ -78,95 +100,193 @@ function getZimraConfig() {
     certificatePem,
     privateKeyPem,
     environment,
-    stateDir,
     currency,
   }
 }
 
-let cachedDevice: FiscalDevice | null = null
+let stateTableInitialized = false
 let cachedTaxes: TaxDefinition[] = []
-let fiscalQueue: Promise<void> = Promise.resolve()
+let localFiscalQueue: Promise<void> = Promise.resolve()
 
-async function withFiscalLock<T>(fn: () => Promise<T>): Promise<T> {
-  const prev = fiscalQueue
-  let release!: () => void
-  fiscalQueue = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  await prev
-  try {
-    return await fn()
-  } finally {
-    release()
+async function getPayloadDb(): Promise<PayloadDbLike> {
+  const payload = await getServerPayload()
+  return payload.db as unknown as PayloadDbLike
+}
+
+async function ensureFiscalStateTable(drizzle: DrizzleLike): Promise<void> {
+  if (stateTableInitialized) return
+  await drizzle.execute(sql`
+    CREATE TABLE IF NOT EXISTS zimra_fdms_state (
+      device_id INTEGER NOT NULL,
+      state_key TEXT NOT NULL,
+      state_value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (device_id, state_key)
+    )
+  `)
+  stateTableInitialized = true
+}
+
+/**
+ * Serverless-safe Postgres implementation of `zimra-fdms`'s `Storage` interface.
+ * Persists day state, pending-submit markers, and last global receipt number
+ * atomically in Neon Postgres so state survives cold starts and scales across instances.
+ */
+function createPostgresFiscalStorage(deviceId: number, drizzle: DrizzleLike): Storage {
+  return {
+    async get(key: string): Promise<string | null> {
+      await ensureFiscalStateTable(drizzle)
+      const res = await drizzle.execute(sql`
+        SELECT state_value
+        FROM zimra_fdms_state
+        WHERE device_id = ${deviceId} AND state_key = ${key}
+        LIMIT 1
+      `)
+      const row = res?.rows?.[0]
+      return typeof row?.state_value === 'string' ? row.state_value : null
+    },
+
+    async set(key: string, value: string): Promise<void> {
+      await ensureFiscalStateTable(drizzle)
+      await drizzle.execute(sql`
+        INSERT INTO zimra_fdms_state (device_id, state_key, state_value, updated_at)
+        VALUES (${deviceId}, ${key}, ${value}, NOW())
+        ON CONFLICT (device_id, state_key)
+        DO UPDATE SET state_value = EXCLUDED.state_value, updated_at = NOW()
+      `)
+    },
+
+    async delete(key: string): Promise<void> {
+      await ensureFiscalStateTable(drizzle)
+      await drizzle.execute(sql`
+        DELETE FROM zimra_fdms_state
+        WHERE device_id = ${deviceId} AND state_key = ${key}
+      `)
+    },
   }
 }
 
-async function getReadyFiscalDevice(): Promise<{
-  device: FiscalDevice
-  deviceId: number
-  taxId: number
-  taxPercent: number | null
-  currency: string
-}> {
+/**
+ * Serializes fiscal operations both in-process and across concurrent serverless instances
+ * using a transaction-scoped Postgres advisory lock (`pg_advisory_xact_lock`) on a
+ * dedicated lock connection, while `Storage` commits immediately on the main pool
+ * so pending-submit crash markers are durable even if the function dies mid-request.
+ */
+async function withDistributedFiscalLock<T>(deviceId: number, fn: () => Promise<T>): Promise<T> {
+  const prev = localFiscalQueue
+  let releaseLocal!: () => void
+  localFiscalQueue = new Promise<void>((resolve) => {
+    releaseLocal = resolve
+  })
+  await prev
+
+  let lockClient: PoolClientLike | null = null
+  try {
+    const db = await getPayloadDb()
+    if (typeof db.pool?.connect === 'function') {
+      lockClient = await db.pool.connect()
+      await lockClient.query('BEGIN')
+      await lockClient.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `zimra_fdms_device_${deviceId}`,
+      ])
+    }
+
+    return await fn()
+  } finally {
+    if (lockClient) {
+      try {
+        await lockClient.query('COMMIT')
+      } catch {
+        // Lock is automatically released by Postgres if the connection dropped
+      } finally {
+        lockClient.release()
+      }
+    }
+    releaseLocal()
+  }
+}
+
+async function withReadyFiscalDevice<T>(
+  fn: (ctx: {
+    device: FiscalDevice
+    deviceId: number
+    taxId: number
+    taxPercent: number | null
+    currency: string
+  }) => Promise<T>,
+): Promise<T> {
   const cfg = getZimraConfig()
 
-  if (!cachedDevice) {
-    cachedDevice = new FiscalDevice(
+  return withDistributedFiscalLock(cfg.identity.deviceId, async () => {
+    const db = await getPayloadDb()
+    if (!db.drizzle) {
+      throw new Error('Postgres Drizzle client is unavailable for ZIMRA FDMS state storage.')
+    }
+
+    const storage = createPostgresFiscalStorage(cfg.identity.deviceId, db.drizzle)
+    const signer = new PemSigner(cfg.privateKeyPem)
+    const transport = new NodeTransport({
+      certificatePem: cfg.certificatePem,
+      privateKeyPem: cfg.privateKeyPem,
+    })
+
+    const device = new FiscalDevice(
       cfg.identity,
-      {
-        certificatePem: cfg.certificatePem,
-        privateKeyPem: cfg.privateKeyPem,
-      },
-      {
-        environment: cfg.environment,
-        stateDir: cfg.stateDir,
-      },
+      { signer, transport, storage },
+      { environment: cfg.environment },
     )
-    await cachedDevice.reconcile()
-  }
 
-  if (cachedTaxes.length === 0) {
-    const remoteConfig = await cachedDevice.getConfig()
-    cachedTaxes = remoteConfig.applicableTaxes || []
-  }
+    try {
+      // Load persisted state from Postgres and settle any crash-interrupted submit
+      await device.reconcile()
 
-  const status = await cachedDevice.getStatus()
-  if (status.fiscalDayStatus === 'FiscalDayClosed') {
-    await cachedDevice.openDay()
-  }
+      if (cachedTaxes.length === 0) {
+        const remoteConfig = await device.getConfig()
+        cachedTaxes = remoteConfig.applicableTaxes || []
+      }
 
-  const envTaxId = process.env.ZIMRA_FDMS_TAX_ID ? Number(process.env.ZIMRA_FDMS_TAX_ID) : NaN
-  const envTaxPercent =
-    process.env.ZIMRA_FDMS_TAX_PERCENT !== undefined && process.env.ZIMRA_FDMS_TAX_PERCENT !== ''
-      ? Number(process.env.ZIMRA_FDMS_TAX_PERCENT)
-      : undefined
+      const status = await device.getStatus()
+      if (status.fiscalDayStatus === 'FiscalDayClosed') {
+        await device.openDay()
+      }
 
-  let taxId: number
-  let taxPercent: number | null
+      const envTaxId = process.env.ZIMRA_FDMS_TAX_ID ? Number(process.env.ZIMRA_FDMS_TAX_ID) : NaN
+      const envTaxPercent =
+        process.env.ZIMRA_FDMS_TAX_PERCENT !== undefined &&
+        process.env.ZIMRA_FDMS_TAX_PERCENT !== ''
+          ? Number(process.env.ZIMRA_FDMS_TAX_PERCENT)
+          : undefined
 
-  if (Number.isInteger(envTaxId) && envTaxId > 0) {
-    taxId = envTaxId
-    const matched = cachedTaxes.find((t) => t.taxID === envTaxId)
-    taxPercent =
-      envTaxPercent !== undefined && Number.isFinite(envTaxPercent)
-        ? envTaxPercent
-        : (matched?.taxPercent ?? 0)
-  } else {
-    const preferredTax =
-      cachedTaxes.find((t) => t.taxPercent === 0) ||
-      cachedTaxes.find((t) => t.taxPercent != null) ||
-      cachedTaxes[0]
-    taxId = preferredTax?.taxID ?? 513
-    taxPercent = preferredTax?.taxPercent ?? 0
-  }
+      let taxId: number
+      let taxPercent: number | null
 
-  return {
-    device: cachedDevice,
-    deviceId: cfg.identity.deviceId,
-    taxId,
-    taxPercent,
-    currency: cfg.currency,
-  }
+      if (Number.isInteger(envTaxId) && envTaxId > 0) {
+        taxId = envTaxId
+        const matched = cachedTaxes.find((t) => t.taxID === envTaxId)
+        taxPercent =
+          envTaxPercent !== undefined && Number.isFinite(envTaxPercent)
+            ? envTaxPercent
+            : (matched?.taxPercent ?? 0)
+      } else {
+        const preferredTax =
+          cachedTaxes.find((t) => t.taxPercent === 0) ||
+          cachedTaxes.find((t) => t.taxPercent != null) ||
+          cachedTaxes[0]
+        taxId = preferredTax?.taxID ?? 513
+        taxPercent = preferredTax?.taxPercent ?? 0
+      }
+
+      return await fn({
+        device,
+        deviceId: cfg.identity.deviceId,
+        taxId,
+        taxPercent,
+        currency: cfg.currency,
+      })
+    } finally {
+      transport.destroy()
+    }
+  })
 }
 
 function centsToZimraMoney(amountCents: number) {
@@ -207,9 +327,7 @@ export async function submitFiscalReceiptIfConfigured(
     return null
   }
 
-  return withFiscalLock(async () => {
-    const { device, deviceId, taxId, taxPercent, currency } = await getReadyFiscalDevice()
-
+  return withReadyFiscalDevice(async ({ device, deviceId, taxId, taxPercent, currency }) => {
     const lines = params.items.map((item) => ({
       name: item.title.slice(0, 200),
       price: centsToZimraMoney(item.unitPriceCents),
@@ -277,8 +395,7 @@ export async function closeZimraFiscalDay() {
     return null
   }
 
-  return withFiscalLock(async () => {
-    const { device } = await getReadyFiscalDevice()
+  return withReadyFiscalDevice(async ({ device }) => {
     return await device.closeDay()
   })
 }

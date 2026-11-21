@@ -2,11 +2,7 @@
 
 import { ArrowLeft, Clock, CreditCard, Loader2, Smartphone, Store, Truck } from 'lucide-react'
 import { Controller, type UseFormReturn } from 'react-hook-form'
-import {
-  PAYMENT_OPTIONS,
-  formatCentsAsDollars,
-  type PaymentOptionType,
-} from '../../lib/utils/data'
+import { PAYMENT_OPTIONS, formatCentsAsDollars, type PaymentOptionType } from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -107,7 +103,7 @@ export function CartCheckoutStep({
         >
           {/* Payment & Fulfillment Options */}
           <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
-            <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
+            <FieldLegend className="mb-0 text-xs font-semibold">
               Payment &amp; Fulfillment Method
             </FieldLegend>
 
@@ -154,7 +150,7 @@ export function CartCheckoutStep({
 
           {/* Customer & Delivery/Collection */}
           <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
-            <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
+            <FieldLegend className="mb-0 text-xs font-semibold">
               Customer &amp;{' '}
               {selectedPaymentMeta.fulfillmentMethod === 'COLLECTION' ? 'Store Pickup' : 'Delivery'}
             </FieldLegend>
@@ -310,7 +306,7 @@ export function CartCheckoutStep({
                       aria-pressed={field.value === 'paynow_mobile'}
                     >
                       <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Paynow Mobile</span>
+                      <span>Mobile</span>
                     </Button>
                     <Button
                       type="button"
@@ -319,6 +315,7 @@ export function CartCheckoutStep({
                       className="gap-1.5"
                       onClick={() => field.onChange('card')}
                       aria-pressed={field.value === 'card'}
+                      disabled
                     >
                       <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Card</span>

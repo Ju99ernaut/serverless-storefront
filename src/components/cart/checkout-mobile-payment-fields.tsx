@@ -33,15 +33,12 @@ const MOBILE_METHODS = [
   },
 ]
 
-export function CheckoutMobilePaymentFields({
-  control,
-  baseId,
-}: CheckoutMobilePaymentFieldsProps) {
+export function CheckoutMobilePaymentFields({ control, baseId }: CheckoutMobilePaymentFieldsProps) {
   return (
     <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
-      <FieldLegend className="mb-0 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+      <FieldLegend className="mb-0 flex items-center gap-1.5 text-xs font-semibold">
         <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>Paynow Express Mobile Payment</span>
+        <span>Express Payment</span>
       </FieldLegend>
 
       <FieldGroup className="gap-3.5">
@@ -50,7 +47,7 @@ export function CheckoutMobilePaymentFields({
           control={control}
           render={({ field }) => (
             <Field>
-              <FieldLabel>Mobile Money Wallet</FieldLabel>
+              <FieldLabel>Wallet</FieldLabel>
               <div className="grid grid-cols-2 gap-2">
                 {MOBILE_METHODS.map((method) => {
                   const selected = field.value === method.id
@@ -86,9 +83,7 @@ export function CheckoutMobilePaymentFields({
           control={control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={`${baseId}-mobile-number`}>
-                Mobile Money Phone Number (required)
-              </FieldLabel>
+              <FieldLabel htmlFor={`${baseId}-mobile-number`}>Phone Number (required)</FieldLabel>
               <FieldDescription id={`${baseId}-mobile-number-hint`} className="text-xs">
                 A Paynow USSD payment prompt will be sent directly to this phone.
               </FieldDescription>

@@ -21,9 +21,7 @@ interface CheckoutCardFieldsProps {
 export function CheckoutCardFields({ control, baseId }: CheckoutCardFieldsProps) {
   return (
     <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
-      <FieldLegend className="mb-0 text-xs font-bold uppercase tracking-wider text-primary">
-        Online Card Payment
-      </FieldLegend>
+      <FieldLegend className="mb-0 text-xs font-semibold">Online Card Payment</FieldLegend>
 
       <FieldGroup className="gap-3.5">
         <Controller

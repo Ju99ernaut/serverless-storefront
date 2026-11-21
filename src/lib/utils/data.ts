@@ -51,11 +51,11 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_and_delivery',
     label: 'Pay Now & Home Delivery',
     shortLabel: 'Pay & Delivery',
-    description: 'Instant express checkout with tracked courier delivery to your doorstep.',
+    description: 'Instant express checkout with delivery to your doorstep.',
     requiresCardNow: true,
     requiresShippingAddress: true,
     fulfillmentMethod: 'DELIVERY',
-    badge: 'Fastest Shipping',
+    badge: 'Fast Delivery',
   },
   {
     id: 'pay_then_collect',

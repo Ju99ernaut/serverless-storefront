@@ -113,7 +113,7 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Invoice PDF (On Demand)</span>
+                <span className="text-muted-foreground">Invoice PDF</span>
                 <Button
                   type="button"
                   size="sm"
@@ -135,7 +135,7 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Receipt PDF (On Demand)</span>
+                <span className="text-muted-foreground">Receipt PDF</span>
                 <Button
                   type="button"
                   size="sm"

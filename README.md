@@ -81,7 +81,7 @@ Environment variables defined in `.env.example`:
 - **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
 - **Payment Webhook Secret**: `PAYMENT_WEBHOOK_SECRET` (required for server-to-server `action: "payment"` callbacks)
 - **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & OneMoney mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
-- **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_STATE_DIR` (default `./.zimra`), `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
+- **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
 - **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)
 
 ### Optional: ZIMRA FDMS Fiscal Receipts & QR Code
@@ -107,7 +107,7 @@ When configured:
 2. **Environment Configuration**:
    - Set `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, and `ZIMRA_FDMS_PRIVATE_KEY_PEM` in `.env`.
    - Set `ZIMRA_FDMS_ENVIRONMENT=test` for ZIMRA sandbox testing or `production` for production.
-   - Ensure `ZIMRA_FDMS_STATE_DIR` (default `./.zimra`) points to a persistent directory so the device's fiscal day state, receipt counters, and hash chain survive restarts (reconciled automatically via `device.reconcile()`).
+   - **Serverless Persistence**: Device fiscal day state, receipt counters, pending-submit crash markers, and the receipt hash chain are persisted atomically in Neon Postgres (`zimra_fdms_state` table, created automatically) and serialized across concurrent serverless instances via Postgres advisory locks (`pg_advisory_xact_lock`), with `device.reconcile()` run on every invocation. No local filesystem directory is required.
    - Optionally set `ZIMRA_FDMS_TAX_ID` and `ZIMRA_FDMS_TAX_PERCENT` to override the tax automatically selected from `device.getConfig().applicableTaxes`.
 
 3. **Receipt QR Code Output**:
