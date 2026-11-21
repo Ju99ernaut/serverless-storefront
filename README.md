@@ -125,6 +125,8 @@ pnpm dev
 
 Open `http://localhost:3000` for the storefront and `http://localhost:3000/admin` for the Payload CMS admin panel.
 
+> **Admin Pricing Note**: All prices in the Payload CMS admin panel (`price`, `compareAtPrice`, and variant `priceOverride`) must be entered in **integer cents** (e.g. enter `8900` for `$89.00`, `1200` for `$12.00`).
+
 ## Useful Scripts
 
 - `pnpm dev` — Start the Next.js development server

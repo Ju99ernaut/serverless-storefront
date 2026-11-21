@@ -215,7 +215,13 @@ export interface Product {
   slug: string;
   title: string;
   brand: string;
+  /**
+   * Price in integer cents (e.g. 8900 = $89.00).
+   */
   price: number;
+  /**
+   * Optional original/compare-at price in integer cents (e.g. 12000 = $120.00).
+   */
   compareAtPrice?: number | null;
   category: 'jackets' | 'shirts' | 'dresses' | 'trousers' | 'shoes';
   subcategory: string;
@@ -245,6 +251,9 @@ export interface Product {
         size: string;
         color: string;
         colorHex: string;
+        /**
+         * Optional variant price override in integer cents (e.g. 9500 = $95.00).
+         */
         priceOverride?: number | null;
         stock: number;
         reservedStock: number;

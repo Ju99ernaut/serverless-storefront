@@ -38,11 +38,17 @@ export const Products: CollectionConfig = {
       type: 'number',
       required: true,
       min: 0,
+      admin: {
+        description: 'Price in integer cents (e.g. 8900 = $89.00).',
+      },
     },
     {
       name: 'compareAtPrice',
       type: 'number',
       min: 0,
+      admin: {
+        description: 'Optional original/compare-at price in integer cents (e.g. 12000 = $120.00).',
+      },
     },
     {
       name: 'category',
@@ -152,6 +158,10 @@ export const Products: CollectionConfig = {
         {
           name: 'priceOverride',
           type: 'number',
+          min: 0,
+          admin: {
+            description: 'Optional variant price override in integer cents (e.g. 9500 = $95.00).',
+          },
         },
         {
           name: 'stock',
