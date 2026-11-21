@@ -87,7 +87,7 @@ export function ProductImageGallery({
           <CarouselContent>
             {galleryImages.map((imgUrl, idx) => (
               <CarouselItem key={`${productId}-slide-${idx}`}>
-                <div className="flex min-h-[380px] sm:min-h-[460px] items-center justify-center rounded-md border border-border bg-card p-8">
+                <div className="flex min-h-[380px] sm:min-h-[460px] items-center justify-center rounded-lg border border-border bg-card">
                   <OptimizedImage
                     src={imgUrl}
                     alt={`${productTitle} — image ${idx + 1}`}
@@ -96,7 +96,7 @@ export function ProductImageGallery({
                     priority={idx === 0}
                     fetchPriority={idx === 0 ? 'high' : 'low'}
                     loading={idx === 0 ? 'eager' : 'lazy'}
-                    className="max-h-[360px] w-auto object-contain drop-shadow-xl"
+                    className="h-[380px] sm:h-[460px] w-full object-cover drop-shadow-xl rounded-lg"
                   />
                 </div>
               </CarouselItem>
@@ -128,7 +128,7 @@ export function ProductImageGallery({
                 carouselApi?.scrollTo(idx)
               }}
               className={cn(
-                'rounded-md border p-2.5 bg-card flex items-center justify-center h-20 transition-all cursor-pointer',
+                'rounded-md border bg-card flex items-center justify-center h-20 transition-all cursor-pointer',
                 activeImageIndex === idx
                   ? 'border-primary ring-2 ring-primary/40'
                   : 'border-border hover:border-primary/60',
@@ -139,7 +139,7 @@ export function ProductImageGallery({
                 alt={`${productTitle} thumbnail ${idx + 1}`}
                 width={100}
                 height={100}
-                className="max-h-full w-auto object-contain"
+                className="h-full w-full object-cover rounded-md"
               />
             </button>
           ))}

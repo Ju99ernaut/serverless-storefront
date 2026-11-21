@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -103,52 +104,54 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
         }
       />
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-9 w-9 shrink-0">
-              {user.image ? (
-                <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
-              ) : null}
-              <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex items-center gap-2.5">
+              <Avatar className="h-9 w-9 shrink-0">
+                {user.image ? (
+                  <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
+                ) : null}
+                <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          render={
-            <Link href="/account?tab=profile" className="w-full">
-              <UserIcon className="h-4 w-4" aria-hidden="true" />
-              <span>Profile &amp; Settings</span>
-            </Link>
-          }
-        />
-        <DropdownMenuItem
-          render={
-            <Link href="/account?tab=orders" className="w-full">
-              <Package className="h-4 w-4" aria-hidden="true" />
-              <span>Orders ({orders.length})</span>
-            </Link>
-          }
-        />
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            render={
+              <Link href="/account?tab=profile" className="w-full">
+                <UserIcon className="h-4 w-4" aria-hidden="true" />
+                <span>Profile &amp; Settings</span>
+              </Link>
+            }
+          />
+          <DropdownMenuItem
+            render={
+              <Link href="/account?tab=orders" className="w-full">
+                <Package className="h-4 w-4" aria-hidden="true" />
+                <span>Orders ({orders.length})</span>
+              </Link>
+            }
+          />
 
-        <DropdownMenuItem
-          render={
-            <Link href="/account?tab=wishlist" className="w-full">
-              <Heart className="h-4 w-4" aria-hidden="true" />
-              <span>Loved Items ({wishlistSlugs.length})</span>
-            </Link>
-          }
-        />
+          <DropdownMenuItem
+            render={
+              <Link href="/account?tab=wishlist" className="w-full">
+                <Heart className="h-4 w-4" aria-hidden="true" />
+                <span>Loved Items ({wishlistSlugs.length})</span>
+              </Link>
+            }
+          />
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => signOut()} variant="destructive">
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          <span>Log out</span>
-        </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => signOut()} variant="destructive">
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <span>Log out</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -20,13 +20,13 @@ export function RelatedProductsSection({ relatedProducts }: RelatedProductsSecti
             href={`/products/${rel.slug}`}
             className="group rounded-md border border-border bg-card p-4 transition-colors hover:border-primary"
           >
-            <div className="flex h-36 items-center justify-center rounded-none bg-secondary p-3">
+            <div className="flex h-36 items-center justify-center rounded-md bg-secondary">
               <OptimizedImage
                 src={getProductImages(rel)[0]}
                 alt={rel.title}
                 width={160}
                 height={160}
-                className="max-h-full w-auto object-contain"
+                className="h-full w-full object-cover rounded-md"
               />
             </div>
             <div className="mt-3">

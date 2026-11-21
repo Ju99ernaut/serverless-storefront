@@ -53,7 +53,7 @@ export function AccountCartTab() {
                       alt={ci.title}
                       width={52}
                       height={52}
-                      className="h-12 w-12 object-contain rounded-lg bg-card p-1"
+                      className="h-12 w-12 object-cover rounded-lg bg-card"
                     />
                     <div>
                       <Link

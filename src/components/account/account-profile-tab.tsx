@@ -205,11 +205,11 @@ export function AccountProfileTab() {
 
   if (isSessionPending) {
     return (
-      <Card aria-busy="true" aria-label="Loading profile">
+      <Card aria-busy="true" aria-label="Loading profile" className="max-w-2xl">
         <CardHeader>
           <CardTitle>Profile Picture, Identity, Password &amp; Billing Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5 max-w-xl">
+        <CardContent className="space-y-5 max-w-2xl">
           <div className="border border-border bg-secondary p-4 flex items-center gap-4">
             <Skeleton className="h-16 w-16 rounded-full shrink-0" />
             <div className="flex-1 space-y-2">
@@ -230,7 +230,7 @@ export function AccountProfileTab() {
   }
 
   return (
-    <Card>
+    <Card className="max-w-2xl">
       <CardHeader>
         <CardTitle>Profile Picture, Identity, Password &amp; Billing Details</CardTitle>
       </CardHeader>
@@ -238,7 +238,7 @@ export function AccountProfileTab() {
         <form
           id="account-profile"
           onSubmit={profileForm.handleSubmit((values) => updateProfileMutation.mutate(values))}
-          className="space-y-5 max-w-xl"
+          className="space-y-5 max-w-2xl"
         >
           <FieldGroup>
             {/* Profile Picture Upload & URL */}

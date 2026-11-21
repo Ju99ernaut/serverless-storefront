@@ -71,10 +71,7 @@ export function GridProductCard({
             Out of Stock
           </Badge>
         ) : stockStatus.hasLowStockVariant ? (
-          <Badge
-            variant="outline"
-            className="pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]"
-          >
+          <Badge className="bg-secondary pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]">
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             <span>Only {stockStatus.minAvailable} left</span>
           </Badge>
@@ -151,7 +148,7 @@ export function GridProductCard({
         )}
         data-active={wishlisted ? 'true' : 'false'}
         onClick={() => onToggleWishlist(product)}
-        variant="outline"
+        variant="secondary"
         size="icon"
         aria-label={
           wishlisted ? `Remove ${product.title} from loved items` : `Love ${product.title}`
@@ -169,7 +166,7 @@ export function GridProductCard({
       <label
         className={cn(
           buttonVariants({
-            variant: 'outline',
+            variant: 'secondary',
             size: 'icon',
             className: 'absolute top-4 left-4 z-2',
           }),

@@ -115,7 +115,7 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
 
                   {/* Product/Editorial Hero Visual */}
                   <div className="relative z-10 flex items-center justify-center md:col-span-5">
-                    <div className="relative flex h-64 w-64 items-center justify-center rounded-md border border-border p-4 shadow-inner">
+                    <div className="relative flex h-64 w-64 items-center justify-center rounded-md border border-border shadow-inner">
                       <OptimizedImage
                         src={slide.imageUrl}
                         alt={slide.title}
@@ -124,7 +124,7 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
                         priority={idx === 0}
                         fetchPriority={idx === 0 ? 'high' : 'low'}
                         loading={idx === 0 ? 'eager' : 'lazy'}
-                        className="h-full w-full object-contain drop-shadow-xl"
+                        className="h-full w-full rounded-md object-cover drop-shadow-xl"
                       />
                     </div>
                   </div>

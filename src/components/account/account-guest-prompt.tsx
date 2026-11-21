@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ShieldCheck, Sparkles } from 'lucide-react'
-import { Alert } from '../ui/alert'
+import { ShieldCheck } from 'lucide-react'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {
@@ -13,10 +12,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../ui/empty'
-import { useAuth, useCart } from '@/context'
+import { useAuth } from '@/context'
 
 export function AccountGuestPrompt() {
-  const { totalCartCount } = useCart()
   const { openAuthModal } = useAuth()
 
   return (
@@ -36,15 +34,6 @@ export function AccountGuestPrompt() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="w-full max-w-none space-y-4">
-            {totalCartCount > 0 && (
-              <Alert>
-                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-                <span className="text-xs">
-                  You currently have <strong>{totalCartCount}</strong> item(s) in your bag &mdash;
-                  signing in will merge them automatically.
-                </span>
-              </Alert>
-            )}
             <div className="flex flex-wrap justify-center gap-3">
               <Button type="button" onClick={() => openAuthModal('account')}>
                 Sign In / Create Account

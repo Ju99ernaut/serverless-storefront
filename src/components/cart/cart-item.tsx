@@ -44,7 +44,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
     <li className="flex gap-2 py-1 border-b border-border">
       <div className="w-24 h-24 rounded-md border border-border bg-secondary relative overflow-hidden flex items-center justify-center">
         <OptimizedImage
-          className="w-[85%] h-[85%] object-contain"
+          className="w-full h-full object-cover rounded-md"
           width={96}
           height={96}
           src={displayImage}
@@ -62,7 +62,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
           <span className="text-xs text-muted-foreground">{brand}</span>
 
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-1.5 py-0.5 font-medium text-primary">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-1.5 py-0.5 font-medium text-foreground">
               {selectedColorHex && (
                 <span
                   className="h-2 w-2 rounded-md border border-border"

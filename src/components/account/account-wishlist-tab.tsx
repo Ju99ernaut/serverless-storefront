@@ -62,14 +62,14 @@ export function AccountWishlistTab() {
           <CardContent className="p-4 flex flex-col gap-3">
             <Link
               href={`/products/${item.slug}`}
-              className="flex h-40 items-center justify-center rounded-lg bg-secondary p-3"
+              className="flex h-40 items-center justify-center rounded-lg bg-secondary"
             >
               <OptimizedImage
                 src={getProductImages(item)[0]}
                 alt={item.title}
                 width={160}
                 height={160}
-                className="max-h-full w-auto object-contain"
+                className="max-h-full w-auto object-cover"
               />
             </Link>
             <div>

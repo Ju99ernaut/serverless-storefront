@@ -31,7 +31,7 @@ const CompareBasket = ({
       {compareItems.map((product) => (
         <div
           key={product.id}
-          className="relative bg-secondary w-10 h-10 p-2 rounded-md"
+          className="relative bg-secondary w-10 h-10 rounded-md"
           data-idx={product.id}
         >
           <OptimizedImage
@@ -39,14 +39,14 @@ const CompareBasket = ({
             alt={product.title}
             width={40}
             height={40}
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover rounded-md"
           />
           <Button
             type="button"
             className="absolute -top-2 -right-2 z-10"
             onClick={() => onRemoveCompare(product.id)}
             aria-label={`Remove ${product.title} from comparison`}
-            variant="destructive"
+            variant="secondary"
             size="icon-xs"
           >
             <X className="h-3 w-3" aria-hidden="true" />

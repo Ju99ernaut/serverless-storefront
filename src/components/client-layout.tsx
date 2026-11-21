@@ -8,6 +8,7 @@ import AuthModal from './auth-modal'
 import ScrollToTopButton from './scroll-to-top-button'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toast'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 const queryClient = new QueryClient()
 
@@ -24,6 +25,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
           </StoreProvider>
         </StoreImageKitProvider>
       </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )
 }

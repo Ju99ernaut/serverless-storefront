@@ -26,13 +26,13 @@ const CompareWrapper = ({ compareItems, isOpen, onClose, onAddToCart }: CompareW
         return (
           <div key={product.id} className="compare__item">
             <div className="compare__effect">
-              <div className="w-40 h-40 flex items-center justify-center rounded-md bg-secondary p-3 border border-border">
+              <div className="w-40 h-40 flex items-center justify-center rounded-md bg-secondary border border-border">
                 <OptimizedImage
                   src={getProductImages(product)[0]}
                   alt={product.title}
                   width={180}
                   height={180}
-                  className="max-h-full w-auto object-contain"
+                  className="h-full w-full object-cover rounded-md"
                 />
               </div>
               <Link
