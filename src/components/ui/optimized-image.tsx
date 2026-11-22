@@ -1,39 +1,19 @@
-'use client';
+'use client'
 
-import React, { ReactNode } from 'react';
-import { Image as IKImage, ImageKitProvider } from '@imagekit/next';
-
-const DEFAULT_IK_ENDPOINT =
-  process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT || 'http://localhost:3000';
-
-export function StoreImageKitProvider({ children }: { children: ReactNode }) {
-  const endpoint =
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT ||
-    (typeof window !== 'undefined' ? window.location.origin : DEFAULT_IK_ENDPOINT);
-
-  return (
-    <ImageKitProvider urlEndpoint={endpoint} transformationPosition="query">
-      {children}
-    </ImageKitProvider>
-  );
-}
+import { Image } from '@imagekit/next'
 
 export interface OptimizedImageProps {
-  src: string;
-  alt: string;
-  width?: number;
-  height?: number;
-  className?: string;
-  priority?: boolean;
-  fetchPriority?: 'high' | 'low' | 'auto';
-  loading?: 'eager' | 'lazy';
-  onLoad?: () => void;
+  src: string
+  alt: string
+  width?: number
+  height?: number
+  className?: string
+  priority?: boolean
+  fetchPriority?: 'high' | 'low' | 'auto'
+  loading?: 'eager' | 'lazy'
+  onLoad?: () => void
 }
 
-/**
- * Wrapper around `@imagekit/next` Image component with automatic transformation
- * parameters and LCP / lazy-loading fetchPriority support.
- */
 export function OptimizedImage({
   src,
   alt,
@@ -45,19 +25,14 @@ export function OptimizedImage({
   loading,
   onLoad,
 }: OptimizedImageProps) {
-  const hasExternalImageKit = Boolean(
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT &&
-      !process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT.includes('your_imagekit_id')
-  );
+  const hasExternalImageKit = Boolean(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT)
 
-  const resolvedPriority = fetchPriority === 'high' ? true : priority;
+  const resolvedPriority = fetchPriority === 'high' ? true : priority
   const resolvedLoading =
-    resolvedPriority || fetchPriority === 'high'
-      ? undefined
-      : loading || 'lazy';
+    resolvedPriority || fetchPriority === 'high' ? undefined : loading || 'lazy'
 
   return (
-    <IKImage
+    <Image
       src={src}
       alt={alt}
       width={width}
@@ -67,12 +42,8 @@ export function OptimizedImage({
       fetchPriority={fetchPriority === 'auto' ? undefined : fetchPriority}
       loading={resolvedLoading}
       unoptimized={!hasExternalImageKit}
-      transformation={
-        hasExternalImageKit
-          ? [{ width, height, quality: 85, format: 'auto' }]
-          : []
-      }
+      transformation={hasExternalImageKit ? [{ width, height, quality: 85, format: 'auto' }] : []}
       onLoad={onLoad}
     />
-  );
+  )
 }

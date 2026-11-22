@@ -219,7 +219,11 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   }
 
   // Step 2: Process / Wait for Payment (30m configurable window for pay_and_delivery & pay_then_collect)
-  const { taxCents, shippingCents, grandTotalCents: grandTotal } = calculateOrderTotalsCents(
+  const {
+    taxCents,
+    shippingCents,
+    grandTotalCents: grandTotal,
+  } = calculateOrderTotalsCents(
     input.items.map((i) => ({
       unitPriceCents: Math.round(Number(i.price) || 0),
       quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
@@ -227,8 +231,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     optionMeta.fulfillmentMethod,
   )
 
-  const isPaynowMobile =
-    optionMeta.requiresCardNow && input.payment?.provider === 'paynow_mobile'
+  const isPaynowMobile = optionMeta.requiresCardNow && input.payment?.provider === 'paynow_mobile'
 
   if (isPaynowMobile && !input.payment?.pollUrl) {
     const mobileNumber = input.payment?.mobileNumber || input.customer.phone || ''
@@ -240,7 +243,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
         amountCents:
           Math.round(Number(i.price) || 0) * Math.max(1, Math.round(Number(i.quantity) || 1)),
       })),
-      ...(taxCents > 0 ? [{ title: 'Tax (8%)', amountCents: taxCents }] : []),
+      ...(taxCents > 0 ? [{ title: 'Tax', amountCents: taxCents }] : []),
       ...(shippingCents > 0 ? [{ title: 'Courier Delivery', amountCents: shippingCents }] : []),
     ]
 

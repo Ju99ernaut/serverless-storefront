@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
             amountCents: Math.round(Number(item.price) || 0) * qty,
           }
         }),
-        ...(taxCents > 0 ? [{ title: 'Tax (8%)', amountCents: taxCents }] : []),
+        ...(taxCents > 0 ? [{ title: 'Tax', amountCents: taxCents }] : []),
         ...(shippingCents > 0 ? [{ title: 'Courier Delivery', amountCents: shippingCents }] : []),
       ]
 

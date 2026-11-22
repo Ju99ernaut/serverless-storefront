@@ -262,7 +262,8 @@ export function slugifyProductTitle(title: string): string {
     .replace(/(^-|-$)/g, '')
 }
 
-export const TAX_RATE = 0.08
+export const TAX_RATE = process.env.TAX_RATE ? Number(process.env.TAX_RATE) : 0.08
+// TODO: Calculate based on rates and distance
 export const DELIVERY_FEE_CENTS = 1200
 
 export function centsToDollars(cents: number | null | undefined): number {
