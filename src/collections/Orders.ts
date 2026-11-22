@@ -197,7 +197,6 @@ export const Orders: CollectionConfig = {
         { name: 'receiptGlobalNo', type: 'number' },
         { name: 'receiptCounter', type: 'number' },
         { name: 'qrData', type: 'text' },
-        { name: 'qrCodeDataUrl', type: 'textarea' },
         { name: 'submittedAt', type: 'text' },
       ],
     },

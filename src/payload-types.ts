@@ -440,7 +440,6 @@ export interface Order {
     receiptGlobalNo?: number | null;
     receiptCounter?: number | null;
     qrData?: string | null;
-    qrCodeDataUrl?: string | null;
     submittedAt?: string | null;
   };
   updatedAt: string;
@@ -862,7 +861,6 @@ export interface OrdersSelect<T extends boolean = true> {
         receiptGlobalNo?: T;
         receiptCounter?: T;
         qrData?: T;
-        qrCodeDataUrl?: T;
         submittedAt?: T;
       };
   updatedAt?: T;

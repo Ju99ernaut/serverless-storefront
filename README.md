@@ -113,7 +113,6 @@ When configured:
 3. **Receipt QR Code Output**:
    - For paid orders, `createOrderAndDocumentsStep` submits the receipt to ZIMRA FDMS (automatically opening the fiscal day if closed) and attaches a `fiscal` object to the ComposeIt receipt PDF/email template payload and `order.fiscalReceipt`:
      - `fiscal.qrData` — raw ZIMRA FDMS QR verification string
-     - `fiscal.qrCodeDataUrl` — pre-rendered PNG QR code data URL (`data:image/png;base64,...`) ready to embed in receipt templates via `<img src="{{fiscal.qrCodeDataUrl}}" />`
      - `fiscal.deviceId`, `fiscal.fiscalDayNo`, `fiscal.receiptGlobalNo`, `fiscal.receiptCounter`, `fiscal.submittedAt`
    - End-of-day closure can be triggered using `closeZimraFiscalDay()` from `src/lib/zimra-fdms.ts`.
 

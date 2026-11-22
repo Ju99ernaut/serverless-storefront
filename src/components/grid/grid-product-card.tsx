@@ -71,7 +71,7 @@ export function GridProductCard({
             Out of Stock
           </Badge>
         ) : stockStatus.hasLowStockVariant ? (
-          <Badge className="bg-secondary pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]">
+          <Badge className="bg-secondary text-foreground pointer-events-none absolute bottom-3 left-3 z-10 text-[10px]">
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             <span>Only {stockStatus.minAvailable} left</span>
           </Badge>

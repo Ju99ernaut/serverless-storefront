@@ -170,9 +170,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (product: Product, options?: AddToCartOptions) => {
       const cachedProducts =
         queryClient.getQueryData<CatalogResponse>(storefrontQueryKeys.catalog)?.products ?? []
-      const liveProd = (cachedProducts.find(
-        (p) => p.id === product.id || p.slug === product.slug,
-      ) || product) as Product
+      const liveProd =
+        cachedProducts.find((p) => p.id === product.id || p.slug === product.slug) || product
       const variants = liveProd.variants ?? []
       const defaultVariant =
         variants.find((v) => Math.max(0, v.stock - v.reservedStock) > 0) || variants[0]

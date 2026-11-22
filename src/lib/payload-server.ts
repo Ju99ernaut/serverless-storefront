@@ -499,14 +499,14 @@ export async function releaseVariantStock(
 
     if (reservation.status === 'COMMITTED') {
       await applyVariantInventoryAdjustments(items, 'release_committed')
-      return (await payload.update({
+      return payload.update({
         collection: 'stock-reservations',
         id: reservation.id,
         data: {
           status: 'RELEASED',
           failureReason: reason,
         },
-      })) as StockReservation
+      })
     }
 
     return reservation

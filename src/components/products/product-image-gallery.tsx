@@ -67,12 +67,12 @@ export function ProductImageGallery({
             Out of Stock
           </Badge>
         ) : isLowStock ? (
-          <Badge variant="outline" className="pointer-events-none absolute top-4 left-4 z-10">
+          <Badge className="bg-secondary text-foreground pointer-events-none absolute top-4 left-4 z-10">
             <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Low Stock: Only {availableStock} Left</span>
           </Badge>
         ) : (
-          <Badge variant="outline" className="pointer-events-none absolute top-4 left-4 z-10">
+          <Badge className="bg-secondary text-foreground pointer-events-none absolute top-4 left-4 z-10">
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             <span>In Stock ({availableStock} ready)</span>
           </Badge>

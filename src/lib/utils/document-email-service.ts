@@ -69,7 +69,6 @@ export interface OrderTemplateData {
     receiptGlobalNo: number
     receiptCounter: number
     qrData: string
-    qrCodeDataUrl: string
     submittedAt: string
   }
   statusUpdateNote?: string
@@ -299,7 +298,6 @@ export function buildOrderTemplateDataFromOrder(order: Order): OrderTemplateData
             receiptGlobalNo: order.fiscalReceipt.receiptGlobalNo ?? 0,
             receiptCounter: order.fiscalReceipt.receiptCounter ?? 0,
             qrData: order.fiscalReceipt.qrData,
-            qrCodeDataUrl: order.fiscalReceipt.qrCodeDataUrl || '',
             submittedAt: order.fiscalReceipt.submittedAt || issuedAt,
           },
         }
@@ -313,12 +311,8 @@ export async function generateOrderDocumentOnDemand(
 ) {
   const isReceipt = documentType === 'RECEIPT'
   const documentNumber = isReceipt ? order.receiptNumber : order.invoiceNumber
-  const filename = isReceipt
-    ? `Receipt-${documentNumber}.pdf`
-    : `Invoice-${documentNumber}.pdf`
-  const templateId = isReceipt
-    ? API_CONFIG.templates.receiptPdf
-    : API_CONFIG.templates.invoicePdf
+  const filename = isReceipt ? `Receipt-${documentNumber}.pdf` : `Invoice-${documentNumber}.pdf`
+  const templateId = isReceipt ? API_CONFIG.templates.receiptPdf : API_CONFIG.templates.invoicePdf
 
   const result = await generateViaApi({
     templateId,

@@ -1,18 +1,11 @@
-import type {
-  Access,
-  CollectionBeforeChangeHook,
-  PayloadRequest,
-  Where,
-} from 'payload'
+import type { Access, CollectionBeforeChangeHook, PayloadRequest, Where } from 'payload'
 import { getServerNeonUser, type AuthenticatedNeonUser } from './auth'
 
-export function isPayloadAdmin(req: PayloadRequest | undefined): boolean {
-  return Boolean(req?.user && (req.user as { role?: string | null }).role === 'admin')
+export function isPayloadAdmin(req: PayloadRequest | undefined) {
+  return req?.user?.role === 'admin'
 }
 
-export async function resolveRequestAuth(
-  req: PayloadRequest | undefined,
-): Promise<{
+export async function resolveRequestAuth(req: PayloadRequest | undefined): Promise<{
   isAdmin: boolean
   neonUser: AuthenticatedNeonUser | null
 }> {

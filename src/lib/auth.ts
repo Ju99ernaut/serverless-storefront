@@ -48,11 +48,8 @@ export function verifyPaymentWebhookSecret(request: Request): boolean {
 export async function isAuthorizedPayloadAdminRequest(request: Request): Promise<boolean> {
   try {
     const payload = await getServerPayload()
-    if (typeof (payload as { auth?: unknown }).auth !== 'function') {
-      return false
-    }
     const authResult = await payload.auth({ headers: request.headers })
-    const role = (authResult?.user as { role?: string | null } | null | undefined)?.role
+    const role = authResult?.user?.role
     return role === 'admin'
   } catch {
     return false

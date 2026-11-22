@@ -1,16 +1,15 @@
 import { sql } from '@payloadcms/db-vercel-postgres'
-import QRCode from 'qrcode'
 import {
   FiscalDevice,
   NodeTransport,
   PemSigner,
-  cents,
   type DeviceIdentity,
   type MoneyType,
   type Storage,
   type TaxDefinition,
 } from 'zimra-fdms'
 import { getServerPayload } from './payload-server'
+import type { DatabaseAdapter } from 'payload'
 
 export interface FiscalReceiptData {
   deviceId: number
@@ -18,7 +17,6 @@ export interface FiscalReceiptData {
   receiptGlobalNo: number
   receiptCounter: number
   qrData: string
-  qrCodeDataUrl: string
   submittedAt: string
 }
 
@@ -42,24 +40,6 @@ export interface SubmitFiscalReceiptParams {
   grandTotalCents: number
 }
 
-interface DrizzleLike {
-  execute: (query: unknown) => Promise<{ rows?: Array<Record<string, unknown>> }>
-}
-
-interface PoolClientLike {
-  query: (text: string, values?: unknown[]) => Promise<unknown>
-  release: () => void
-}
-
-interface PoolLike {
-  connect: () => Promise<PoolClientLike>
-}
-
-interface PayloadDbLike {
-  drizzle?: DrizzleLike
-  pool?: PoolLike
-}
-
 function normalizePem(raw: string | undefined): string {
   if (!raw) return ''
   return raw.replace(/\\n/g, '\n').trim()
@@ -69,10 +49,10 @@ export function isZimraFdmsConfigured(): boolean {
   const deviceId = Number(process.env.ZIMRA_FDMS_DEVICE_ID)
   return Boolean(
     Number.isInteger(deviceId) &&
-      deviceId > 0 &&
-      process.env.ZIMRA_FDMS_SERIAL_NUMBER?.trim() &&
-      normalizePem(process.env.ZIMRA_FDMS_CERTIFICATE_PEM) &&
-      normalizePem(process.env.ZIMRA_FDMS_PRIVATE_KEY_PEM),
+    deviceId > 0 &&
+    process.env.ZIMRA_FDMS_SERIAL_NUMBER?.trim() &&
+    normalizePem(process.env.ZIMRA_FDMS_CERTIFICATE_PEM) &&
+    normalizePem(process.env.ZIMRA_FDMS_PRIVATE_KEY_PEM),
   )
 }
 
@@ -108,12 +88,12 @@ let stateTableInitialized = false
 let cachedTaxes: TaxDefinition[] = []
 let localFiscalQueue: Promise<void> = Promise.resolve()
 
-async function getPayloadDb(): Promise<PayloadDbLike> {
+async function getPayloadDb() {
   const payload = await getServerPayload()
-  return payload.db as unknown as PayloadDbLike
+  return payload.db
 }
 
-async function ensureFiscalStateTable(drizzle: DrizzleLike): Promise<void> {
+async function ensureFiscalStateTable(drizzle: DatabaseAdapter['drizzle']): Promise<void> {
   if (stateTableInitialized) return
   await drizzle.execute(sql`
     CREATE TABLE IF NOT EXISTS zimra_fdms_state (
@@ -132,7 +112,10 @@ async function ensureFiscalStateTable(drizzle: DrizzleLike): Promise<void> {
  * Persists day state, pending-submit markers, and last global receipt number
  * atomically in Neon Postgres so state survives cold starts and scales across instances.
  */
-function createPostgresFiscalStorage(deviceId: number, drizzle: DrizzleLike): Storage {
+function createPostgresFiscalStorage(
+  deviceId: number,
+  drizzle: DatabaseAdapter['drizzle'],
+): Storage {
   return {
     async get(key: string): Promise<string | null> {
       await ensureFiscalStateTable(drizzle)
@@ -180,7 +163,7 @@ async function withDistributedFiscalLock<T>(deviceId: number, fn: () => Promise<
   })
   await prev
 
-  let lockClient: PoolClientLike | null = null
+  let lockClient
   try {
     const db = await getPayloadDb()
     if (typeof db.pool?.connect === 'function') {
@@ -289,10 +272,6 @@ async function withReadyFiscalDevice<T>(
   })
 }
 
-function centsToZimraMoney(amountCents: number) {
-  return cents((Math.round(amountCents) / 100).toFixed(2))
-}
-
 function resolveMoneyType(paymentMethodLabel?: string, paymentOption?: string): MoneyType {
   const label = (paymentMethodLabel || '').toLowerCase()
   if (label.includes('ecocash') || label.includes('onemoney') || label.includes('mobile')) {
@@ -305,14 +284,6 @@ function resolveMoneyType(paymentMethodLabel?: string, paymentOption?: string): 
     return 'Cash'
   }
   return 'Card'
-}
-
-export async function generateQrCodeDataUrl(qrData: string): Promise<string> {
-  return QRCode.toDataURL(qrData, {
-    width: 220,
-    margin: 1,
-    errorCorrectionLevel: 'M',
-  })
 }
 
 /**
@@ -330,7 +301,7 @@ export async function submitFiscalReceiptIfConfigured(
   return withReadyFiscalDevice(async ({ device, deviceId, taxId, taxPercent, currency }) => {
     const lines = params.items.map((item) => ({
       name: item.title.slice(0, 200),
-      price: centsToZimraMoney(item.unitPriceCents),
+      price: item.unitPriceCents,
       quantity: Math.max(1, Math.round(item.quantity)),
       taxId,
       taxPercent,
@@ -339,7 +310,7 @@ export async function submitFiscalReceiptIfConfigured(
     if (params.shippingCents > 0) {
       lines.push({
         name: 'Courier Delivery',
-        price: centsToZimraMoney(params.shippingCents),
+        price: params.shippingCents,
         quantity: 1,
         taxId,
         taxPercent,
@@ -349,7 +320,7 @@ export async function submitFiscalReceiptIfConfigured(
     if (params.taxCents > 0) {
       lines.push({
         name: 'Storefront Tax',
-        price: centsToZimraMoney(params.taxCents),
+        price: params.taxCents,
         quantity: 1,
         taxId,
         taxPercent,
@@ -366,13 +337,12 @@ export async function submitFiscalReceiptIfConfigured(
       payments: [
         {
           moneyType,
-          amount: centsToZimraMoney(params.grandTotalCents),
+          amount: params.grandTotalCents,
         },
       ],
     })
 
     const qrData = sale.qrData || ''
-    const qrCodeDataUrl = qrData ? await generateQrCodeDataUrl(qrData) : ''
     const dayState = device.getState()
 
     return {
@@ -381,7 +351,6 @@ export async function submitFiscalReceiptIfConfigured(
       receiptGlobalNo: sale.receipt.receiptGlobalNo,
       receiptCounter: sale.receipt.receiptCounter,
       qrData,
-      qrCodeDataUrl,
       submittedAt: new Date().toISOString(),
     }
   })

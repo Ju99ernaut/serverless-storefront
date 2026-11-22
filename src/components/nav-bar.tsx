@@ -60,7 +60,7 @@ const NavBar = ({
             </div>
 
             <div className="hidden lg:block">
-              <Select value={sortBy} onValueChange={(val) => onSortChange(val as SortOption)}>
+              <Select value={sortBy} onValueChange={(val) => val && onSortChange(val)}>
                 <SelectTrigger
                   aria-label="Sort products"
                   className="h-10 border-border bg-secondary text-sm font-medium text-foreground cursor-pointer"
