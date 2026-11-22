@@ -67,13 +67,13 @@ export interface CheckoutSuccessResponse {
 
 export type CheckoutApiResponse = CheckoutSuccessResponse | CheckoutPendingMobilePaymentResponse
 
-export const COLLECTION_LOCATIONS = [
-  'Flagship Storefront Atelier — 450 Mercer St, SoHo',
-  'Midtown Boutique — 685 Fifth Ave, Lounge B',
-  'San Francisco Jackson Square Showroom',
-]
-
-export const DEFAULT_SHIPPING_ADDRESS = '742 Evergreen Terrace, Suite 200\nSan Francisco, CA 94107'
+export const COLLECTION_LOCATIONS = process.env.COLLECTION_LOCATIONS
+  ? process.env.COLLECTION_LOCATIONS.split(',')
+  : [
+      'Flagship Storefront Atelier — 450 Mercer St, SoHo',
+      'Midtown Boutique — 685 Fifth Ave, Lounge B',
+      'San Francisco Jackson Square Showroom',
+    ]
 
 export const checkoutSchema = z
   .object({
@@ -120,7 +120,7 @@ export const checkoutSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['collectionLocation'],
-        message: 'Please select a collection boutique.',
+        message: 'Please select a collection point.',
       })
     }
 
