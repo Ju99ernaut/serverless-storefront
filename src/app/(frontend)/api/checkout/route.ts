@@ -152,39 +152,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await executeDurableCheckoutWorkflow({
-      idempotencyKey,
-      orderId,
-      userId: sessionUser.id,
-      paymentOption: resolvedPaymentOption,
-      awaitPaymentHook: Boolean(awaitPaymentHook),
-      waitForFulfillment: Boolean(waitForFulfillment),
-      timeouts,
-      customer: {
-        name: customerName,
-        email: customerEmail,
-        address: customer?.address || '',
-        phone: customer?.phone || '',
-        collectionLocation: customer?.collectionLocation || '',
-      },
-      payment,
-      items,
-    })
-
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: result.error,
-          orderId: 'orderId' in result ? result.orderId : undefined,
-          stockReleased: result.stockReleased,
-          timedOut: 'timedOut' in result ? result.timedOut : false,
-          insufficientItems: 'insufficientItems' in result ? result.insufficientItems : undefined,
+    const workflowRun = await start(executeDurableCheckoutWorkflow, [
+      {
+        idempotencyKey,
+        orderId,
+        userId: sessionUser.id,
+        paymentOption: resolvedPaymentOption,
+        awaitPaymentHook: Boolean(awaitPaymentHook),
+        waitForFulfillment: Boolean(waitForFulfillment),
+        timeouts,
+        customer: {
+          name: customerName,
+          email: customerEmail,
+          address: customer?.address || '',
+          phone: customer?.phone || '',
+          collectionLocation: customer?.collectionLocation || '',
         },
-        { status: result.status || 400 },
-      )
-    }
+        payment,
+        items,
+      },
+    ])
 
-    return NextResponse.json(result)
+    return NextResponse.json({
+      success: true,
+      pendingPayment: true,
+      workflowRunId: workflowRun.runId,
+      orderId,
+    })
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred during checkout.'

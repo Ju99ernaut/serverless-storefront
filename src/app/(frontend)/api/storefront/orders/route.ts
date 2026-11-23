@@ -14,6 +14,7 @@ import {
 } from '@/workflows/checkout-workflow'
 import { executeOrderStatusUpdateWorkflow } from '@/workflows/order-status-workflow'
 import type { Order } from '@/payload-types'
+import { start } from 'workflow/api'
 
 const VALID_ORDER_STATUSES = new Set<Order['orderStatus']>([
   'PENDING',
@@ -184,12 +185,14 @@ export async function PATCH(request: NextRequest) {
         resumed: 'fulfillment',
       })
     } catch {
-      const result = await executeOrderStatusUpdateWorkflow({
-        orderId,
-        nextStatus: resolvedStatus,
-        note,
-        deliveryFailed: Boolean(deliveryFailed),
-      })
+      const result = await start(executeOrderStatusUpdateWorkflow, [
+        {
+          orderId,
+          nextStatus: resolvedStatus,
+          note,
+          deliveryFailed: Boolean(deliveryFailed),
+        },
+      ])
       return NextResponse.json(result)
     }
   } catch (err: unknown) {

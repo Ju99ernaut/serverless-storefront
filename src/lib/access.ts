@@ -1,27 +1,39 @@
 import type { Access, CollectionBeforeChangeHook, PayloadRequest, Where } from 'payload'
-import { getServerNeonUser, type AuthenticatedNeonUser } from './auth'
+import {
+  AUTHORIZED_FULFILLMENT_ROLES,
+  getServerNeonUser,
+  isAuthorizedAdminOrStaff,
+  isAuthorizedOperator,
+  type AuthenticatedNeonUser,
+} from './auth'
 
 export function isPayloadAdmin(req: PayloadRequest | undefined) {
-  return req?.user?.role === 'admin'
+  const role = req?.user?.role
+  return Boolean(role && AUTHORIZED_FULFILLMENT_ROLES.has(role.trim().toLowerCase()))
 }
+
+export { isAuthorizedOperator }
 
 export async function resolveRequestAuth(req: PayloadRequest | undefined): Promise<{
   isAdmin: boolean
+  isOperator: boolean
   neonUser: AuthenticatedNeonUser | null
 }> {
   if (isPayloadAdmin(req)) {
-    return { isAdmin: true, neonUser: null }
+    const role = req?.user?.role?.trim().toLowerCase()
+    return { isAdmin: role === 'admin', isOperator: true, neonUser: null }
   }
   const neonUser = await getServerNeonUser()
-  if (neonUser?.role === 'admin') {
-    return { isAdmin: true, neonUser }
+  const isOperator = isAuthorizedAdminOrStaff(neonUser)
+  if (neonUser?.role === 'admin' || isOperator) {
+    return { isAdmin: neonUser?.role === 'admin', isOperator: true, neonUser }
   }
-  return { isAdmin: false, neonUser }
+  return { isAdmin: false, isOperator: false, neonUser }
 }
 
 export const isAdminAccess: Access = async ({ req }) => {
-  const { isAdmin } = await resolveRequestAuth(req)
-  return isAdmin
+  const { isAdmin, isOperator } = await resolveRequestAuth(req)
+  return isAdmin || isOperator
 }
 
 export const ownerByNeonUserIdAccess: {
@@ -101,8 +113,8 @@ export const ordersAccess: {
   delete: Access
 } = {
   read: async ({ req }) => {
-    const { isAdmin, neonUser } = await resolveRequestAuth(req)
-    if (isAdmin) return true
+    const { isAdmin, isOperator, neonUser } = await resolveRequestAuth(req)
+    if (isAdmin || isOperator) return true
     if (!neonUser) return false
     if (neonUser.email) {
       const ownerWhere: Where = {

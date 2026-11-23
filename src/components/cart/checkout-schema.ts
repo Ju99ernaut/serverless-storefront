@@ -15,6 +15,13 @@ export interface CheckoutPendingMobilePaymentResponse {
   mobileNumber: string
 }
 
+export interface CheckoutWorkflowResponse {
+  success: true
+  pendingPayment: true
+  workflowRunId?: string
+  orderId: string
+}
+
 export interface CheckoutSuccessResponse {
   success: boolean
   pendingPayment?: false
@@ -65,7 +72,7 @@ export interface CheckoutSuccessResponse {
   }
 }
 
-export type CheckoutApiResponse = CheckoutSuccessResponse | CheckoutPendingMobilePaymentResponse
+export type CheckoutApiResponse = CheckoutWorkflowResponse | CheckoutPendingMobilePaymentResponse
 
 export const COLLECTION_LOCATIONS = process.env.COLLECTION_LOCATIONS
   ? process.env.COLLECTION_LOCATIONS.split(',')

@@ -18,8 +18,8 @@ import { CartMobilePaymentStep } from './cart-mobile-payment-step'
 import { CartOrderSuccessStep } from './cart-order-success-step'
 import {
   COLLECTION_LOCATIONS,
+  CheckoutApiResponse,
   checkoutSchema,
-  type CheckoutApiResponse,
   type CheckoutFormValues,
   type CheckoutPendingMobilePaymentResponse,
   type CheckoutSuccessResponse,
@@ -211,7 +211,7 @@ const CartSidebar = ({
       return data
     },
     onSuccess: async (data) => {
-      if ('pendingPayment' in data && data.pendingPayment) {
+      if ('pollUrl' in data && data.pendingPayment) {
         setPendingMobilePayment(data)
         setMobilePaymentStatus('sent')
         setStep('mobile_payment')
@@ -223,12 +223,53 @@ const CartSidebar = ({
         return
       }
 
-      setOrderResult(data)
+      const currentValues = checkoutForm.getValues()
+
+      setOrderResult({
+        success: true,
+        order: {
+          orderId: data.orderId,
+          invoiceNumber: `INV-${data.orderId.replace('ORD-', '')}`,
+          receiptNumber: `RCP-${data.orderId.replace('ORD-', '')}`,
+          issuedAt: new Date().toISOString(),
+          paymentOption: currentValues.paymentOption,
+          fulfillmentMethod: selectedPaymentMeta.fulfillmentMethod,
+          orderStatus: 'CONFIRMED',
+          paymentSummary: {
+            method: 'PENDING',
+            status: 'PENDING',
+          },
+          totals: {
+            subTotal,
+            tax,
+            shipping: shippingFee,
+            grandTotal,
+          },
+        },
+        documents: {
+          invoice: {
+            filename: `Invoice-${data.orderId}.pdf`,
+            templateId: '',
+          },
+          receipt: {
+            filename: `Receipt-$data.orderId}.pdf`,
+            templateId: '',
+          },
+        },
+        email: {
+          status: 'sent',
+          messageId: '',
+          to: currentValues.customerEmail,
+          subject: `Order ${data.orderId} Confirmed`,
+          templateId: '',
+          attachmentsCount: 2,
+        },
+      })
       setStep('success')
       onClearCart()
       toast.add({
         type: 'success',
-        description: `Order ${data.order.orderId} confirmed!`,
+        description: `Order ${data.orderId} confirmed!`,
       })
       await Promise.all([
         queryClient.invalidateQueries({

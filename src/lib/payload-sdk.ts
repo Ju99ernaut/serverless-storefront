@@ -4,8 +4,12 @@ import type { Order, Product, Wishlist } from '../payload-types'
 import type { CartLineItem } from './utils/data'
 
 const getBaseURL = () => {
-  if (typeof window !== 'undefined') {
-    return '/api'
+  if (
+    typeof window !== 'undefined' &&
+    window.location?.origin &&
+    window.location.origin !== 'null'
+  ) {
+    return `${window.location.origin}/api`
   }
   const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
   return `${serverUrl}/api`
@@ -13,6 +17,7 @@ const getBaseURL = () => {
 
 export const sdk = new PayloadSDK({
   baseURL: getBaseURL(),
+  fetch: (input, init) => globalThis.fetch(input, init),
 })
 
 export async function getProducts() {

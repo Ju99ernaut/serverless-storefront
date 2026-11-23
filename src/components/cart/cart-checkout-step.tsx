@@ -360,7 +360,7 @@ export function CartCheckoutStep({
           <Button type="submit" size="lg" className="w-full" disabled={isPending}>
             {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             {isPending
-              ? 'Running Durable Checkout Workflow...'
+              ? 'Checkout...'
               : selectedPaymentMeta.requiresCardNow
                 ? `Pay ${formatCentsAsDollars(grandTotal)} & Place Order`
                 : `Confirm Reservation (${formatCentsAsDollars(grandTotal)} ${selectedPaymentMeta.shortLabel})`}

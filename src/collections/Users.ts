@@ -22,6 +22,8 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Customer', value: 'customer' },
         { label: 'Admin', value: 'admin' },
+        { label: 'Staff', value: 'staff' },
+        { label: 'Fulfillment', value: 'fulfillment' },
       ],
       required: true,
     },

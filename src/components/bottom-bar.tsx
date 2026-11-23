@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { BOTTOM_BAR_FILTERS, BottomBarFilter, getMainCategoryForFilter } from '../lib/utils/data'
-import { OptimizedImage } from './ui/optimized-image'
+import Image from 'next/image'
 import { cn } from 'cn'
 import { Button } from './ui/button'
 import { useTheme } from 'next-themes'
@@ -29,7 +29,7 @@ function renderFilterIcon(icon: BottomBarFilter['icon']) {
   if (icon === 'all') return null
 
   return (
-    <OptimizedImage
+    <Image
       src={`/images/${icon}.png`}
       alt={icon}
       width={20}

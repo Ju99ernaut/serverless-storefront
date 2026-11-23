@@ -19,9 +19,9 @@ export function ClientLayout({ children }: { children: ReactNode }) {
         <ImageKitProvider urlEndpoint={process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT}>
           <StoreProvider>
             <ScrollToTopButton />
-            <AuthModal />
-            <Toaster />
             {children}
+            <Toaster />
+            <AuthModal />
           </StoreProvider>
         </ImageKitProvider>
       </ThemeProvider>

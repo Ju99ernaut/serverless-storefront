@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { Resend } from 'resend'
 import type { Order } from '../../payload-types'
-import { centsToDollars } from './data'
+import { centsToDollars, formatCentsAsDollars } from './data'
+import { AdminOrderEmailTemplate } from '../../components/email-template'
 
 export const API_CONFIG = {
   composeitApiUrl: process.env.COMPOSEIT_API_URL || '',
@@ -14,6 +15,7 @@ export const API_CONFIG = {
   resend: {
     apiKey: process.env.RESEND_API_KEY || '',
     from: process.env.RESEND_FROM || 'Storefront Orders <onboarding@resend.dev>',
+    adminEmail: process.env.ADMIN_EMAIL || 'admin@example.com',
   },
 }
 
@@ -333,3 +335,80 @@ export async function generateOrderDocumentOnDemand(
     pdfUrl: result.pdf?.url || null,
   }
 }
+
+export interface AdminOrderNotificationEmailParams {
+  order: Order
+  adminEmail?: string
+}
+
+export async function sendAdminNewOrderEmail({
+  order,
+  adminEmail,
+}: AdminOrderNotificationEmailParams): Promise<SentEmailResult> {
+  const recipient = adminEmail || API_CONFIG.resend.adminEmail
+  const grandTotalFormatted = formatCentsAsDollars(order.totals.grandTotal)
+  const subject = `[New Order] ${order.orderId} - ${order.customerName} (${grandTotalFormatted})`
+  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const adminOrderUrl = `${serverUrl}/admin/collections/orders/${order.id || order.orderId}`
+
+  let actionGuidance = ''
+  if (order.paymentOption === 'pay_on_delivery') {
+    actionGuidance =
+      'Action Required: Cash / Card on Delivery. Please prepare order and dispatch for delivery. Collect payment upon delivery.'
+  } else if (order.paymentOption === 'pay_on_collection') {
+    actionGuidance =
+      'Action Required: Store Pickup. Please prepare order and mark ready for collection. Collect payment upon pickup.'
+  } else if (order.paymentStatus === 'PAID') {
+    actionGuidance =
+      order.fulfillmentMethod === 'COLLECTION'
+        ? 'Payment Received: Please prepare items and mark Ready for Collection.'
+        : 'Payment Received: Please prepare items and dispatch Out for Delivery.'
+  } else {
+    actionGuidance = 'Payment Pending: Awaiting payment confirmation before fulfillment.'
+  }
+
+  const apiKey = process.env.RESEND_API_KEY || API_CONFIG.resend.apiKey
+
+  if (apiKey) {
+    try {
+      const resend = new Resend(apiKey)
+      const { data, error } = await resend.emails.send({
+        from: API_CONFIG.resend.from,
+        to: recipient,
+        subject,
+        react: AdminOrderEmailTemplate({
+          order,
+          adminOrderUrl,
+          actionGuidance,
+        }),
+      })
+
+      if (!error && data?.id) {
+        return {
+          status: 'sent_resend',
+          messageId: data.id,
+          to: recipient,
+          subject,
+          templateId: 'raw_email_admin_order_notification',
+          attachmentsCount: 0,
+          attachments: [],
+        }
+      }
+    } catch {
+      // Fall back to queued_stream when Resend delivery is unavailable in local/test runs
+    }
+  }
+
+  return {
+    status: 'queued_stream',
+    messageId: `msg_${Date.now()}`,
+    to: recipient,
+    subject,
+    templateId: 'raw_email_admin_order_notification',
+    attachmentsCount: 0,
+    attachments: [],
+  }
+}
+
+export const notifyAdminOfNewOrder = (order: Order, adminEmail?: string) =>
+  sendAdminNewOrderEmail({ order, adminEmail })

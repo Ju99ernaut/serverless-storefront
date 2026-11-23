@@ -81,7 +81,7 @@ export const PAYMENT_OPTIONS: Array<{
     id: 'pay_on_collection',
     label: 'Pay on Collection',
     shortLabel: 'Pay on Collection',
-    description: 'Reserve stock for 48 hours, try it on in-store, and pay when you collect.',
+    description: 'Reserve stock, try it on in-store, and pay when you collect.',
     requiresCardNow: false,
     requiresShippingAddress: false,
     fulfillmentMethod: 'COLLECTION',

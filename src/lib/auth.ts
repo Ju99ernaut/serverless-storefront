@@ -24,12 +24,19 @@ export function isAuthorizedAdminOrStaff(user: AuthenticatedNeonUser | null): bo
   return AUTHORIZED_FULFILLMENT_ROLES.has(user.role.trim().toLowerCase())
 }
 
+export function isAuthorizedOperator(
+  user: AuthenticatedNeonUser | { role?: string | null } | null,
+): boolean {
+  if (!user?.role) return false
+  return AUTHORIZED_FULFILLMENT_ROLES.has(user.role.trim().toLowerCase())
+}
+
 export async function isAuthorizedPayloadAdminRequest(request: Request): Promise<boolean> {
   try {
     const payload = await getServerPayload()
     const authResult = await payload.auth({ headers: request.headers })
     const role = authResult?.user?.role
-    return role === 'admin'
+    return Boolean(role && AUTHORIZED_FULFILLMENT_ROLES.has(role.trim().toLowerCase()))
   } catch {
     return false
   }
@@ -58,7 +65,7 @@ export function canUserAccessOrder(
   if (
     order.customerEmail &&
     user.email &&
-    order.customerEmail.trim().toLowerCase() === user.email
+    order.customerEmail.trim().toLowerCase() === user.email.trim().toLowerCase()
   ) {
     return true
   }

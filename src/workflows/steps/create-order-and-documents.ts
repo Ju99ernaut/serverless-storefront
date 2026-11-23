@@ -1,6 +1,7 @@
 import {
   API_CONFIG,
   generateViaApi,
+  notifyAdminOfNewOrder,
   sendRenderedEmailWithAttachments,
   type OrderTemplateData,
 } from '../../lib/utils/document-email-service'
@@ -231,6 +232,11 @@ export async function createOrderAndDocumentsStep(input: {
       },
     ],
     ...(fiscalReceipt ? { fiscalReceipt } : {}),
+  })
+
+  // Notify the admin of new order via Resend
+  await notifyAdminOfNewOrder(orderRecord as never).catch((err) => {
+    console.error(`Failed to send new order admin notification for ${input.orderId}:`, err)
   })
 
   if (input.userId) {
