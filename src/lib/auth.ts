@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'crypto'
 import { createNeonAuth } from '@neon/auth/next/server'
 import type { Order } from '../payload-types'
 import { getServerPayload } from './payload-server'
@@ -23,26 +22,6 @@ export const AUTHORIZED_FULFILLMENT_ROLES = new Set(['admin', 'staff', 'fulfillm
 export function isAuthorizedAdminOrStaff(user: AuthenticatedNeonUser | null): boolean {
   if (!user?.role) return false
   return AUTHORIZED_FULFILLMENT_ROLES.has(user.role.trim().toLowerCase())
-}
-
-export function verifyPaymentWebhookSecret(request: Request): boolean {
-  const configuredSecret = process.env.PAYMENT_WEBHOOK_SECRET?.trim()
-  if (!configuredSecret) return false
-
-  const headerSecret = request.headers.get('x-payment-webhook-secret')?.trim()
-  const authHeader = request.headers.get('authorization')?.trim()
-  const bearerSecret = authHeader?.toLowerCase().startsWith('bearer ')
-    ? authHeader.slice(7).trim()
-    : undefined
-
-  const provided = headerSecret || bearerSecret
-  if (!provided) return false
-
-  const expectedBuf = Buffer.from(configuredSecret)
-  const providedBuf = Buffer.from(provided)
-  if (expectedBuf.length !== providedBuf.length) return false
-
-  return timingSafeEqual(expectedBuf, providedBuf)
 }
 
 export async function isAuthorizedPayloadAdminRequest(request: Request): Promise<boolean> {

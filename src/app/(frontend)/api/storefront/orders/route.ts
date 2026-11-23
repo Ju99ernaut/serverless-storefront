@@ -4,7 +4,6 @@ import {
   getServerNeonUser,
   isAuthorizedAdminOrStaff,
   isAuthorizedPayloadAdminRequest,
-  verifyPaymentWebhookSecret,
 } from '@/lib/auth'
 import { generateAndRecordOrderDocumentServer, getOrderByOrderIdServer } from '@/lib/payload-server'
 import {
@@ -39,7 +38,6 @@ export async function PATCH(request: NextRequest) {
       getServerNeonUser(),
       isAuthorizedPayloadAdminRequest(request),
     ])
-    const isPaymentWebhookAuthorized = verifyPaymentWebhookSecret(request)
     const isAuthorizedOperator = isPayloadAdmin || isAuthorizedAdminOrStaff(sessionUser)
 
     const body = await request.json()
@@ -60,10 +58,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === 'payment') {
-      if (!isPaymentWebhookAuthorized && !isAuthorizedOperator) {
-        if (!sessionUser) {
-          return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
-        }
+      if (!isAuthorizedOperator) {
         return NextResponse.json(
           {
             error:
@@ -105,10 +100,11 @@ export async function PATCH(request: NextRequest) {
 
     const existingOrder = await getOrderByOrderIdServer(orderId)
 
+    if (!existingOrder) {
+      return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 })
+    }
+
     if (action === 'generate_document') {
-      if (!existingOrder) {
-        return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 })
-      }
       if (!isAuthorizedOperator && !canUserAccessOrder(sessionUser, existingOrder)) {
         return NextResponse.json(
           { error: 'Forbidden: you do not own this order.' },
@@ -133,10 +129,6 @@ export async function PATCH(request: NextRequest) {
         { error: `Invalid order status: ${String(resolvedStatus)}` },
         { status: 400 },
       )
-    }
-
-    if (!existingOrder) {
-      return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 })
     }
 
     const isCustomerSelfCancel = resolvedStatus === 'CANCELLED' && !deliveryFailed

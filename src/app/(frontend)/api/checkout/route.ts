@@ -24,13 +24,13 @@ export async function POST(request: NextRequest) {
       items,
       payment,
       paymentOption,
-      idempotencyKey,
       orderId,
       awaitPaymentHook,
       waitForFulfillment,
       timeouts,
       userId,
     } = body || {}
+    const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
     if (userId && userId !== sessionUser.id) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })

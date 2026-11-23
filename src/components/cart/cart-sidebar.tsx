@@ -160,10 +160,8 @@ const CartSidebar = ({
     mutationFn: async (values: CheckoutFormValues) => {
       const meta =
         PAYMENT_OPTIONS.find((opt) => opt.id === values.paymentOption) || PAYMENT_OPTIONS[0]
-      const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
       const { data } = await axios.post<CheckoutApiResponse>('/api/checkout', {
-        idempotencyKey,
         userId: user?.id,
         paymentOption: values.paymentOption,
         customer: {

@@ -150,6 +150,7 @@ export function ProductReviewsSection({
                 </div>
               ) : user ? (
                 <form
+                  id="review"
                   onSubmit={reviewForm.handleSubmit((values) => {
                     if (!user || submitReviewMutation.isPending) return
                     submitReviewMutation.mutate(values)
