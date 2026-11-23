@@ -7,8 +7,8 @@ import {
   isAuthorizedOperator,
   isAuthorizedPayloadAdminRequest,
   type AuthenticatedNeonUser,
-} from './auth'
-import * as payloadServer from './payload-server'
+} from '../auth'
+import * as payloadServer from '../payload-server'
 
 describe('src/lib/auth unit tests', () => {
   describe('AUTHORIZED_FULFILLMENT_ROLES', () => {
@@ -151,7 +151,9 @@ describe('src/lib/auth unit tests', () => {
     })
 
     it('returns false when getServerPayload throws', async () => {
-      vi.spyOn(payloadServer, 'getServerPayload').mockRejectedValueOnce(new Error('DB connection error'))
+      vi.spyOn(payloadServer, 'getServerPayload').mockRejectedValueOnce(
+        new Error('DB connection error'),
+      )
 
       const req = new Request('http://localhost:3000/api/storefront/orders')
       const isAuth = await isAuthorizedPayloadAdminRequest(req)

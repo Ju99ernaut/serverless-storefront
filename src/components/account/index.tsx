@@ -16,6 +16,7 @@ import { AccountOrdersTab } from './account-orders-tab'
 import { AccountWishlistTab } from './account-wishlist-tab'
 import { AccountCartTab } from './account-cart-tab'
 import { AccountProfileTab } from './account-profile-tab'
+import { AccountFooter } from './account-footer'
 
 export function AccountPortalContent() {
   const searchParams = useSearchParams()
@@ -98,7 +99,12 @@ export function AccountPortalContent() {
   }
 
   if (!user) {
-    return <AccountGuestPrompt />
+    return (
+      <>
+        <AccountGuestPrompt />
+        <AccountFooter />
+      </>
+    )
   }
 
   return (
@@ -141,6 +147,8 @@ export function AccountPortalContent() {
           <AccountProfileTab />
         </TabsContent>
       </Tabs>
+
+      <AccountFooter />
     </>
   )
 }

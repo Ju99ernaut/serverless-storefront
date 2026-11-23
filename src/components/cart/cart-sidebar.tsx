@@ -218,7 +218,7 @@ const CartSidebar = ({
         toast.add({
           type: 'info',
           title: 'Mobile payment prompt sent',
-          description: `Check your ${data.mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'} phone (${data.mobileNumber}) to complete payment.`,
+          description: `Check your ${data.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'} phone (${data.mobileNumber}) to complete payment.`,
         })
         return
       }
@@ -337,7 +337,7 @@ const CartSidebar = ({
         const currentValues = checkoutForm.getValues()
         const orderDoc = data.order
         const walletLabel =
-          pendingMobilePayment?.mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'
+          pendingMobilePayment?.mobileMethod === 'ecocash' ? 'EcoCash' : 'Innbucks'
 
         setOrderResult({
           success: true,

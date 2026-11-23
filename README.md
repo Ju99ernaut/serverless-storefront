@@ -79,7 +79,7 @@ Environment variables defined in `.env.example`:
 - **Cloudflare R2 (optional media storage)**: `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_PUBLIC_URL`
 - **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
 - **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
-- **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & OneMoney mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
+- **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & InnBucks mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
 - **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
 - **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axios from 'axios'
-import type { Order } from '../../payload-types'
+import type { Order } from '../../../payload-types'
 
 const mockResendSend = vi.fn()
 
@@ -22,7 +22,7 @@ import {
   notifyAdminOfNewOrder,
   sendAdminNewOrderEmail,
   sendRenderedEmailWithAttachments,
-} from './document-email-service'
+} from '../document-email-service'
 
 describe('src/lib/utils/document-email-service unit tests', () => {
   const mockOrder: Order = {
@@ -55,8 +55,8 @@ describe('src/lib/utils/document-email-service unit tests', () => {
     ],
     totals: {
       subTotal: 9000, // $90.00
-      tax: 720,       // $7.20
-      shipping: 600,  // $6.00
+      tax: 720, // $7.20
+      shipping: 600, // $6.00
       grandTotal: 10320, // $103.20
     },
     documentHistory: [],
@@ -198,7 +198,12 @@ describe('src/lib/utils/document-email-service unit tests', () => {
     it('POSTs payload to ComposeIt endpoint', async () => {
       vi.spyOn(axios, 'post').mockResolvedValueOnce({
         data: {
-          pdf: { url: 'https://cdn.composeit.local/inv.pdf', sizeBytes: 1200, mimeType: 'application/pdf', checksum: 'c1' },
+          pdf: {
+            url: 'https://cdn.composeit.local/inv.pdf',
+            sizeBytes: 1200,
+            mimeType: 'application/pdf',
+            checksum: 'c1',
+          },
         },
       })
 
@@ -219,7 +224,12 @@ describe('src/lib/utils/document-email-service unit tests', () => {
     it('generates INVOICE document on demand', async () => {
       vi.spyOn(axios, 'post').mockResolvedValueOnce({
         data: {
-          pdf: { url: 'https://cdn.composeit.local/invoice.pdf', sizeBytes: 5000, mimeType: 'application/pdf', checksum: 'inv_hash' },
+          pdf: {
+            url: 'https://cdn.composeit.local/invoice.pdf',
+            sizeBytes: 5000,
+            mimeType: 'application/pdf',
+            checksum: 'inv_hash',
+          },
         },
       })
 
@@ -233,7 +243,12 @@ describe('src/lib/utils/document-email-service unit tests', () => {
     it('generates RECEIPT document on demand', async () => {
       vi.spyOn(axios, 'post').mockResolvedValueOnce({
         data: {
-          pdf: { url: 'https://cdn.composeit.local/receipt.pdf', sizeBytes: 4000, mimeType: 'application/pdf', checksum: 'rcp_hash' },
+          pdf: {
+            url: 'https://cdn.composeit.local/receipt.pdf',
+            sizeBytes: 4000,
+            mimeType: 'application/pdf',
+            checksum: 'rcp_hash',
+          },
         },
       })
 
@@ -249,14 +264,25 @@ describe('src/lib/utils/document-email-service unit tests', () => {
     it('prepares attachments and falls back to queued_stream without RESEND_API_KEY', async () => {
       const renderedEmail = {
         templateId: 'tpl_email',
-        html: { htmlDocument: '<p>Order Confirmation</p>', checksum: 'c', mimeType: 'text/html', url: '', sizeBytes: 20 },
+        html: {
+          htmlDocument: '<p>Order Confirmation</p>',
+          checksum: 'c',
+          mimeType: 'text/html',
+          url: '',
+          sizeBytes: 20,
+        },
         payloadSent: {} as never,
       }
       const attachments = [
         {
           templateId: 'tpl_inv',
           filename: 'Invoice.pdf',
-          pdf: { url: 'https://cdn.local/inv.pdf', sizeBytes: 10, mimeType: 'application/pdf', checksum: 'c' },
+          pdf: {
+            url: 'https://cdn.local/inv.pdf',
+            sizeBytes: 10,
+            mimeType: 'application/pdf',
+            checksum: 'c',
+          },
           payloadSent: {} as never,
         },
       ]

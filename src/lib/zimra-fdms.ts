@@ -274,7 +274,7 @@ async function withReadyFiscalDevice<T>(
 
 function resolveMoneyType(paymentMethodLabel?: string, paymentOption?: string): MoneyType {
   const label = (paymentMethodLabel || '').toLowerCase()
-  if (label.includes('ecocash') || label.includes('onemoney') || label.includes('mobile')) {
+  if (label.includes('ecocash') || label.includes('innbucks') || label.includes('mobile')) {
     return 'MobileWallet'
   }
   if (label.includes('card')) {

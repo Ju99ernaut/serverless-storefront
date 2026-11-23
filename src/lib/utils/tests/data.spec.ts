@@ -13,7 +13,7 @@ import {
   getMainCategoryForFilter,
   getFilterDisplayName,
   slugifyProductTitle,
-} from './data'
+} from '../data'
 import type { Product } from '@/payload-types'
 
 describe('src/lib/utils/data unit tests', () => {
@@ -84,9 +84,30 @@ describe('src/lib/utils/data unit tests', () => {
       const product = {
         title: 'Shirt',
         variants: [
-          { sku: 'S-1', stock: 10, reservedStock: 0, lowStockThreshold: 5, color: 'Black', size: 'M' },
-          { sku: 'S-2', stock: 4, reservedStock: 1, lowStockThreshold: 5, color: 'White', size: 'L' }, // avail = 3
-          { sku: 'S-3', stock: 8, reservedStock: 0, lowStockThreshold: 5, color: 'Blue', size: 'S' },
+          {
+            sku: 'S-1',
+            stock: 10,
+            reservedStock: 0,
+            lowStockThreshold: 5,
+            color: 'Black',
+            size: 'M',
+          },
+          {
+            sku: 'S-2',
+            stock: 4,
+            reservedStock: 1,
+            lowStockThreshold: 5,
+            color: 'White',
+            size: 'L',
+          }, // avail = 3
+          {
+            sku: 'S-3',
+            stock: 8,
+            reservedStock: 0,
+            lowStockThreshold: 5,
+            color: 'Blue',
+            size: 'S',
+          },
         ],
       } as unknown as Product
 
@@ -129,8 +150,8 @@ describe('src/lib/utils/data unit tests', () => {
       const product = {
         variants: [
           { sku: 'V1', stock: 10, reservedStock: 2 }, // 8
-          { sku: 'V2', stock: 5, reservedStock: 1 },  // 4
-          { sku: 'V3', stock: 2, reservedStock: 5 },  // 0 (clamped to 0)
+          { sku: 'V2', stock: 5, reservedStock: 1 }, // 4
+          { sku: 'V3', stock: 2, reservedStock: 5 }, // 0 (clamped to 0)
         ],
       } as unknown as Product
 

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const optionMeta =
       PAYMENT_OPTIONS.find((opt) => opt.id === resolvedPaymentOption) || PAYMENT_OPTIONS[0]
 
-    // Express Mobile Payments via Paynow (EcoCash / OneMoney):
+    // Express Mobile Payments via Paynow (EcoCash / InnBucks):
     // Initiate mobile push immediately so we can return instructions & pollUrl to the user
     // while the durable checkout workflow reserves stock and waits on the payment hook.
     if (optionMeta.requiresCardNow && payment?.provider === 'paynow_mobile') {
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
           pollUrl: initResult.pollUrl,
           instructions:
             initResult.instructions ||
-            `Check your ${mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'} phone (${mobileNumber}) to authorize the payment prompt.`,
+            `Check your ${mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'} phone (${mobileNumber}) to authorize the payment prompt.`,
           mobileMethod,
           mobileNumber,
         },

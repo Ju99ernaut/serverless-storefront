@@ -2,21 +2,24 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   isAdminAccess,
   isPayloadAdmin,
-  isAuthorizedOperator,
   ordersAccess,
   ownerByNeonUserIdAccess,
   enforceNeonUserIdOwnershipHook,
   resolveRequestAuth,
   reviewsAccess,
   usersAccess,
-} from './access'
+} from '../access'
 import type { PayloadRequest } from 'payload'
 
 describe('src/lib/access unit tests', () => {
-  const setSession = (user: { id: string; email: string; name: string; role?: string | null } | null) => {
-    ;(globalThis as unknown as {
-      __setMockNeonSessionUser__?: (u: typeof user) => void
-    }).__setMockNeonSessionUser__?.(user)
+  const setSession = (
+    user: { id: string; email: string; name: string; role?: string | null } | null,
+  ) => {
+    ;(
+      globalThis as unknown as {
+        __setMockNeonSessionUser__?: (u: typeof user) => void
+      }
+    ).__setMockNeonSessionUser__?.(user)
   }
 
   beforeEach(() => {
@@ -30,13 +33,21 @@ describe('src/lib/access unit tests', () => {
 
   describe('isPayloadAdmin', () => {
     it('returns true for admin, staff, or fulfillment payload user', () => {
-      expect(isPayloadAdmin({ user: { id: 1, role: 'admin' } } as unknown as PayloadRequest)).toBe(true)
-      expect(isPayloadAdmin({ user: { id: 2, role: 'staff' } } as unknown as PayloadRequest)).toBe(true)
-      expect(isPayloadAdmin({ user: { id: 3, role: 'fulfillment' } } as unknown as PayloadRequest)).toBe(true)
+      expect(isPayloadAdmin({ user: { id: 1, role: 'admin' } } as unknown as PayloadRequest)).toBe(
+        true,
+      )
+      expect(isPayloadAdmin({ user: { id: 2, role: 'staff' } } as unknown as PayloadRequest)).toBe(
+        true,
+      )
+      expect(
+        isPayloadAdmin({ user: { id: 3, role: 'fulfillment' } } as unknown as PayloadRequest),
+      ).toBe(true)
     })
 
     it('returns false for customer or undefined', () => {
-      expect(isPayloadAdmin({ user: { id: 4, role: 'customer' } } as unknown as PayloadRequest)).toBe(false)
+      expect(
+        isPayloadAdmin({ user: { id: 4, role: 'customer' } } as unknown as PayloadRequest),
+      ).toBe(false)
       expect(isPayloadAdmin(undefined)).toBe(false)
       expect(isPayloadAdmin({ user: null } as unknown as PayloadRequest)).toBe(false)
     })
@@ -112,8 +123,12 @@ describe('src/lib/access unit tests', () => {
     it('grants full access to admins', async () => {
       const adminReq = { user: { id: 1, role: 'admin' } } as unknown as PayloadRequest
       expect(await ownerByNeonUserIdAccess.read({ req: adminReq })).toBe(true)
-      expect(await ownerByNeonUserIdAccess.create({ req: adminReq, data: { neonUserId: 'other' } })).toBe(true)
-      expect(await ownerByNeonUserIdAccess.update({ req: adminReq, data: { neonUserId: 'other' } })).toBe(true)
+      expect(
+        await ownerByNeonUserIdAccess.create({ req: adminReq, data: { neonUserId: 'other' } }),
+      ).toBe(true)
+      expect(
+        await ownerByNeonUserIdAccess.update({ req: adminReq, data: { neonUserId: 'other' } }),
+      ).toBe(true)
       expect(await ownerByNeonUserIdAccess.delete({ req: adminReq })).toBe(true)
     })
 
@@ -122,12 +137,32 @@ describe('src/lib/access unit tests', () => {
       expect(await ownerByNeonUserIdAccess.read({ req: customerReq })).toEqual({
         neonUserId: { equals: 'neon_usr_alex' },
       })
-      expect(await ownerByNeonUserIdAccess.create({ req: customerReq, data: { neonUserId: 'neon_usr_alex' } })).toBe(true)
-      expect(await ownerByNeonUserIdAccess.create({ req: customerReq, data: { neonUserId: 'someone_else' } })).toBe(false)
-      expect(await ownerByNeonUserIdAccess.update({ req: customerReq, data: { neonUserId: 'neon_usr_alex' } })).toEqual({
+      expect(
+        await ownerByNeonUserIdAccess.create({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_alex' },
+        }),
+      ).toBe(true)
+      expect(
+        await ownerByNeonUserIdAccess.create({
+          req: customerReq,
+          data: { neonUserId: 'someone_else' },
+        }),
+      ).toBe(false)
+      expect(
+        await ownerByNeonUserIdAccess.update({
+          req: customerReq,
+          data: { neonUserId: 'neon_usr_alex' },
+        }),
+      ).toEqual({
         neonUserId: { equals: 'neon_usr_alex' },
       })
-      expect(await ownerByNeonUserIdAccess.update({ req: customerReq, data: { neonUserId: 'someone_else' } })).toBe(false)
+      expect(
+        await ownerByNeonUserIdAccess.update({
+          req: customerReq,
+          data: { neonUserId: 'someone_else' },
+        }),
+      ).toBe(false)
       expect(await ownerByNeonUserIdAccess.delete({ req: customerReq })).toEqual({
         neonUserId: { equals: 'neon_usr_alex' },
       })

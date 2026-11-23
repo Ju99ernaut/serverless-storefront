@@ -24,7 +24,7 @@ export function CartMobilePaymentStep({
   onCheckStatus,
   onBackToCheckout,
 }: CartMobilePaymentStepProps) {
-  const walletLabel = pendingPayment.mobileMethod === 'onemoney' ? 'OneMoney' : 'EcoCash'
+  const walletLabel = pendingPayment.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'
 
   return (
     <>
@@ -42,7 +42,9 @@ export function CartMobilePaymentStep({
           </Button>
           <Badge variant="secondary">Paynow Express Mobile</Badge>
         </div>
-        <DrawerTitle className="pt-1 text-lg font-bold">Authorize Payment on Your Phone</DrawerTitle>
+        <DrawerTitle className="pt-1 text-lg font-bold">
+          Authorize Payment on Your Phone
+        </DrawerTitle>
       </DrawerHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 space-y-5">

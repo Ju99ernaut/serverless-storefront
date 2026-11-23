@@ -9,7 +9,7 @@ import {
   releaseVariantStock,
   commitVariantStock,
   clearUserCartServer,
-} from './payload-server'
+} from '../payload-server'
 import type { Order, Product } from '@/payload-types'
 
 const mockFind = vi.fn()
@@ -160,4 +160,3 @@ describe('src/lib/payload-server unit tests', () => {
     })
   })
 })
-

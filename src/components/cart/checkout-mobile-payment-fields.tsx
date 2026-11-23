@@ -27,9 +27,9 @@ const MOBILE_METHODS = [
     hint: 'Econet (077 / 078)',
   },
   {
-    id: 'onemoney' as const,
-    label: 'OneMoney',
-    hint: 'NetOne (071)',
+    id: 'innbucks' as const,
+    label: 'InnBucks',
+    hint: 'Econet (077 / 078)',
   },
 ]
 
