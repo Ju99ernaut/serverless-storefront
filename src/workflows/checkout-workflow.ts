@@ -9,7 +9,6 @@ import type { Order } from '@/payload-types'
 import { applyOrderStatusStep } from './steps/apply-order-status'
 import { commitOrderStockStep } from './steps/commit-order-stock'
 import { createOrderAndDocumentsStep } from './steps/create-order-and-documents'
-import { initiatePaynowMobilePaymentStep } from './steps/initiate-paynow-mobile-payment'
 import { processPaymentTransactionStep } from './steps/process-payment-transaction'
 import { releaseReservedStockStep } from './steps/release-reserved-stock'
 import { reserveInventoryStep } from './steps/reserve-inventory'
@@ -218,12 +217,8 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     }
   }
 
-  // Step 2: Process / Wait for Payment (30m configurable window for pay_and_delivery & pay_then_collect)
-  const {
-    taxCents,
-    shippingCents,
-    grandTotalCents: grandTotal,
-  } = calculateOrderTotalsCents(
+  // Step 2: Wait for Payment (5m configurable window for pay_and_delivery & pay_then_collect)
+  const { grandTotalCents: grandTotal } = calculateOrderTotalsCents(
     input.items.map((i) => ({
       unitPriceCents: Math.round(Number(i.price) || 0),
       quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
@@ -231,50 +226,11 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     optionMeta.fulfillmentMethod,
   )
 
-  const isPaynowMobile = optionMeta.requiresCardNow && input.payment?.provider === 'paynow_mobile'
-
-  if (isPaynowMobile && !input.payment?.pollUrl) {
-    const mobileNumber = input.payment?.mobileNumber || input.customer.phone || ''
-    const mobileMethod = input.payment?.mobileMethod || 'ecocash'
-
-    const paynowItems = [
-      ...input.items.map((i) => ({
-        title: `${i.title} x${Math.max(1, Math.round(Number(i.quantity) || 1))}`,
-        amountCents:
-          Math.round(Number(i.price) || 0) * Math.max(1, Math.round(Number(i.quantity) || 1)),
-      })),
-      ...(taxCents > 0 ? [{ title: 'Tax', amountCents: taxCents }] : []),
-      ...(shippingCents > 0 ? [{ title: 'Courier Delivery', amountCents: shippingCents }] : []),
-    ]
-
-    const initResult = await initiatePaynowMobilePaymentStep({
-      orderId,
-      authEmail: input.customer.email,
-      phone: mobileNumber,
-      method: mobileMethod,
-      items: paynowItems,
-    })
-
-    if (!initResult.success) {
-      await releaseReservedStockStep({
-        reservationKey,
-        reason: initResult.error || 'Paynow mobile payment initiation failed',
-      })
-      return {
-        success: false as const,
-        status: 402,
-        orderId,
-        reservationKey,
-        error: initResult.error || 'Unable to initiate Paynow mobile payment.',
-        stockReleased: true,
-      }
-    }
-  }
+  const isPaynowMobile = input.payment?.provider === 'paynow_mobile'
 
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
   const requiresExternalPaymentHook =
-    optionMeta.requiresCardNow &&
-    (Boolean(input.awaitPaymentHook) || isPaynowMobile || !input.payment?.cardNumber)
+    optionMeta.requiresCardNow && (Boolean(input.awaitPaymentHook) || isPaynowMobile)
 
   if (requiresExternalPaymentHook) {
     using paymentHook = orderPaymentHook.create({
@@ -309,31 +265,6 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
       grandTotal,
       customError: paymentRace.payload.error,
     })
-  } else if (optionMeta.requiresCardNow) {
-    const paymentRace = await Promise.race([
-      processPaymentTransactionStep({
-        paymentOption,
-        cardNumber: input.payment?.cardNumber,
-        grandTotal,
-      }).then((result) => ({ timedOut: false as const, result })),
-      sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
-    ])
-
-    if (paymentRace.timedOut) {
-      const reason = `Payment authorization timed out after ${String(paymentWaitTimeout)}; reserved stock released.`
-      await releaseReservedStockStep({ reservationKey, reason })
-      return {
-        success: false as const,
-        status: 408,
-        orderId,
-        reservationKey,
-        error: reason,
-        stockReleased: true,
-        timedOut: true,
-      }
-    }
-
-    paymentOutcome = paymentRace.result
   } else {
     paymentOutcome = await processPaymentTransactionStep({
       paymentOption,

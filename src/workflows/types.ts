@@ -3,15 +3,10 @@ import type { PaynowMobileMethod } from '../lib/paynow'
 import type { Order } from '@/payload-types'
 
 export type WorkflowTimeoutValue =
-  | number
-  | `${number}ms`
-  | `${number}s`
-  | `${number}m`
-  | `${number}h`
-  | `${number}d`
+  number | `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`
 
 export const WORKFLOW_TIMEOUT_DEFAULTS = {
-  paymentWaitTimeout: (process.env.WORKFLOW_PAYMENT_WAIT_TIMEOUT || '30m') as WorkflowTimeoutValue,
+  paymentWaitTimeout: (process.env.WORKFLOW_PAYMENT_WAIT_TIMEOUT || '5m') as WorkflowTimeoutValue,
   payOnCollectionTimeout: (process.env.WORKFLOW_PAY_ON_COLLECTION_TIMEOUT ||
     '8h') as WorkflowTimeoutValue,
   payOnDeliveryTimeout: (process.env.WORKFLOW_PAY_ON_DELIVERY_TIMEOUT ||
