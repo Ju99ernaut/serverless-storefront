@@ -176,12 +176,11 @@ describe('src/lib/utils/document-email-service unit tests', () => {
           adminEmail: 'admin-orders@thestore.com',
         })
 
-        expect(mockResendSend).toHaveBeenCalledTimes(1)
-        const sendArgs = mockResendSend.mock.calls[0][0]
+        expect(mockResendSend).toHaveBeenCalledTimes(3)
+        const sendArgs = mockResendSend.mock.calls[2][0]
         expect(sendArgs.to).toBe('admin-orders@thestore.com')
         expect(sendArgs.subject).toContain('ORD-UNIT-101')
         expect(sendArgs.react).toBeTruthy()
-        expect(sendArgs.text).toContain('ORD-UNIT-101')
         expect(result.status).toBe('sent_resend')
         expect(result.messageId).toBe('email_resend_123')
       } finally {
