@@ -109,10 +109,10 @@ describe('src/lib/utils/document-email-service unit tests', () => {
       const collectionOrder: Order = {
         ...mockOrder,
         fulfillmentMethod: 'COLLECTION',
-        collectionLocation: 'SoHo Flagship Atelier',
+        collectionLocation: 'SoHo Flagship ComposeIt',
       }
       const data = buildOrderTemplateDataFromOrder(collectionOrder)
-      expect(data.customer.address).toBe('SoHo Flagship Atelier')
+      expect(data.customer.address).toBe('SoHo Flagship ComposeIt')
     })
 
     it('maps fiscal data when fiscalReceipt is present on order', () => {

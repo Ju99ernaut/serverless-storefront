@@ -6,7 +6,7 @@ import { AccountSkeleton } from '@/components/account/account-skeleton'
 export const metadata: Metadata = {
   title: 'My Account',
   description:
-    'Manage your Storefront Atelier orders, live delivery tracking, invoices, saved shopping bag, loved items, and profile details.',
+    'Manage your Storefront ComposeIt orders, live delivery tracking, invoices, saved shopping bag, loved items, and profile details.',
   robots: {
     index: false,
     follow: false,
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: '/account',
-    title: 'My Account — Storefront Atelier',
+    title: 'My Account — Storefront ComposeIt',
     description:
-      'Manage your Storefront Atelier orders, live delivery tracking, invoices, saved bag, and profile settings.',
+      'Manage your Storefront ComposeIt orders, live delivery tracking, invoices, saved bag, and profile settings.',
   },
 }
 

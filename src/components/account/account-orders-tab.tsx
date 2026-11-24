@@ -34,7 +34,7 @@ const STATUS_BADGE_MAP: Record<
 > = {
   PENDING: { label: 'Pending', variant: 'secondary' },
   CONFIRMED: { label: 'Confirmed & Reserved', variant: 'outline' },
-  PROCESSING: { label: 'Preparing in Atelier', variant: 'default' },
+  PROCESSING: { label: 'Preparing in Store', variant: 'default' },
   READY_FOR_COLLECTION: { label: 'Ready for Collection', variant: 'secondary' },
   OUT_FOR_DELIVERY: { label: 'Out for Delivery', variant: 'secondary' },
   COMPLETED: { label: 'Completed', variant: 'default' },
@@ -300,7 +300,7 @@ export function AccountOrdersTab() {
                   </strong>{' '}
                   {order.shippingAddress ||
                     order.collectionLocation ||
-                    'Flagship Storefront Atelier'}
+                    'Flagship Storefront ComposeIt'}
                 </div>
                 <div className="text-sm font-bold text-primary">
                   Total: {formatCentsAsDollars(order.totals.grandTotal)}

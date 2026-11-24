@@ -68,7 +68,7 @@ export async function createOrderAndDocumentsStep(input: {
 
   const resolvedAddress =
     input.paymentResult.fulfillmentMethod === 'COLLECTION'
-      ? input.customer.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
+      ? input.customer.collectionLocation || 'Flagship Storefront ComposeIt — 450 Mercer St, SoHo'
       : input.customer.address || ''
 
   // Optionally submit receipt to ZIMRA FDMS when configured (for paid orders) to attach fiscal QR code

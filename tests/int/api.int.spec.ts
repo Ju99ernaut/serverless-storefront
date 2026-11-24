@@ -569,7 +569,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         customer: {
           name: 'Alex Rivera',
           email: 'alex.rivera@example.com',
-          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+          collectionLocation: 'Flagship Storefront ComposeIt — SoHo',
         },
         items: [
           {
@@ -632,7 +632,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         customer: {
           name: 'Alex Rivera',
           email: 'alex.rivera@example.com',
-          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+          collectionLocation: 'Flagship Storefront ComposeIt — SoHo',
         },
         payment: {
           cardholderName: 'Alex Rivera',
@@ -811,7 +811,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         customer: {
           name: 'Alex Rivera',
           email: 'alex.rivera@example.com',
-          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+          collectionLocation: 'Flagship Storefront ComposeIt — SoHo',
         },
         items: [
           {
@@ -865,7 +865,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         customer: {
           name: 'Alex Rivera',
           email: 'alex.rivera@example.com',
-          collectionLocation: 'Flagship Storefront Atelier — SoHo',
+          collectionLocation: 'Flagship Storefront ComposeIt — SoHo',
         },
         items: [
           {

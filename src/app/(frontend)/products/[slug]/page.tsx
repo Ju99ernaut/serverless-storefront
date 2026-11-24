@@ -14,7 +14,7 @@ export async function generateMetadata({
   if (!product) {
     return {
       title: 'Product Not Found',
-      description: 'The requested product could not be found in the Storefront Atelier catalog.',
+      description: 'The requested product could not be found in the Storefront ComposeIt catalog.',
       robots: {
         index: false,
         follow: false,
@@ -26,7 +26,7 @@ export async function generateMetadata({
   const title = `${product.title} by ${product.brand}`
   const baseDescription =
     product.description?.trim() || `${product.title} by ${product.brand} (${product.subcategory}).`
-  const description = `${baseDescription} ${price} — shop available sizes and colors at Storefront Atelier.`
+  const description = `${baseDescription} ${price} — shop available sizes and colors at Storefront ComposeIt.`
 
   return {
     title,

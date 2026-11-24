@@ -9,16 +9,16 @@ import { Separator } from '@/components/ui/separator'
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront Atelier.',
+    'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront ComposeIt.',
   alternates: {
     canonical: '/terms',
   },
   openGraph: {
     type: 'website',
     url: '/terms',
-    title: 'Terms of Service — Storefront Atelier',
+    title: 'Terms of Service — Storefront ComposeIt',
     description:
-      'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront Atelier.',
+      'Terms of Service governing accounts, stock reservation, checkout, payments, and orders on Storefront ComposeIt.',
   },
 }
 
@@ -36,7 +36,7 @@ export default function TermsOfServicePage() {
               <span>Back to Store</span>
             </Link>
             <span className="hidden text-sm font-bold text-foreground sm:inline">
-              Storefront Atelier
+              Storefront ComposeIt
             </span>
           </div>
 
@@ -59,7 +59,7 @@ export default function TermsOfServicePage() {
             <CardTitle className="text-2xl font-bold">Terms of Service</CardTitle>
             <CardDescription>
               Please review these terms carefully before creating an account, reserving inventory,
-              or placing an order with Storefront Atelier.
+              or placing an order with Storefront ComposeIt.
             </CardDescription>
           </CardHeader>
 
@@ -69,9 +69,9 @@ export default function TermsOfServicePage() {
                 1. Overview &amp; Acceptance of Terms
               </h2>
               <p>
-                By accessing Storefront Atelier, browsing our curated clothing and footwear catalog,
-                registering an account, or completing a purchase, you agree to be bound by these
-                Terms of Service and our{' '}
+                By accessing Storefront ComposeIt, browsing our curated clothing and footwear
+                catalog, registering an account, or completing a purchase, you agree to be bound by
+                these Terms of Service and our{' '}
                 <Link
                   href="/privacy"
                   className="text-foreground underline underline-offset-4 hover:text-primary"
@@ -147,7 +147,7 @@ export default function TermsOfServicePage() {
                 5. Invoices, Receipts &amp; Order Tracking
               </h2>
               <p>
-                Upon order confirmation, Storefront Atelier generates PDF Invoice and Receipt
+                Upon order confirmation, Storefront ComposeIt generates PDF Invoice and Receipt
                 documents and dispatches confirmation and fulfillment status notifications to your
                 checkout email address. You can review order history, download documents, and track
                 fulfillment milestones at any time in your{' '}

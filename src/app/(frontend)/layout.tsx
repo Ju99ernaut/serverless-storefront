@@ -8,26 +8,26 @@ import { getSiteUrl } from '@/lib/og-image'
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  applicationName: 'Storefront Atelier',
+  applicationName: 'Storefront ComposeIt',
   title: {
-    default: 'Storefront Atelier — Curated Clothing & Footwear',
-    template: '%s — Storefront Atelier',
+    default: 'Storefront ComposeIt — Curated Clothing & Footwear',
+    template: '%s — Storefront ComposeIt',
   },
   description:
-    'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
+    'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront ComposeIt. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
   openGraph: {
     type: 'website',
-    siteName: 'Storefront Atelier',
+    siteName: 'Storefront ComposeIt',
     locale: 'en_US',
-    title: 'Storefront Atelier — Curated Clothing & Footwear',
+    title: 'Storefront ComposeIt — Curated Clothing & Footwear',
     description:
-      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
+      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront ComposeIt. Live size availability, flexible delivery or boutique collection, and real-time order tracking.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Storefront Atelier — Curated Clothing & Footwear',
+    title: 'Storefront ComposeIt — Curated Clothing & Footwear',
     description:
-      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront Atelier.',
+      'Discover curated outerwear, tailored shirts, dresses, trousers, and footwear at Storefront ComposeIt.',
   },
   manifest: '/manifest.json',
   icons: {

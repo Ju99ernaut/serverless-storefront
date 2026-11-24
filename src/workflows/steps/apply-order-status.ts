@@ -15,7 +15,7 @@ import type { Order } from '@/payload-types'
 const STATUS_LABELS: Record<Order['orderStatus'], string> = {
   PENDING: 'Order Pending',
   CONFIRMED: 'Order Confirmed',
-  PROCESSING: 'Preparing Your Garments in Atelier',
+  PROCESSING: 'Preparing Your Garments in Store',
   READY_FOR_COLLECTION: 'Ready for In-Store Collection',
   OUT_FOR_DELIVERY: 'Out for Courier Delivery',
   COMPLETED: 'Delivered / Collected — Completed',

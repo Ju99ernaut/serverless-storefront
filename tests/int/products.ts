@@ -162,7 +162,7 @@ const RAW_PRODUCTS: RawSeedProduct[] = [
   {
     id: 'prod-1',
     title: 'Classic Oxford Button-Down',
-    brand: 'Atelier Nord',
+    brand: 'ComposeIt Nord',
     price: 89,
     category: 'shirts',
     subcategory: 'Oxford Button-Downs',
@@ -494,7 +494,7 @@ const RAW_PRODUCTS: RawSeedProduct[] = [
   {
     id: 'prod-19',
     title: 'Merino Piqué Knit Polo',
-    brand: 'Atelier Nord',
+    brand: 'ComposeIt Nord',
     price: 92,
     category: 'shirts',
     subcategory: 'Polo Shirts',

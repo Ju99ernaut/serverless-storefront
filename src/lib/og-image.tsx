@@ -57,10 +57,9 @@ export async function renderProductOgImage(options: {
   const imageSrc = await resolveOgImageSrc(rawImageUrl)
 
   const title = product?.title || fallbackTitle || 'Curated Clothing & Footwear'
-  const subtitle =
-    product?.brand
-      ? `${product.brand} • ${product.subcategory || product.category}`
-      : fallbackSubtitle || 'Tailored outerwear, shirts, dresses, trousers & footwear'
+  const subtitle = product?.brand
+    ? `${product.brand} • ${product.subcategory || product.category}`
+    : fallbackSubtitle || 'Tailored outerwear, shirts, dresses, trousers & footwear'
   const description =
     product?.description?.trim() ||
     'Live size availability, flexible delivery or boutique collection, and instant order tracking.'
@@ -74,200 +73,198 @@ export async function renderProductOgImage(options: {
       : null
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        backgroundColor: '#18191e',
+        color: '#f8fafc',
+        padding: '48px 56px',
+        fontFamily: 'sans-serif',
+        position: 'relative',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '44px',
+      }}
+    >
+      {/* Left column: Storefront branding, product info & Shop Now CTA */}
       <div
         style={{
-          width: '100%',
-          height: '100%',
           display: 'flex',
-          backgroundColor: '#18191e',
-          color: '#f8fafc',
-          padding: '48px 56px',
-          fontFamily: 'sans-serif',
-          position: 'relative',
+          flexDirection: 'column',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '44px',
+          height: '100%',
+          flex: 1,
         }}
       >
-        {/* Left column: Storefront branding, product info & Shop Now CTA */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            height: '100%',
-            flex: 1,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '7px 14px',
-                borderRadius: '9999px',
-                backgroundColor: '#5c5edc',
-                color: '#ffffff',
-                fontSize: '16px',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {badgeLabel}
-            </div>
-            <span
-              style={{
-                fontSize: '18px',
-                fontWeight: 600,
-                color: '#a1a1aa',
-                letterSpacing: '0.04em',
-              }}
-            >
-              Storefront Atelier
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '7px 14px',
+              borderRadius: '9999px',
+              backgroundColor: '#5c5edc',
+              color: '#ffffff',
+              fontSize: '16px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {badgeLabel}
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div
-              style={{
-                display: 'flex',
-                fontSize: '20px',
-                fontWeight: 600,
-                color: '#a5b4fc',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              {subtitle}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                fontSize: '50px',
-                fontWeight: 800,
-                lineHeight: 1.1,
-                letterSpacing: '-0.02em',
-                color: '#ffffff',
-              }}
-            >
-              {title}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                fontSize: '22px',
-                lineHeight: 1.4,
-                color: '#cbd5e1',
-              }}
-            >
-              {truncatedDescription}
-            </div>
-
-            {priceLabel && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: '16px',
-                  marginTop: '6px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '40px',
-                    fontWeight: 800,
-                    color: '#ffffff',
-                  }}
-                >
-                  {priceLabel}
-                </span>
-                {compareAtLabel && (
-                  <span
-                    style={{
-                      fontSize: '24px',
-                      fontWeight: 500,
-                      color: '#94a3b8',
-                      textDecoration: 'line-through',
-                    }}
-                  >
-                    {compareAtLabel}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Shop Now CTA Button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#5c5edc',
-                color: '#ffffff',
-                padding: '16px 34px',
-                borderRadius: '10px',
-                fontSize: '22px',
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-              }}
-            >
-              Shop Now →
-            </div>
-            <span style={{ fontSize: '18px', color: '#94a3b8' }}>
-              Free Boutique Collection • Tracked Delivery
-            </span>
-          </div>
+          <span
+            style={{
+              fontSize: '18px',
+              fontWeight: 600,
+              color: '#a1a1aa',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Storefront ComposeIt
+          </span>
         </div>
 
-        {/* Right column: Product image showcase */}
-        <div
-          style={{
-            display: 'flex',
-            width: '410px',
-            height: '534px',
-            borderRadius: '20px',
-            backgroundColor: '#25262d',
-            border: '1px solid #383a46',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '28px',
-            overflow: 'hidden',
-            flexShrink: 0,
-          }}
-        >
-          {imageSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt={title}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-              }}
-            />
-          ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: '20px',
+              fontWeight: 600,
+              color: '#a5b4fc',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            {subtitle}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              fontSize: '50px',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: '-0.02em',
+              color: '#ffffff',
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              fontSize: '22px',
+              lineHeight: 1.4,
+              color: '#cbd5e1',
+            }}
+          >
+            {truncatedDescription}
+          </div>
+
+          {priceLabel && (
             <div
               style={{
                 display: 'flex',
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#94a3b8',
+                alignItems: 'baseline',
+                gap: '16px',
+                marginTop: '6px',
               }}
             >
-              Storefront Atelier
+              <span
+                style={{
+                  fontSize: '40px',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                }}
+              >
+                {priceLabel}
+              </span>
+              {compareAtLabel && (
+                <span
+                  style={{
+                    fontSize: '24px',
+                    fontWeight: 500,
+                    color: '#94a3b8',
+                    textDecoration: 'line-through',
+                  }}
+                >
+                  {compareAtLabel}
+                </span>
+              )}
             </div>
           )}
         </div>
+
+        {/* Shop Now CTA Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#5c5edc',
+              color: '#ffffff',
+              padding: '16px 34px',
+              borderRadius: '10px',
+              fontSize: '22px',
+              fontWeight: 700,
+              letterSpacing: '0.02em',
+            }}
+          >
+            Shop Now →
+          </div>
+          <span style={{ fontSize: '18px', color: '#94a3b8' }}>
+            Free Boutique Collection • Tracked Delivery
+          </span>
+        </div>
       </div>
-    ),
+
+      {/* Right column: Product image showcase */}
+      <div
+        style={{
+          display: 'flex',
+          width: '410px',
+          height: '534px',
+          borderRadius: '20px',
+          backgroundColor: '#25262d',
+          border: '1px solid #383a46',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '28px',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {imageSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageSrc}
+            alt={title}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              fontSize: '28px',
+              fontWeight: 700,
+              color: '#94a3b8',
+            }}
+          >
+            Storefront ComposeIt
+          </div>
+        )}
+      </div>
+    </div>,
     {
       ...OG_IMAGE_SIZE,
     },

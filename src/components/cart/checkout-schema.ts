@@ -77,7 +77,7 @@ export type CheckoutApiResponse = CheckoutWorkflowResponse | CheckoutPendingMobi
 export const COLLECTION_LOCATIONS = process.env.COLLECTION_LOCATIONS
   ? process.env.COLLECTION_LOCATIONS.split(',')
   : [
-      'Flagship Storefront Atelier — 450 Mercer St, SoHo',
+      'Flagship Storefront ComposeIt — 450 Mercer St, SoHo',
       'Midtown Boutique — 685 Fifth Ave, Lounge B',
       'San Francisco Jackson Square Showroom',
     ]

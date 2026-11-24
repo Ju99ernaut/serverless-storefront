@@ -34,14 +34,6 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**.r2.dev',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.r2.cloudflarestorage.com',
-      },
-      {
-        protocol: 'https',
         hostname: 'images.unsplash.com',
       },
     ],
@@ -60,6 +52,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withWorkflow(
-  withPayload(nextConfig, { devBundleServerPackages: false }),
-)
+export default withWorkflow(withPayload(nextConfig, { devBundleServerPackages: false }))

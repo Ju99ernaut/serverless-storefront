@@ -2,7 +2,7 @@
 
 > **Status: Testing Phase** — This project is currently in its testing phase. Features, workflows, payment provider integrations, and data schemas are actively being tested and refined before production launch.
 
-A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon Postgres, Neon Managed Better Auth, the Vercel Workflow SDK, Cloudflare R2 media storage, ComposeIt on-demand PDF/HTML templates, and Resend transactional emails.
+A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon Postgres, Neon Managed Better Auth, the Vercel Workflow SDK, Cloudflare R2 media storage or any S3 compatible media storage, ComposeIt on-demand PDF/HTML templates, and Resend transactional emails.
 
 ## Features
 
@@ -31,7 +31,7 @@ A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon
 - **Authentication**: `@neon/auth` (Neon Managed Better Auth)
 - **Durable Workflows**: `workflow` `^5.5.0`
 - **Client State & Forms**: `@tanstack/react-query`, `react-hook-form`, `@hookform/resolvers`, `zod`
-- **Media & UI**: Cloudflare R2 (`@payloadcms/storage-s3`), `@imagekit/next`, Tailwind CSS v4, Base UI (`@base-ui/react`), Lucide Icons, Swiper
+- **Media & UI**: S3 compatible media storage(Cloudflare R2) (`@payloadcms/storage-s3`), `@imagekit/next`, Tailwind CSS v4, Base UI (`@base-ui/react`), Lucide Icons, Swiper
 - **Documents & Email**: ComposeIt API (`axios`) + `resend`
 - **Testing**: `vitest` (jsdom integration suite) and `@playwright/test`
 
@@ -56,7 +56,7 @@ Configured in [src/payload.config.ts](src/payload.config.ts):
 
 - **Node.js**: `^22.23.5 || ^24.22.3 || >=26.13.1` (see `package.json` `engines`)
 - **pnpm**: `^9 || ^10 || ^11`
-- A **Neon Postgres** database and **Neon Auth** project (plus optional Cloudflare R2, ComposeIt, Resend, and ImageKit credentials)
+- A **Neon Postgres** database and **Neon Auth** project (plus optional S3 compatible media storage(Cloudflare R2), ComposeIt, Resend, and ImageKit credentials)
 
 ### 2. Install Dependencies
 
@@ -76,9 +76,9 @@ Environment variables defined in `.env.example`:
 
 - **Database & Server**: `DATABASE_URL`, `DB_SECRET`, `NEXT_PUBLIC_SERVER_URL` (default `http://localhost:3000`)
 - **Neon Auth**: `NEON_AUTH_BASE_URL`
-- **Cloudflare R2 (optional media storage)**: `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_PUBLIC_URL`
+- **Storage (optional S3 compatible media storage)**: `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_ENDPOINT`, `STORAGE_PUBLIC_URL`
 - **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
-- **ComposeIt & Resend**: `COMPOSEIT_API_URL`, `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
+- **ComposeIt & Resend**: `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
 - **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & InnBucks mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
 - **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
 - **Optional Workflow Timeout Overrides**: `WORKFLOW_PAYMENT_WAIT_TIMEOUT` (default `30m`), `WORKFLOW_PAY_ON_COLLECTION_TIMEOUT` (default `8h`), `WORKFLOW_PAY_ON_DELIVERY_TIMEOUT` (default `24h`)

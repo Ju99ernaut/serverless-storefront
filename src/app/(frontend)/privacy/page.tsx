@@ -9,16 +9,16 @@ import { Separator } from '@/components/ui/separator'
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'Privacy Policy describing how Storefront Atelier collects, authenticates, stores, and protects customer information.',
+    'Privacy Policy describing how Storefront ComposeIt collects, authenticates, stores, and protects customer information.',
   alternates: {
     canonical: '/privacy',
   },
   openGraph: {
     type: 'website',
     url: '/privacy',
-    title: 'Privacy Policy — Storefront Atelier',
+    title: 'Privacy Policy — Storefront ComposeIt',
     description:
-      'How Storefront Atelier collects, uses, and protects your personal information when you browse, sign in, and place orders.',
+      'How Storefront ComposeIt collects, uses, and protects your personal information when you browse, sign in, and place orders.',
   },
 }
 
@@ -36,7 +36,7 @@ export default function PrivacyPolicyPage() {
               <span>Back to Store</span>
             </Link>
             <span className="hidden text-sm font-bold text-foreground sm:inline">
-              Storefront Atelier
+              Storefront ComposeIt
             </span>
           </div>
 
@@ -58,21 +58,19 @@ export default function PrivacyPolicyPage() {
             </div>
             <CardTitle className="text-2xl font-bold">Privacy Policy</CardTitle>
             <CardDescription>
-              How Storefront Atelier collects, uses, and protects your personal information when
+              How Storefront ComposeIt collects, uses, and protects your personal information when
               you browse, sign in, and place orders.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6 pt-6 text-sm leading-relaxed text-muted-foreground">
             <section className="space-y-2">
-              <h2 className="text-base font-semibold text-foreground">
-                1. Information We Collect
-              </h2>
+              <h2 className="text-base font-semibold text-foreground">1. Information We Collect</h2>
               <p>
-                When you register or check out on Storefront Atelier, we collect the details needed
-                to maintain your account and fulfill your orders, including your full name, email
-                address, phone number, shipping or boutique collection preferences, saved shopping
-                bag items, loved products, and order history.
+                When you register or check out on Storefront ComposeIt, we collect the details
+                needed to maintain your account and fulfill your orders, including your full name,
+                email address, phone number, shipping or boutique collection preferences, saved
+                shopping bag items, loved products, and order history.
               </p>
             </section>
 
@@ -83,29 +81,22 @@ export default function PrivacyPolicyPage() {
                 2. Authentication, Sessions &amp; &ldquo;Remember Me&rdquo; Cookies
               </h2>
               <p>
-                Authentication is managed through Neon Managed Better Auth using secure HTTP
-                session cookies. When you sign in with email and password or Google OAuth, we store
-                session tokens to keep your account authenticated. Checking{' '}
-                <strong>Remember me</strong> instructs the session handler to retain your
-                authenticated session across browser restarts. Guest shopping bags are stored
-                locally in your browser&apos;s <code>localStorage</code> and merged into your
-                account upon sign-in.
+                Authentication is managed through Neon Managed Better Auth using secure HTTP session
+                cookies. When you sign in with email and password or Google OAuth, we store session
+                tokens to keep your account authenticated. Checking <strong>Remember me</strong>{' '}
+                instructs the session handler to retain your authenticated session across browser
+                restarts. Guest shopping bags are stored locally in your browser&apos;s{' '}
+                <code>localStorage</code> and merged into your account upon sign-in.
               </p>
             </section>
 
             <Separator />
 
             <section className="space-y-2">
-              <h2 className="text-base font-semibold text-foreground">
-                3. How We Use Your Data
-              </h2>
+              <h2 className="text-base font-semibold text-foreground">3. How We Use Your Data</h2>
               <ul className="list-disc space-y-1.5 pl-5">
-                <li>
-                  Allocating SKU stock reservations and executing durable checkout workflows.
-                </li>
-                <li>
-                  Coordinating courier deliveries or preparing in-store boutique collections.
-                </li>
+                <li>Allocating SKU stock reservations and executing durable checkout workflows.</li>
+                <li>Coordinating courier deliveries or preparing in-store boutique collections.</li>
                 <li>
                   Generating downloadable Invoice and Receipt PDFs and sending transactional order
                   confirmation and status emails.
@@ -124,9 +115,9 @@ export default function PrivacyPolicyPage() {
               </h2>
               <p>
                 Storefront data is persisted using Neon Postgres and Payload CMS, with media assets
-                served through Cloudflare R2 and ImageKit. Cardholder inputs submitted during
-                upfront checkout are transmitted over encrypted connections for payment processing
-                and are never stored in plain text.
+                served through Cloudflare R2(or any S3 compatible media storage) and ImageKit.
+                Cardholder inputs submitted during upfront checkout are transmitted over encrypted
+                connections for payment processing and are never stored in plain text.
               </p>
             </section>
 

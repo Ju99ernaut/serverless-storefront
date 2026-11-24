@@ -5,7 +5,7 @@ import { centsToDollars, formatCentsAsDollars } from './data'
 import { AdminOrderEmailTemplate } from '../../components/email-template'
 
 export const API_CONFIG = {
-  composeitApiUrl: process.env.COMPOSEIT_API_URL || '',
+  composeitApiUrl: 'https://app.composeit.app/api',
   composeitApiKey: process.env.COMPOSEIT_API_KEY || '',
   templates: {
     invoicePdf: process.env.INVOICE_PDF_TEMPLATE_ID || 'tpl_invoice_pdf_v1',
@@ -249,7 +249,7 @@ export function buildOrderTemplateDataFromOrder(order: Order): OrderTemplateData
   const issuedAt = order.issuedAt || order.createdAt
   const resolvedAddress =
     order.fulfillmentMethod === 'COLLECTION'
-      ? order.collectionLocation || 'Flagship Storefront Atelier — 450 Mercer St, SoHo'
+      ? order.collectionLocation || 'Flagship Storefront ComposeIt — 450 Mercer St, SoHo'
       : order.shippingAddress || ''
 
   return {

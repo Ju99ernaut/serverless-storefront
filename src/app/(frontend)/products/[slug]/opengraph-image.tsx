@@ -2,7 +2,7 @@ import { OG_IMAGE_SIZE, renderProductOgImage } from '@/lib/og-image'
 import { getProductBySlugServer } from '@/lib/payload-server'
 
 export const runtime = 'nodejs'
-export const alt = 'Shop this piece at Storefront Atelier'
+export const alt = 'Shop this piece at Storefront ComposeIt'
 export const size = OG_IMAGE_SIZE
 export const contentType = 'image/png'
 
@@ -16,8 +16,8 @@ export default async function ProductOpenGraphImage({
 
   return renderProductOgImage({
     product,
-    badgeLabel: product ? product.category : 'Storefront Atelier',
-    fallbackTitle: 'Explore Storefront Atelier',
+    badgeLabel: product ? product.category : 'Storefront ComposeIt',
+    fallbackTitle: 'Explore Storefront ComposeIt',
     fallbackSubtitle: 'Curated Apparel & Footwear',
   })
 }
