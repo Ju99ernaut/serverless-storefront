@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { enforceNeonUserIdOwnershipHook, reviewsAccess } from '../lib/access'
 import { syncProductRatingOnReviewChange } from './hooks/sync-product-on-rating-change'
+import { setVerifiedPurchaseHook } from './hooks/set-verified-purchase'
 
 export const Reviews: CollectionConfig = {
   slug: 'reviews',
@@ -10,7 +11,7 @@ export const Reviews: CollectionConfig = {
   },
   access: reviewsAccess,
   hooks: {
-    beforeChange: [enforceNeonUserIdOwnershipHook],
+    beforeChange: [enforceNeonUserIdOwnershipHook, setVerifiedPurchaseHook],
     afterChange: [syncProductRatingOnReviewChange],
   },
   fields: [

@@ -11,7 +11,7 @@ const getBaseURL = () => {
   ) {
     return `${window.location.origin}/api`
   }
-  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return `${serverUrl}/api`
 }
 

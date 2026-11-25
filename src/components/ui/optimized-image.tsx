@@ -25,7 +25,7 @@ export function OptimizedImage({
   loading,
   onLoad,
 }: OptimizedImageProps) {
-  const hasExternalImageKit = Boolean(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT)
+  const hasExternalImageKit = Boolean(process.env.NEXT_PUBLIC_IMAGEKIT_URL)
 
   const resolvedPriority = fetchPriority === 'high' ? true : priority
   const resolvedLoading =

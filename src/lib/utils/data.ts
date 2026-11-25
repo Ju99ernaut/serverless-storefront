@@ -264,7 +264,7 @@ export function slugifyProductTitle(title: string): string {
 
 export const TAX_RATE = process.env.NEXT_PUBLIC_TAX_RATE
   ? Number(process.env.NEXT_PUBLIC_TAX_RATE)
-  : 0.08
+  : 0
 export const DELIVERY_FEE_CENTS = 600
 
 export function centsToDollars(cents: number | null | undefined): number {

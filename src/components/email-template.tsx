@@ -12,7 +12,7 @@ export function AdminOrderEmailTemplate({
   adminOrderUrl,
   actionGuidance,
 }: AdminOrderEmailTemplateProps) {
-  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const manageUrl =
     adminOrderUrl || `${serverUrl}/admin/collections/orders/${order.id || order.orderId}`
 

@@ -350,7 +350,7 @@ export async function sendAdminNewOrderEmail({
   const recipient = adminEmail || API_CONFIG.resend.adminEmail
   const grandTotalFormatted = formatCentsAsDollars(order.totals.grandTotal)
   const subject = `[New Order] ${order.orderId} - ${order.customerName} (${grandTotalFormatted})`
-  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const serverUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const adminOrderUrl = `${serverUrl}/admin/collections/orders/${order.id || order.orderId}`
 
   let actionGuidance = ''

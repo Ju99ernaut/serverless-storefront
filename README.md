@@ -74,10 +74,10 @@ cp .env.example .env
 
 Environment variables defined in `.env.example`:
 
-- **Database & Server**: `DATABASE_URL`, `DB_SECRET`, `NEXT_PUBLIC_SERVER_URL` (default `http://localhost:3000`)
+- **Database & Server**: `DATABASE_URL`, `DB_SECRET`, `NEXT_PUBLIC_APP_URL` (default `http://localhost:3000`)
 - **Neon Auth**: `NEON_AUTH_BASE_URL`
 - **Storage (optional S3 compatible media storage)**: `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_ENDPOINT`, `STORAGE_PUBLIC_URL`
-- **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
+- **ImageKit (optional CDN)**: `NEXT_PUBLIC_IMAGEKIT_URL`
 - **ComposeIt & Resend**: `COMPOSEIT_API_KEY`, `INVOICE_PDF_TEMPLATE_ID`, `RECEIPT_PDF_TEMPLATE_ID`, `RECEIPT_EMAIL_TEMPLATE_ID`, `RESEND_API_KEY`, `RESEND_FROM`
 - **Paynow Express Mobile Payments**: `PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY` (EcoCash & InnBucks mobile checkout, `POST /api/gateways/paynow/update` result webhook, and `POST /api/gateways/paynow/status` polling)
 - **ZIMRA FDMS Fiscalization (optional)**: `ZIMRA_FDMS_ENVIRONMENT` (`test` or `production`), `ZIMRA_FDMS_DEVICE_ID`, `ZIMRA_FDMS_SERIAL_NUMBER`, `ZIMRA_FDMS_CERTIFICATE_PEM`, `ZIMRA_FDMS_PRIVATE_KEY_PEM`, `ZIMRA_FDMS_MODEL_NAME`, `ZIMRA_FDMS_MODEL_VERSION`, `ZIMRA_FDMS_CURRENCY` (default `USD`), and optional `ZIMRA_FDMS_TAX_ID` / `ZIMRA_FDMS_TAX_PERCENT`
