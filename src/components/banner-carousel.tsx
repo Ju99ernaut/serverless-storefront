@@ -117,7 +117,7 @@ export default function BannerCarousel({ banners, onCategorySelect }: BannerCaro
                   <div className="relative z-10 flex items-center justify-center md:col-span-5">
                     <div className="relative flex h-64 w-64 items-center justify-center rounded-md border border-border shadow-inner">
                       <OptimizedImage
-                        src={slide.imageUrl}
+                        src={typeof slide.imageUrl === 'number' ? '' : String(slide.imageUrl.url)}
                         alt={slide.title}
                         width={320}
                         height={320}

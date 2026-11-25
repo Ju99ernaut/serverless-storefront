@@ -466,6 +466,9 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           email: 'timeout@example.com',
           address: '100 Main St',
         },
+        payment: {
+          provider: 'paynow_mobile',
+        },
         items: [
           {
             id: String(oxford.id),
@@ -511,6 +514,9 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
           email: 'alex.rivera@example.com',
           collectionLocation: 'Flagship Storefront ComposeIt — SoHo',
         },
+        payment: {
+          provider: 'paynow_mobile',
+        },
         items: [
           {
             id: String(boot.id),
@@ -551,6 +557,12 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     await orderFulfillmentHook.resume(getOrderFulfillmentHookToken(collectOrderId), {
       nextStatus: 'READY_FOR_COLLECTION',
       note: 'Garments ready at SoHo pickup lounge.',
+    })
+
+    // Admin marks order as paid when user comes for collection and pays
+    await orderPaymentHook.resume(getOrderPaymentHookToken(collectOrderId), {
+      authorized: true,
+      cardNumber: '4242424242424242',
     })
 
     const finalResult = await run.returnValue

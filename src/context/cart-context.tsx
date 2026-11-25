@@ -200,7 +200,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const selectedColorHex = options?.colorHex || matchedVariant?.colorHex || '#5C5EDC'
       const unitPrice = matchedVariant?.priceOverride ?? liveProd.price
       const qtyToAdd = Math.max(1, options?.quantity || 1)
-      const primaryImage = matchedVariant?.imageUrl || getProductImages(liveProd)[0]
+      const primaryImage =
+        typeof matchedVariant?.imageUrl !== 'number' && matchedVariant.imageUrl.url
+          ? matchedVariant?.imageUrl.url
+          : getProductImages(liveProd)[0]
 
       setIsCartAnimating(true)
       setCartItems((prev) => {

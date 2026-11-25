@@ -111,8 +111,12 @@ export function ProductDetails() {
 
   const galleryImages = useMemo(() => {
     const imgs = product ? [...getProductImages(product)] : ['/images/shirt.png']
-    if (activeVariant?.imageUrl && !imgs.includes(activeVariant.imageUrl)) {
-      imgs.unshift(activeVariant.imageUrl)
+    if (
+      activeVariant?.imageUrl &&
+      typeof activeVariant?.imageUrl !== 'number' &&
+      !imgs.includes(String(activeVariant.imageUrl.url))
+    ) {
+      imgs.unshift(String(activeVariant.imageUrl.url))
     }
     return imgs
   }, [product, activeVariant])
@@ -148,7 +152,11 @@ export function ProductDetails() {
           productId={String(product.id)}
           productTitle={product.title}
           galleryImages={galleryImages}
-          activeVariantImageUrl={activeVariant?.imageUrl || undefined}
+          activeVariantImageUrl={
+            typeof activeVariant?.imageUrl === 'number'
+              ? undefined
+              : activeVariant?.imageUrl.url || undefined
+          }
           isOutOfStock={isOutOfStock}
           isLowStock={isLowStock}
           availableStock={availableStock}

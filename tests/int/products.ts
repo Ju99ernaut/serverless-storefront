@@ -10,7 +10,7 @@ export const HOME_BANNERS: Banner[] = [
     subtitle:
       'Full-grain Italian lambskin biker jackets, recycled 700-fill expedition parkas, and water-repellent flight bombers crafted for durability.',
     badgeText: 'WINTER ARCHIVE • UP TO 25% OFF',
-    imageUrl: '/images/jacket.png',
+    imageUrl: 1,
     ctaText: 'Explore Jackets',
     ctaFilter: 'jackets',
     ctaProductSlug: 'moto-full-grain-biker-jacket',
@@ -26,7 +26,7 @@ export const HOME_BANNERS: Banner[] = [
     subtitle:
       'Bias-cut mulberry silk gowns, crushed velvet cocktail silhouettes, and Riviera linen sundresses designed in Paris.',
     badgeText: 'RUNWAY CAPSULE',
-    imageUrl: '/images/dress.png',
+    imageUrl: 2,
     ctaText: 'Shop Runway Edit',
     ctaFilter: 'dresses-runway',
     ctaProductSlug: 'silk-charmeuse-evening-gown',
@@ -42,7 +42,7 @@ export const HOME_BANNERS: Banner[] = [
     subtitle:
       'From Milanese full-grain calfskin Chelsea boots to weatherproof Vibram trail boots and hand-burnished suede penny loafers.',
     badgeText: 'ARTISAN FOOTWEAR',
-    imageUrl: '/images/shoe.png',
+    imageUrl: 3,
     ctaText: 'Browse Artisan Shoes',
     ctaFilter: 'shoes-selection',
     ctaProductSlug: 'milan-leather-chelsea-boot',
@@ -58,7 +58,7 @@ export const HOME_BANNERS: Banner[] = [
     subtitle:
       'Breathable GOTS-certified organic Pima cotton, Belgian flax linen, and brushed Scottish highland flannels in modern tailored fits.',
     badgeText: 'SUSTAINABLE ESSENTIALS',
-    imageUrl: '/images/shirt.png',
+    imageUrl: 4,
     ctaText: 'View All Shirts',
     ctaFilter: 'shirts',
     ctaProductSlug: 'classic-oxford-button-down',
@@ -101,7 +101,7 @@ const COLOR_PALETTES: Record<Product['category'], Array<{ name: string; hex: str
 function buildDummyVariantsForProduct(
   id: string,
   category: Product['category'],
-  imageUrl: string,
+  imageUrl: number,
   isLowStockItem: boolean,
 ): ProductVariant[] {
   const sizes = category === 'shoes' ? ['40', '41', '42', '43', '44'] : ['XS', 'S', 'M', 'L', 'XL']
@@ -597,8 +597,8 @@ export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item, idx) => {
     category: item.category,
     subcategory: item.subcategory,
     tags: item.tags.map((tag) => ({ tag })),
-    images: item.images.map((url, imgIdx) => ({
-      url,
+    images: item.images.map((_, imgIdx) => ({
+      url: 1,
       alt: `${item.title} view ${imgIdx + 1}`,
     })),
     size: item.size,
@@ -606,12 +606,7 @@ export const PRODUCTS: Product[] = RAW_PRODUCTS.map((item, idx) => {
     material: item.material,
     fit: item.fit,
     care: item.care,
-    variants: buildDummyVariantsForProduct(
-      item.id,
-      item.category,
-      item.images[0],
-      Boolean(item.lowStockDemo),
-    ),
+    variants: buildDummyVariantsForProduct(item.id, item.category, 1, Boolean(item.lowStockDemo)),
     averageRating: item.rating,
     reviewCount: item.reviews,
     createdAt: SEED_TIMESTAMP,

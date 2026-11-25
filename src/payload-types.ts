@@ -238,10 +238,9 @@ export interface Product {
   care: string;
   images?:
     | {
-        url: string;
+        url: number | Media;
         alt?: string | null;
         color?: string | null;
-        media?: (number | null) | Media;
         id?: string | null;
       }[]
     | null;
@@ -258,7 +257,7 @@ export interface Product {
         stock: number;
         reservedStock: number;
         lowStockThreshold: number;
-        imageUrl?: string | null;
+        imageUrl: number | Media;
         id?: string | null;
       }[]
     | null;
@@ -274,11 +273,6 @@ export interface Product {
 export interface Media {
   id: number;
   alt: string;
-  caption?: string | null;
-  /**
-   * Optional ImageKit path or external R2/S3/CDN URL override.
-   */
-  imagekitPath?: string | null;
   prefix?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
@@ -336,8 +330,7 @@ export interface Banner {
   title: string;
   subtitle: string;
   badgeText?: string | null;
-  imageUrl: string;
-  media?: (number | null) | Media;
+  imageUrl: number | Media;
   ctaText: string;
   ctaFilter?: string | null;
   ctaProductSlug?: string | null;
@@ -355,7 +348,6 @@ export interface Review {
   id: number;
   product?: (number | null) | Product;
   productSlug: string;
-  user?: (number | null) | User;
   neonUserId?: string | null;
   authorName: string;
   authorEmail?: string | null;
@@ -377,7 +369,6 @@ export interface Order {
   orderId: string;
   invoiceNumber: string;
   receiptNumber: string;
-  user?: (number | null) | User;
   neonUserId?: string | null;
   issuedAt?: string | null;
   customerEmail: string;
@@ -667,8 +658,6 @@ export interface WishlistsSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
-  caption?: T;
-  imagekitPath?: T;
   prefix?: T;
   _objectKey?: T;
   updatedAt?: T;
@@ -708,7 +697,6 @@ export interface BannersSelect<T extends boolean = true> {
   subtitle?: T;
   badgeText?: T;
   imageUrl?: T;
-  media?: T;
   ctaText?: T;
   ctaFilter?: T;
   ctaProductSlug?: T;
@@ -747,7 +735,6 @@ export interface ProductsSelect<T extends boolean = true> {
         url?: T;
         alt?: T;
         color?: T;
-        media?: T;
         id?: T;
       };
   variants?:
@@ -776,7 +763,6 @@ export interface ProductsSelect<T extends boolean = true> {
 export interface ReviewsSelect<T extends boolean = true> {
   product?: T;
   productSlug?: T;
-  user?: T;
   neonUserId?: T;
   authorName?: T;
   authorEmail?: T;
@@ -797,7 +783,6 @@ export interface OrdersSelect<T extends boolean = true> {
   orderId?: T;
   invoiceNumber?: T;
   receiptNumber?: T;
-  user?: T;
   neonUserId?: T;
   issuedAt?: T;
   customerEmail?: T;

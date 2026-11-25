@@ -302,8 +302,11 @@ export function calculateOrderTotalsCents(
 }
 
 export function getProductImages(product: Product): string[] {
-  const imgs = product.images?.map((i) => i.url).filter(Boolean) ?? []
-  return imgs.length > 0 ? imgs : ['/images/shirt.png']
+  const imgs =
+    product.images
+      ?.map((i) => (typeof i.url === 'number' ? undefined : i.url.url))
+      .filter(Boolean) ?? []
+  return imgs.length > 0 ? (imgs as string[]) : ['/images/shirt.png']
 }
 
 export function getProductTotalAvailableStock(product: Product): number {

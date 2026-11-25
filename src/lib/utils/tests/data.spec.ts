@@ -166,7 +166,7 @@ describe('src/lib/utils/data unit tests', () => {
   describe('getProductImages', () => {
     it('returns image urls if available', () => {
       const product = {
-        images: [{ url: '/img1.jpg' }, { url: '/img2.jpg' }],
+        images: [{ url: { url: '/img1.jpg' } }, { url: { url: '/img2.jpg' } }],
       } as unknown as Product
       expect(getProductImages(product)).toEqual(['/img1.jpg', '/img2.jpg'])
     })
