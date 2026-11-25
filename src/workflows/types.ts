@@ -35,7 +35,6 @@ export interface CheckoutWorkflowInput {
   orderId?: string
   userId?: string
   paymentOption?: PaymentOptionType
-  awaitPaymentHook?: boolean
   waitForFulfillment?: boolean
   timeouts?: {
     paymentWaitTimeout?: WorkflowTimeoutValue

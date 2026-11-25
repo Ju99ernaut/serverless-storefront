@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       payment,
       paymentOption,
       orderId,
-      awaitPaymentHook,
       waitForFulfillment,
       timeouts,
       userId,
@@ -50,6 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot checkout with an empty cart.' }, { status: 400 })
     }
 
+    const shortId = Math.floor(100000 + Math.random() * 900000)
+    const resolvedOrderId = orderId || `ORD-${shortId}`
     const resolvedPaymentOption = paymentOption || 'pay_and_delivery'
     const optionMeta =
       PAYMENT_OPTIONS.find((opt) => opt.id === resolvedPaymentOption) || PAYMENT_OPTIONS[0]
@@ -67,9 +68,6 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         )
       }
-
-      const shortId = Math.floor(100000 + Math.random() * 900000)
-      const resolvedOrderId = orderId || `ORD-${shortId}`
 
       const { taxCents, shippingCents } = calculateOrderTotalsCents(
         items.map((item) => ({
@@ -115,7 +113,6 @@ export async function POST(request: NextRequest) {
           orderId: resolvedOrderId,
           userId: sessionUser.id,
           paymentOption: resolvedPaymentOption,
-          awaitPaymentHook: true,
           waitForFulfillment: Boolean(waitForFulfillment),
           timeouts,
           customer: {
@@ -155,10 +152,9 @@ export async function POST(request: NextRequest) {
     const workflowRun = await start(executeDurableCheckoutWorkflow, [
       {
         idempotencyKey,
-        orderId,
+        orderId: resolvedOrderId,
         userId: sessionUser.id,
         paymentOption: resolvedPaymentOption,
-        awaitPaymentHook: Boolean(awaitPaymentHook),
         waitForFulfillment: Boolean(waitForFulfillment),
         timeouts,
         customer: {
@@ -177,7 +173,7 @@ export async function POST(request: NextRequest) {
       success: true,
       pendingPayment: true,
       workflowRunId: workflowRun.runId,
-      orderId,
+      orderId: resolvedOrderId,
     })
   } catch (error: unknown) {
     const message =

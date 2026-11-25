@@ -226,17 +226,15 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
     optionMeta.fulfillmentMethod,
   )
 
-  const isPaynowMobile = input.payment?.provider === 'paynow_mobile'
-
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
-  const requiresExternalPaymentHook =
-    optionMeta.requiresCardNow && (Boolean(input.awaitPaymentHook) || isPaynowMobile)
+  const isPaynowMobile = input.payment?.provider === 'paynow_mobile'
+  const requiresPaymentFirst = optionMeta.requiresCardNow && isPaynowMobile
 
-  if (requiresExternalPaymentHook) {
-    using paymentHook = orderPaymentHook.create({
-      token: getOrderPaymentHookToken(orderId),
-    })
+  using paymentHook = orderPaymentHook.create({
+    token: getOrderPaymentHookToken(orderId),
+  })
 
+  if (requiresPaymentFirst) {
     const paymentRace = await Promise.race([
       paymentHook.then((payload) => ({ timedOut: false as const, payload })),
       sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
@@ -337,7 +335,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
         ])
         fulfillmentRunId = fulfillmentRun.runId
       } catch {
-        // Fulfillment can also be advanced directly via PATCH /api/storefront/orders
+        // Fulfillment can also be advanced directly via Admin
       }
     }
 

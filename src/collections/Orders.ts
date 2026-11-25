@@ -15,45 +15,6 @@ export const Orders: CollectionConfig = {
     ],
   },
   access: ordersAccess,
-  hooks: {
-    afterChange: [
-      async ({ doc, previousDoc, operation }) => {
-        if (operation === 'update' && previousDoc) {
-          if (doc.orderStatus !== previousDoc.orderStatus) {
-            const { releaseVariantStock, commitVariantStock } =
-              await import('../lib/payload-server')
-            const { orderFulfillmentHook, getOrderFulfillmentHookToken } =
-              await import('../workflows/checkout-workflow')
-
-            if (doc.orderStatus === 'CANCELLED') {
-              await releaseVariantStock(doc.orderId, 'Order cancelled via Payload Admin').catch(
-                () => {},
-              )
-            }
-            if (doc.orderStatus === 'COMPLETED') {
-              await commitVariantStock(doc.orderId).catch(() => {})
-            }
-            await orderFulfillmentHook
-              .resume(getOrderFulfillmentHookToken(doc.orderId), {
-                nextStatus: doc.orderStatus,
-                note: 'Updated via Payload Admin',
-              })
-              .catch(() => {})
-          }
-
-          if (doc.paymentStatus === 'PAID' && previousDoc.paymentStatus !== 'PAID') {
-            const { orderPaymentHook, getOrderPaymentHookToken } =
-              await import('../workflows/checkout-workflow')
-            await orderPaymentHook
-              .resume(getOrderPaymentHookToken(doc.orderId), {
-                authorized: true,
-              })
-              .catch(() => {})
-          }
-        }
-      },
-    ],
-  },
   fields: [
     {
       name: 'orderManagementControls',

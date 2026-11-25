@@ -276,9 +276,11 @@ export interface Media {
   alt: string;
   caption?: string | null;
   /**
-   * Optional ImageKit path or external R2/CDN URL override.
+   * Optional ImageKit path or external R2/S3/CDN URL override.
    */
   imagekitPath?: string | null;
+  prefix?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -667,6 +669,8 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
   imagekitPath?: T;
+  prefix?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

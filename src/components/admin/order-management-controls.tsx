@@ -8,8 +8,10 @@ export function OrderManagementControls() {
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [note, setNote] = useState<string>('')
   const [showPaymentFields, setShowPaymentFields] = useState<boolean>(false)
-  const [cardNumber, setCardNumber] = useState<string>('4242')
+  const [cardNumber, setCardNumber] = useState<string>('')
   const [cardholderName, setCardholderName] = useState<string>('')
+  const [mobileMethod, setMobileMethod] = useState<string>('')
+  const [mobileNumber, setMobileNumber] = useState<string>('')
 
   const orderId = useFormFields(([fields]) => fields.orderId?.value as string | undefined)
   const orderStatus = useFormFields(([fields]) => fields.orderStatus?.value as string | undefined)
@@ -26,23 +28,15 @@ export function OrderManagementControls() {
   )
 
   if (!orderId) {
-    return (
-      <div style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>
-        Save order first to enable operator controls.
-      </div>
-    )
+    return <div style={{ fontSize: '13px' }}>Save order first to enable operator controls.</div>
   }
 
   if (!isAuthorizedOperator) {
     return (
       <div
         style={{
-          padding: '12px',
           fontSize: '13px',
           color: '#b45309',
-          backgroundColor: '#fef3c7',
-          borderRadius: '6px',
-          border: '1px solid #fde68a',
         }}
       >
         Operator authorization required (role: admin, staff, or fulfillment) to manage orders.
@@ -66,10 +60,9 @@ export function OrderManagementControls() {
       }
       toast.success(data.message || `Order ${orderId}: ${actionLabel} completed successfully.`)
       setNote('')
-      // Reload after slight delay to refresh Payload form state
       setTimeout(() => {
         window.location.reload()
-      }, 500)
+      }, 3000)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : `Failed to execute ${actionLabel}`)
     } finally {
@@ -97,8 +90,10 @@ export function OrderManagementControls() {
       {
         action: 'payment',
         authorized: true,
-        cardNumber: cardNumber || '4242',
+        cardNumber: cardNumber || '',
         cardholderName: cardholderName || undefined,
+        mobileMethod: mobileMethod || undefined,
+        mobileNumber: mobileNumber || undefined,
       },
       'Confirm Payment',
     )
@@ -117,20 +112,15 @@ export function OrderManagementControls() {
   return (
     <div
       style={{
-        padding: '16px',
-        backgroundColor: '#f8fafc',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
         marginBottom: '20px',
       }}
     >
       <div style={{ marginBottom: '12px' }}>
-        <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+        <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700 }}>
           Operator Order Management
         </h4>
-        <div style={{ fontSize: '12px', color: '#64748b' }}>
-          Order ID: <strong>{orderId}</strong> • Status: <strong>{orderStatus}</strong> • Payment:{' '}
-          <strong>{paymentStatus}</strong>
+        <div style={{ fontSize: '12px' }}>
+          Status: <strong>{orderStatus}</strong> • Payment: <strong>{paymentStatus}</strong>
         </div>
       </div>
 
@@ -142,47 +132,47 @@ export function OrderManagementControls() {
               fontSize: '11px',
               fontWeight: 700,
               textTransform: 'uppercase',
-              color: '#475569',
               marginBottom: '6px',
             }}
           >
             Fulfillment Controls
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-            {orderStatus !== 'PROCESSING' && (
-              <Button
-                type="button"
-                disabled={Boolean(loadingAction)}
-                onClick={() => handleAdvanceStatus('PROCESSING', { label: 'Mark Preparing' })}
-              >
-                Mark Preparing
-              </Button>
-            )}
-
-            {orderStatus !== 'READY_FOR_COLLECTION' &&
-              orderStatus !== 'OUT_FOR_DELIVERY' &&
-              orderStatus !== 'COMPLETED' && (
+            {orderStatus !== 'PROCESSING' &&
+              orderStatus !== 'READY_FOR_COLLECTION' &&
+              orderStatus !== 'OUT_FOR_DELIVERY' && (
                 <Button
                   type="button"
                   buttonStyle="secondary"
                   disabled={Boolean(loadingAction)}
-                  onClick={() =>
-                    handleAdvanceStatus(
-                      fulfillmentMethod === 'COLLECTION'
-                        ? 'READY_FOR_COLLECTION'
-                        : 'OUT_FOR_DELIVERY',
-                      {
-                        label:
-                          fulfillmentMethod === 'COLLECTION'
-                            ? 'Ready for Collection'
-                            : 'Out for Delivery',
-                      },
-                    )
-                  }
+                  onClick={() => handleAdvanceStatus('PROCESSING', { label: 'Mark Preparing' })}
                 >
-                  {fulfillmentMethod === 'COLLECTION' ? 'Ready for Pickup' : 'Out for Delivery'}
+                  Mark Preparing
                 </Button>
               )}
+
+            {orderStatus !== 'READY_FOR_COLLECTION' && orderStatus !== 'OUT_FOR_DELIVERY' && (
+              <Button
+                type="button"
+                buttonStyle="secondary"
+                disabled={Boolean(loadingAction)}
+                onClick={() =>
+                  handleAdvanceStatus(
+                    fulfillmentMethod === 'COLLECTION'
+                      ? 'READY_FOR_COLLECTION'
+                      : 'OUT_FOR_DELIVERY',
+                    {
+                      label:
+                        fulfillmentMethod === 'COLLECTION'
+                          ? 'Ready for Collection'
+                          : 'Out for Delivery',
+                    },
+                  )
+                }
+              >
+                {fulfillmentMethod === 'COLLECTION' ? 'Ready for Pickup' : 'Out for Delivery'}
+              </Button>
+            )}
 
             {orderStatus !== 'COMPLETED' && (
               <Button
@@ -201,7 +191,6 @@ export function OrderManagementControls() {
 
             <Button
               type="button"
-              buttonStyle="error"
               disabled={Boolean(loadingAction)}
               onClick={() =>
                 handleAdvanceStatus('CANCELLED', {
@@ -227,11 +216,6 @@ export function OrderManagementControls() {
               onChange={(e) => setNote(e.target.value)}
               style={{
                 width: '100%',
-                padding: '6px 10px',
-                fontSize: '12px',
-                borderRadius: '4px',
-                border: '1px solid #cbd5e1',
-                boxSizing: 'border-box',
               }}
             />
           </div>
@@ -240,13 +224,12 @@ export function OrderManagementControls() {
 
       {/* Payment Confirmation */}
       {paymentStatus !== 'PAID' && (
-        <div style={{ marginBottom: '16px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ marginBottom: '16px', paddingTop: '12px' }}>
           <div
             style={{
               fontSize: '11px',
               fontWeight: 700,
               textTransform: 'uppercase',
-              color: '#475569',
               marginBottom: '6px',
             }}
           >
@@ -255,11 +238,10 @@ export function OrderManagementControls() {
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <Button
               type="button"
-              buttonStyle="secondary"
               disabled={Boolean(loadingAction)}
               onClick={() => setShowPaymentFields(!showPaymentFields)}
             >
-              {showPaymentFields ? 'Cancel' : 'Confirm Payment...'}
+              {showPaymentFields ? 'Cancel' : 'Confirm Payment'}
             </Button>
           </div>
 
@@ -268,15 +250,10 @@ export function OrderManagementControls() {
               style={{
                 marginTop: '8px',
                 padding: '10px',
-                backgroundColor: '#ffffff',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
               }}
             >
               <div style={{ marginBottom: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>
-                  Card Last 4 / Number
-                </label>
+                <label style={{ fontSize: '11px', fontWeight: 600 }}>Card Last 4 or Cash</label>
                 <input
                   type="text"
                   value={cardNumber}
@@ -284,16 +261,11 @@ export function OrderManagementControls() {
                   placeholder="4242"
                   style={{
                     width: '100%',
-                    padding: '5px 8px',
-                    fontSize: '12px',
-                    borderRadius: '4px',
-                    border: '1px solid #cbd5e1',
-                    boxSizing: 'border-box',
                   }}
                 />
               </div>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600 }}>
                   Cardholder Name (optional)
                 </label>
                 <input
@@ -303,17 +275,39 @@ export function OrderManagementControls() {
                   placeholder="Cardholder Name"
                   style={{
                     width: '100%',
-                    padding: '5px 8px',
-                    fontSize: '12px',
-                    borderRadius: '4px',
-                    border: '1px solid #cbd5e1',
-                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600 }}>
+                  Mobile Method (optional)
+                </label>
+                <input
+                  type="text"
+                  value={cardholderName}
+                  onChange={(e) => setMobileMethod(e.target.value)}
+                  placeholder="Cardholder Name"
+                  style={{
+                    width: '100%',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600 }}>
+                  Mobile Number (optional)
+                </label>
+                <input
+                  type="text"
+                  value={cardholderName}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  placeholder="Cardholder Name"
+                  style={{
+                    width: '100%',
                   }}
                 />
               </div>
               <Button
                 type="button"
-                buttonStyle="secondary"
                 disabled={Boolean(loadingAction)}
                 onClick={handleConfirmPayment}
               >
@@ -325,13 +319,12 @@ export function OrderManagementControls() {
       )}
 
       {/* On-Demand Document Generation */}
-      <div style={{ paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+      <div style={{ paddingTop: '12px' }}>
         <div
           style={{
             fontSize: '11px',
             fontWeight: 700,
             textTransform: 'uppercase',
-            color: '#475569',
             marginBottom: '6px',
           }}
         >
@@ -340,6 +333,7 @@ export function OrderManagementControls() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <Button
             type="button"
+            buttonStyle="secondary"
             disabled={Boolean(loadingAction)}
             onClick={() => handleGenerateDoc('INVOICE')}
           >
@@ -347,6 +341,7 @@ export function OrderManagementControls() {
           </Button>
           <Button
             type="button"
+            buttonStyle="secondary"
             disabled={Boolean(loadingAction)}
             onClick={() => handleGenerateDoc('RECEIPT')}
           >
@@ -356,7 +351,7 @@ export function OrderManagementControls() {
       </div>
 
       {loadingAction && (
-        <div style={{ marginTop: '8px', fontSize: '12px', color: '#6366f1', fontStyle: 'italic' }}>
+        <div style={{ marginTop: '8px', fontSize: '12px', fontStyle: 'italic' }}>
           Processing {loadingAction}...
         </div>
       )}

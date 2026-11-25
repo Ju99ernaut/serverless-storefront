@@ -18,9 +18,7 @@ export async function processPaymentTransactionStep(input: {
   const cleanMobile = (input.mobileNumber || '').replace(/\D/g, '')
 
   const mobileLabel = input.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'
-  const last4 = isMobilePayment
-    ? cleanMobile.slice(-4) || 'MOBILE'
-    : cleanCard.slice(-4) || (optionMeta.requiresCardNow ? '4242' : 'N/A')
+  const last4 = isMobilePayment ? cleanMobile.slice(-4) || 'MOBILE' : cleanCard.slice(-4) || 'N/A'
 
   const methodLabel = isMobilePayment
     ? `${optionMeta.shortLabel} (${mobileLabel} •••• ${last4})`

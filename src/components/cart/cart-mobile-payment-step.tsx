@@ -57,7 +57,7 @@ export function CartMobilePaymentStep({
               Waiting for {walletLabel} confirmation
             </p>
             <p className="text-xs text-muted-foreground">
-              Your items are reserved while we await confirmation from Paynow.
+              Your items are reserved while we await confirmation.
             </p>
           </div>
         </div>

@@ -74,8 +74,8 @@ export interface CheckoutSuccessResponse {
 
 export type CheckoutApiResponse = CheckoutWorkflowResponse | CheckoutPendingMobilePaymentResponse
 
-export const COLLECTION_LOCATIONS = process.env.COLLECTION_LOCATIONS
-  ? process.env.COLLECTION_LOCATIONS.split(',')
+export const COLLECTION_LOCATIONS = process.env.NEXT_PUBLIC_COLLECTION_LOCATIONS
+  ? process.env.NEXT_PUBLIC_COLLECTION_LOCATIONS.split(',')
   : [
       'Flagship Storefront ComposeIt — 450 Mercer St, SoHo',
       'Midtown Boutique — 685 Fifth Ave, Lounge B',

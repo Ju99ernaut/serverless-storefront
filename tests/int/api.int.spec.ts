@@ -22,7 +22,6 @@ import { releaseVariantStock, reserveVariantStock } from '@/lib/payload-server'
 import { isAdminAccess, ordersAccess, ownerByNeonUserIdAccess, reviewsAccess } from '@/lib/access'
 import type { PayloadRequest } from 'payload'
 import {
-  WORKFLOW_TIMEOUT_DEFAULTS,
   executeDurableCheckoutWorkflow,
   getOrderFulfillmentHookToken,
   getOrderPaymentHookToken,
@@ -461,7 +460,6 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       {
         orderId: 'ORD-PAY-TIMEOUT-1',
         paymentOption: 'pay_and_delivery',
-        awaitPaymentHook: true,
         timeouts: { paymentWaitTimeout: '40ms' },
         customer: {
           name: 'Timeout Tester',
@@ -506,7 +504,6 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       {
         orderId: collectOrderId,
         paymentOption: 'pay_then_collect',
-        awaitPaymentHook: true,
         waitForFulfillment: true,
         timeouts: { paymentWaitTimeout: '200ms' },
         customer: {

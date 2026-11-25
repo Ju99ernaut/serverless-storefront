@@ -2,7 +2,12 @@
 
 import { ArrowLeft, Clock, CreditCard, Loader2, Smartphone, Store, Truck } from 'lucide-react'
 import { Controller, type UseFormReturn } from 'react-hook-form'
-import { PAYMENT_OPTIONS, formatCentsAsDollars, type PaymentOptionType } from '../../lib/utils/data'
+import {
+  PAYMENT_OPTIONS,
+  TAX_RATE,
+  formatCentsAsDollars,
+  type PaymentOptionType,
+} from '../../lib/utils/data'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -337,7 +342,7 @@ export function CartCheckoutStep({
               <span>{formatCentsAsDollars(subTotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Taxes (8%)</span>
+              <span className="text-muted-foreground">Taxes ({TAX_RATE * 100}%)</span>
               <span>{formatCentsAsDollars(tax)}</span>
             </div>
             <div className="flex items-center justify-between">

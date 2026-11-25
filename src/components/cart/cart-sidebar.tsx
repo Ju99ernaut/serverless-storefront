@@ -421,7 +421,7 @@ const CartSidebar = ({
       if (!pollMobilePaymentMutation.isPending) {
         pollMobilePaymentMutation.mutate(pendingMobilePayment)
       }
-    }, 4000)
+    }, 10000)
     return () => window.clearInterval(intervalId)
   }, [step, pendingMobilePayment, isOpen, pollMobilePaymentMutation])
 

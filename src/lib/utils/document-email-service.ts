@@ -5,7 +5,7 @@ import { centsToDollars, formatCentsAsDollars } from './data'
 import { AdminOrderEmailTemplate } from '../../components/email-template'
 
 export const API_CONFIG = {
-  composeitApiUrl: 'https://app.composeit.app/api',
+  composeitApiUrl: 'https://app.composeit.app/api/export',
   composeitApiKey: process.env.COMPOSEIT_API_KEY || '',
   templates: {
     invoicePdf: process.env.INVOICE_PDF_TEMPLATE_ID || 'tpl_invoice_pdf_v1',

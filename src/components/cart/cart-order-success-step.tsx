@@ -47,7 +47,7 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
       })
       toast.add({
         type: 'success',
-        description: `${res.document.filename} generated on demand via ComposeIt.`,
+        description: `${res.document.filename} generated.`,
       })
       if (res.document.pdfUrl) {
         window.open(res.document.pdfUrl, '_blank', 'noopener,noreferrer')
