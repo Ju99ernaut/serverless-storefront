@@ -44,12 +44,6 @@ export const Orders: CollectionConfig = {
       required: true,
     },
     {
-      name: 'user',
-      type: 'relationship',
-      relationTo: 'users',
-      index: true,
-    },
-    {
       name: 'neonUserId',
       type: 'text',
       index: true,

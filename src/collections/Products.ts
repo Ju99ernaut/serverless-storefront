@@ -113,7 +113,8 @@ export const Products: CollectionConfig = {
       fields: [
         {
           name: 'url',
-          type: 'text',
+          type: 'upload',
+          relationTo: 'media',
           required: true,
         },
         {
@@ -123,11 +124,6 @@ export const Products: CollectionConfig = {
         {
           name: 'color',
           type: 'text',
-        },
-        {
-          name: 'media',
-          type: 'upload',
-          relationTo: 'media',
         },
       ],
     },
@@ -186,7 +182,9 @@ export const Products: CollectionConfig = {
         },
         {
           name: 'imageUrl',
-          type: 'text',
+          type: 'upload',
+          relationTo: 'media',
+          required: true,
         },
       ],
     },

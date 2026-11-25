@@ -15,17 +15,6 @@ export const Media: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    {
-      name: 'caption',
-      type: 'text',
-    },
-    {
-      name: 'imagekitPath',
-      type: 'text',
-      admin: {
-        description: 'Optional ImageKit path or external R2/S3/CDN URL override.',
-      },
-    },
   ],
   upload: {
     disableLocalStorage: Boolean(

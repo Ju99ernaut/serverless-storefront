@@ -31,13 +31,9 @@ export const Banners: CollectionConfig = {
     },
     {
       name: 'imageUrl',
-      type: 'text',
-      required: true,
-    },
-    {
-      name: 'media',
       type: 'upload',
       relationTo: 'media',
+      required: true,
     },
     {
       name: 'ctaText',

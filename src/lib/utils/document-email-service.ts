@@ -24,6 +24,7 @@ export type OutputFormat = 'pdf' | 'html'
 export interface OrderLineItemData {
   id: string
   variantSku?: string
+  imageUrl?: string
   title: string
   brand: string
   category: string
@@ -276,6 +277,7 @@ export function buildOrderTemplateDataFromOrder(order: Order): OrderTemplateData
     items: (order.items || []).map((i) => ({
       id: i.productId,
       variantSku: i.variantSku,
+      imageUrl: i.imageUrl || undefined,
       title: i.title,
       brand: i.brand || '',
       category: i.category || '',
