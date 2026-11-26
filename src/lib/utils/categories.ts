@@ -186,48 +186,57 @@ export const CATEGORY_MENUS: Record<string, CategoryMenuLevel> = {
   },
 }
 
-const SUBFILTER_TO_CATEGORY: Record<string, Product['category']> = {
-  jackets: 'jackets',
-  'leather-jackets': 'jackets',
-  'bomber-jackets': 'jackets',
-  'parkas-coats': 'jackets',
-  'denim-jackets': 'jackets',
-  'jackets-sale': 'jackets',
-  'winter-clearance': 'jackets',
-  'limited-jackets': 'jackets',
-  shirts: 'shirts',
-  'oxford-shirts': 'shirts',
-  'casual-tees': 'shirts',
-  'flannel-shirts': 'shirts',
-  'polo-shirts': 'shirts',
-  'shirts-special': 'shirts',
-  'organic-cotton': 'shirts',
-  'linen-shirts': 'shirts',
-  dresses: 'dresses',
-  'evening-dresses': 'dresses',
-  'summer-dresses': 'dresses',
-  'cocktail-dresses': 'dresses',
-  'maxi-dresses': 'dresses',
-  'dresses-runway': 'dresses',
-  'silk-dresses': 'dresses',
-  'designer-dresses': 'dresses',
-  trousers: 'trousers',
-  chinos: 'trousers',
-  'slim-jeans': 'trousers',
-  'pleated-trousers': 'trousers',
-  'cargo-pants': 'trousers',
-  'trousers-promo': 'trousers',
-  'two-pack-chinos': 'trousers',
-  'workwear-bundle': 'trousers',
-  shoes: 'shoes',
-  'leather-boots': 'shoes',
-  'runner-sneakers': 'shoes',
-  'classic-loafers': 'shoes',
-  'canvas-shoes': 'shoes',
-  'shoes-selection': 'shoes',
-  'handcrafted-shoes': 'shoes',
-  'weatherproof-shoes': 'shoes',
+function collectFiltersFromMenu(
+  menuId: string,
+  menus: Record<string, CategoryMenuLevel>,
+  visited = new Set<string>(),
+): string[] {
+  if (visited.has(menuId)) return []
+  visited.add(menuId)
+
+  const menu = menus[menuId]
+  if (!menu) return []
+
+  const filters: string[] = []
+  if (menu.filter && menu.filter !== 'all') {
+    filters.push(menu.filter)
+  }
+
+  for (const item of menu.items) {
+    if (item.filter && item.filter !== 'all') {
+      filters.push(item.filter)
+    }
+    if (item.submenu) {
+      filters.push(...collectFiltersFromMenu(item.submenu, menus, visited))
+    }
+  }
+
+  return filters
 }
+
+function buildSubfilterToCategoryMap(
+  menus: Record<string, CategoryMenuLevel>,
+): Record<string, NonNullable<Product['category']>> {
+  const map: Record<string, NonNullable<Product['category']>> = {}
+  const mainMenu = menus.main
+  if (!mainMenu) return map
+
+  for (const topItem of mainMenu.items) {
+    if (!topItem.submenu || topItem.filter === 'all') continue
+
+    const category = topItem.filter as NonNullable<Product['category']>
+    const branchFilters = collectFiltersFromMenu(topItem.submenu, menus)
+
+    map[category] = category
+    for (const filter of branchFilters) {
+      map[filter] = category
+    }
+  }
+
+  return map
+}
+
+const SUBFILTER_TO_CATEGORY = buildSubfilterToCategoryMap(CATEGORY_MENUS)
 
 export function getMainCategoryForFilter(filter: string, catalogProducts?: Product[]): string {
   if (!filter || filter === 'all') return 'all'
