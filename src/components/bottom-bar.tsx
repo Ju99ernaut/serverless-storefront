@@ -2,7 +2,11 @@
 
 import { forwardRef, useEffect, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
-import { BOTTOM_BAR_FILTERS, BottomBarFilter, getMainCategoryForFilter } from '../lib/utils/data'
+import {
+  BOTTOM_BAR_FILTERS,
+  BottomBarFilter,
+  getMainCategoryForFilter,
+} from '../lib/utils/categories'
 import Image from 'next/image'
 import { cn } from 'cn'
 import { Button } from './ui/button'

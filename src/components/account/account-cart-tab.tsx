@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ShoppingBag, Trash2 } from 'lucide-react'
-import { formatCentsAsDollars } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/products'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {

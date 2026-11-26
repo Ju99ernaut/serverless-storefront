@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2, Lock } from 'lucide-react'
-import { formatCentsAsDollars, type CartLineItem } from '../../lib/utils/data'
+import { formatCentsAsDollars, type CartLineItem } from '../../lib/utils/products'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 import { DrawerFooter, DrawerHeader, DrawerTitle } from '../ui/drawer'

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { ProductDetails } from '@/components/products'
 import { getProductBySlugServer } from '@/lib/payload-server'
-import { formatCentsAsDollars } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/products'
 
 export async function generateMetadata({
   params,

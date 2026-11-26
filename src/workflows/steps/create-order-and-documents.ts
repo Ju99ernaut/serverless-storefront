@@ -11,7 +11,7 @@ import {
   calculateOrderTotalsCents,
   centsToDollars,
   type PaymentOptionType,
-} from '../../lib/utils/data'
+} from '../../lib/utils/products'
 import type { CheckoutWorkflowInput } from '../types'
 import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
 

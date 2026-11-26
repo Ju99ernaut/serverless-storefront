@@ -7,7 +7,7 @@ import {
   formatCentsAsDollars,
   getProductImages,
   getProductTotalAvailableStock,
-} from '../lib/utils/data'
+} from '../lib/utils/products'
 import { Button } from './ui/button'
 import { Product } from '@/payload-types'
 

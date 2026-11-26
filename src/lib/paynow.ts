@@ -1,5 +1,5 @@
 import { Paynow, type PaynowMobileMethod } from 'paynow'
-import { centsToDollars } from './utils/data'
+import { centsToDollars } from './utils/products'
 import { getSiteUrl } from './og-image'
 
 export type { PaynowMobileMethod }

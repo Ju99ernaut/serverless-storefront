@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, FileText, Loader2 } from 'lucide-react'
 import { storefrontQueryKeys } from '@/context'
 import { generateOrderDocumentViaSdk } from '@/lib/payload-sdk'
-import { formatCentsAsDollars } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/products'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import {

@@ -1,4 +1,4 @@
-import type { PaymentOptionType } from '../lib/utils/data'
+import type { PaymentOptionType } from '../lib/utils/products'
 import type { PaynowMobileMethod } from '../lib/paynow'
 import type { Order } from '@/payload-types'
 

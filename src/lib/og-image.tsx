@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { ImageResponse } from 'next/og'
 import type { Product } from '@/payload-types'
-import { formatCentsAsDollars, getProductImages } from './utils/data'
+import { formatCentsAsDollars, getProductImages } from './utils/products'
 
 export const OG_IMAGE_SIZE = {
   width: 1200,

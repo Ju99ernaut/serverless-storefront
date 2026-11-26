@@ -20,7 +20,7 @@ async function loadDeliveryModule(overrides: Record<string, string | undefined> 
   return import('../delivery-fee')
 }
 
-describe('delivery-fee module', () => {
+describe('src/lib/utils/delivery-fee unit tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

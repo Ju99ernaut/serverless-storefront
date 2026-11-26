@@ -1,5 +1,5 @@
 import type { Order } from '../payload-types'
-import { formatCentsAsDollars } from '../lib/utils/data'
+import { formatCentsAsDollars } from '../lib/utils/products'
 
 export interface AdminOrderEmailTemplateProps {
   order: Order

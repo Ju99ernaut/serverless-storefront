@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { formatCentsAsDollars, type ProductVariant } from '@/lib/utils/data'
+import { formatCentsAsDollars, type ProductVariant } from '@/lib/utils/products'
 import { Alert } from '../ui/alert'
 import { Button } from '../ui/button'
 import type { Product } from '@/payload-types'

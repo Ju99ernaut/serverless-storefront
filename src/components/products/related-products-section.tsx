@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { formatCentsAsDollars, getProductImages } from '@/lib/utils/data'
+import { formatCentsAsDollars, getProductImages } from '@/lib/utils/products'
 import { OptimizedImage } from '../ui/optimized-image'
 import type { Product } from '@/payload-types'
 

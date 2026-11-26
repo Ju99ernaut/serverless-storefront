@@ -7,7 +7,7 @@ import {
   TAX_RATE,
   formatCentsAsDollars,
   type PaymentOptionType,
-} from '../../lib/utils/data'
+} from '../../lib/utils/products'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'

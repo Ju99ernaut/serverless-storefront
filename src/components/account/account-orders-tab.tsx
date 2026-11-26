@@ -10,7 +10,7 @@ import {
   getOrdersByUser,
   updateOrderStatusViaSdk,
 } from '@/lib/payload-sdk'
-import { formatCentsAsDollars } from '@/lib/utils/data'
+import { formatCentsAsDollars } from '@/lib/utils/products'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'

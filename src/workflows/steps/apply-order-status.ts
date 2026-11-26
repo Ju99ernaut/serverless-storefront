@@ -9,7 +9,7 @@ import {
   releaseVariantStock,
   updateOrderServer,
 } from '../../lib/payload-server'
-import { centsToDollars } from '../../lib/utils/data'
+import { centsToDollars } from '../../lib/utils/products'
 import type { Order } from '@/payload-types'
 
 const STATUS_LABELS: Record<Order['orderStatus'], string> = {

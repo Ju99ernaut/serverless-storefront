@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseCollectionLocations, parseLocation } from '../parse-locations'
 
-describe('parseLocation', () => {
+describe('src/lib/utils/parse-locations unit tests', () => {
   it('parses a valid "address@lat,lng" string and trims whitespace', () => {
     const result = parseLocation('  Avondale Pickup Point @ -17.8015 , 31.0378  ')
 

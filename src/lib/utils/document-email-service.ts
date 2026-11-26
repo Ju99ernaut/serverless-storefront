@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Resend } from 'resend'
 import type { Order } from '../../payload-types'
-import { centsToDollars, formatCentsAsDollars } from './data'
+import { centsToDollars, formatCentsAsDollars } from './products'
 import { AdminOrderEmailTemplate } from '../../components/email-template'
 
 export const API_CONFIG = {

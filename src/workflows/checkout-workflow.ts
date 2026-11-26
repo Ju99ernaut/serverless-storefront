@@ -4,7 +4,7 @@ import {
   PAYMENT_OPTIONS,
   calculateOrderTotalsCents,
   type PaymentOptionType,
-} from '../lib/utils/data'
+} from '../lib/utils/products'
 import type { Order } from '@/payload-types'
 import { applyOrderStatusStep } from './steps/apply-order-status'
 import { commitOrderStockStep } from './steps/commit-order-stock'

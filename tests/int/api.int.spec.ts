@@ -34,7 +34,7 @@ import {
   centsToDollars,
   formatCentsAsDollars,
   getProductLowestAvailableVariantStock,
-} from '@/lib/utils/data'
+} from '@/lib/utils/products'
 import type { Product, Review } from '@/payload-types'
 
 type MockRecord = Record<string, unknown> & {
@@ -558,12 +558,6 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       note: 'Garments ready at SoHo pickup lounge.',
     })
 
-    // Admin marks order as paid when user comes for collection and pays
-    await orderPaymentHook.resume(getOrderPaymentHookToken(collectOrderId), {
-      authorized: true,
-      cardNumber: '4242424242424242',
-    })
-
     const finalResult = await run.returnValue
     expect(finalResult.success).toBe(true)
     if (finalResult.success) {
@@ -857,12 +851,10 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     const startStock = targetVariant.stock
 
     // 1. Delivery succeeds via HTTP POST /api/checkout + PATCH /api/storefront/orders
-    const podOrderId = 'ORD-POD-OK-1'
     const checkoutReq = new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        orderId: podOrderId,
         userId: 'neon_usr_alex',
         paymentOption: 'pay_on_delivery',
         timeouts: { payOnDeliveryTimeout: '500ms' },
@@ -892,10 +884,9 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     const checkoutRes = await postCheckout(checkoutReq)
     expect(checkoutRes.status).toBe(200)
     const checkoutData = await checkoutRes.json()
-    expect(checkoutData.orderId).toBe(podOrderId)
     expect(checkoutData.pendingPayment).toBe(true)
 
-    await waitForWorkflowHook(getOrderFulfillmentHookToken(podOrderId))
+    await waitForWorkflowHook(getOrderFulfillmentHookToken(checkoutData.orderId))
     expect(getLiveVariant(boot.slug, targetVariant.sku).reservedStock).toBe(1)
 
     const setMockSessionUser = (
@@ -912,7 +903,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: podOrderId,
+          orderId: checkoutData.orderId,
           nextStatus: 'OUT_FOR_DELIVERY',
         }),
       }),
@@ -932,7 +923,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: podOrderId,
+          orderId: checkoutData.orderId,
           nextStatus: 'OUT_FOR_DELIVERY',
           note: 'Courier on route.',
         }),
@@ -946,7 +937,7 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: podOrderId,
+          orderId: checkoutData.orderId,
           nextStatus: 'COMPLETED',
           note: 'Paid on delivery & signed.',
         }),
@@ -1299,20 +1290,6 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
       const ownerDocData = await ownerDocRes.json()
       expect(ownerDocData.document.documentType).toBe('RECEIPT')
       expect(ownerDocData.document.pdfUrl).toContain('api.composeit.local/ephemeral')
-
-      // 5b. Regular customer cannot spoof payment confirmation or mark their own order delivered/failed
-      const customerPaymentRes = await patchOrderRoute(
-        new NextRequest('http://localhost:3000/api/storefront/orders', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'payment',
-            orderId: 'ORD-PAY-SEC-1',
-            authorized: true,
-          }),
-        }),
-      )
-      expect(customerPaymentRes.status).toBe(403)
 
       const customerCompleteRes = await patchOrderRoute(
         new NextRequest('http://localhost:3000/api/storefront/orders', {

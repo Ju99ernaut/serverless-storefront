@@ -1,4 +1,4 @@
-import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
+import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/products'
 import type { PaynowMobileMethod } from '../../lib/paynow'
 
 export async function processPaymentTransactionStep(input: {

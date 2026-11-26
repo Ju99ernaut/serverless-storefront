@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { start } from 'workflow/api'
 import { getServerNeonUser } from '@/lib/auth'
 import { initiatePaynowMobilePayment } from '@/lib/paynow'
-import { PAYMENT_OPTIONS, calculateOrderTotalsCents } from '@/lib/utils/data'
+import { PAYMENT_OPTIONS, calculateOrderTotalsCents } from '@/lib/utils/products'
 import {
   executeDurableCheckoutWorkflow,
   type CheckoutWorkflowInput,

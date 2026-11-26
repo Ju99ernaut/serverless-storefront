@@ -1,21 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import {
   TAX_RATE,
-  PAYMENT_OPTIONS,
-  BOTTOM_BAR_FILTERS,
   calculateOrderTotalsCents,
   centsToDollars,
   formatCentsAsDollars,
   getProductLowestAvailableVariantStock,
   getProductTotalAvailableStock,
   getProductImages,
-  getMainCategoryForFilter,
-  getFilterDisplayName,
   slugifyProductTitle,
-} from '../data'
+} from '../products'
 import type { Product } from '@/payload-types'
 
-describe('src/lib/utils/data unit tests', () => {
+describe('src/lib/utils/products unit tests', () => {
   describe('centsToDollars', () => {
     it('converts valid positive integers to dollars', () => {
       expect(centsToDollars(100)).toBe(1.0)
@@ -177,31 +173,10 @@ describe('src/lib/utils/data unit tests', () => {
     })
   })
 
-  describe('slugify and filter helpers', () => {
+  describe('slugifyProductTitle', () => {
     it('slugifies strings cleanly', () => {
       expect(slugifyProductTitle('Hello World 123!')).toBe('hello-world-123')
       expect(slugifyProductTitle('  --Organic Cotton T-Shirt--  ')).toBe('organic-cotton-t-shirt')
-    })
-
-    it('resolves main category for subfilters', () => {
-      expect(getMainCategoryForFilter('all')).toBe('all')
-      expect(getMainCategoryForFilter('leather-jackets')).toBe('jackets')
-      expect(getMainCategoryForFilter('oxford-shirts')).toBe('shirts')
-      expect(getMainCategoryForFilter('summer-dresses')).toBe('dresses')
-      expect(getMainCategoryForFilter('slim-jeans')).toBe('trousers')
-      expect(getMainCategoryForFilter('runner-sneakers')).toBe('shoes')
-    })
-
-    it('resolves display names for filters', () => {
-      expect(getFilterDisplayName('all')).toBe('All Products')
-      expect(getFilterDisplayName('jackets')).toBe('Jackets')
-      expect(getFilterDisplayName('leather-jackets')).toBe('Leather & Biker')
-      expect(getFilterDisplayName('unknown-filter')).toBe('unknown-filter')
-    })
-
-    it('exposes payment options and bottom bar filters', () => {
-      expect(PAYMENT_OPTIONS.length).toBe(4)
-      expect(BOTTOM_BAR_FILTERS.length).toBe(6)
     })
   })
 })

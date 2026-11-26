@@ -2,7 +2,7 @@
 
 import { Check, X } from 'lucide-react'
 import { OptimizedImage } from './ui/optimized-image'
-import { getProductImages } from '../lib/utils/data'
+import { getProductImages } from '../lib/utils/products'
 import { cn } from 'cn'
 import { Button } from './ui/button'
 import type { Product } from '@/payload-types'

@@ -6,7 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { CACHE_TIMES, storefrontQueryKeys, useAuth } from '../../context'
-import { PAYMENT_OPTIONS, calculateOrderTotalsCents, type CartLineItem } from '../../lib/utils/data'
+import {
+  PAYMENT_OPTIONS,
+  calculateOrderTotalsCents,
+  type CartLineItem,
+} from '../../lib/utils/products'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { getBillingDetails } from '@/lib/payload-sdk'
 import { Drawer, DrawerContent } from '../ui/drawer'

@@ -14,7 +14,7 @@ import {
   formatCentsAsDollars,
   getProductImages,
   getProductLowestAvailableVariantStock,
-} from '../../lib/utils/data'
+} from '../../lib/utils/products'
 import { Badge } from '../ui/badge'
 import { Button, buttonVariants } from '../ui/button'
 import { OptimizedImage } from '../ui/optimized-image'

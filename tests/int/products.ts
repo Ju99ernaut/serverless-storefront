@@ -1,4 +1,4 @@
-import { type ProductVariant, slugifyProductTitle } from '../../src/lib/utils/data'
+import { type ProductVariant, slugifyProductTitle } from '../../src/lib/utils/products'
 import type { Banner, Product, Review } from '@/payload-types'
 
 const SEED_TIMESTAMP = '2026-10-01T10:00:00.000Z'
