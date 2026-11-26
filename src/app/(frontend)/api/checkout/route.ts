@@ -139,10 +139,12 @@ export async function POST(request: NextRequest) {
           orderId,
           pollUrl: initResult.pollUrl,
           instructions:
-            initResult.instructions ||
-            `Check your ${mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'} phone (${mobileNumber}) to authorize the payment prompt.`,
+            initResult.instructions || mobileMethod === 'ecocash'
+              ? `Check your EcoCash phone (${mobileNumber}) to authorize the payment prompt.`
+              : `Scan to pay with InnBucks app or pay using code.`,
           mobileMethod,
           mobileNumber,
+          initResult,
         },
         { status: 202 },
       )

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
-import type { PaynowMobileMethod } from '@/lib/paynow'
+import type { PaynowMobileInitResult, PaynowMobileMethod } from '@/lib/paynow'
 import { parseLocation } from '@/lib/utils/parse-locations'
 import { findNearestLocation, MAX_DELIVERY_RADIUS } from '@/lib/utils/delivery-fee'
 
@@ -15,6 +15,7 @@ export interface CheckoutPendingMobilePaymentResponse {
   instructions: string
   mobileMethod: PaynowMobileMethod
   mobileNumber: string
+  initResult: PaynowMobileInitResult
 }
 
 export interface CheckoutWorkflowResponse {

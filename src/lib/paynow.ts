@@ -15,6 +15,12 @@ export interface PaynowMobileInitResult {
   instructions?: string
   status?: string
   error?: string
+  innbucks_info?: Array<{
+    authorizationcode: string
+    deep_link_url: string
+    qr_code: string
+    expires_at: string
+  }>
 }
 
 export interface PaynowPollResult {
@@ -92,12 +98,7 @@ export async function initiatePaynowMobilePayment(params: {
     }
 
     if (response.success) {
-      return {
-        success: true,
-        pollUrl: response.pollUrl,
-        instructions: response.instructions,
-        status: response.status,
-      }
+      return response
     }
 
     return {

@@ -28,7 +28,7 @@ const MOBILE_METHODS = [
   {
     id: 'innbucks' as const,
     label: 'InnBucks',
-    hint: 'Econet (077 / 078)',
+    hint: 'Phone (077 / 078)',
   },
 ]
 
