@@ -1,6 +1,6 @@
 # Getting Started
 
-This storefront is a fully serverless e-commerce template built with **Payload CMS**, **Neon Postgres**, **Neon Managed Better Auth**, and durable **Workflows**. It is tailored for stores—particularly small businesses in Zimbabwe—with out-of-the-box admin management for products, banners, and orders, mobile money integration, and customizable fulfillment steps.
+This storefront is a fully serverless e-commerce template built with **Payload CMS**, **Neon Postgres**, **Neon Managed Better Auth**, and durable **Workflows**. It is tailored for stores—particularly small businesses with out-of-the-box admin management for products, banners, and orders, mobile money integration, and customizable fulfillment steps.
 
 ![Storefront Overview Screenshot](./docs/screenshots/storefront-overview.png)
 
@@ -29,6 +29,16 @@ This storefront is a fully serverless e-commerce template built with **Payload C
 - **Payload CMS Admin UI:** Manage products, variants, banners, reviews, and orders out of the box.
 - **Durable Workflows:** Checkout, payment confirmation, stock reservation, and order fulfillment run on workflows—making it easy to add, remove, or customize steps (including hooking in new payment providers).
 - **Serverless Stack:** Powered by Neon Postgres and S3-compatible object storage.
+
+## Theme & Appearance (Light & Dark Mode)
+
+Both the **storefront** and the **Payload CMS Admin panel** support **Light** and **Dark** themes out of the box, following the user's system preference by default with manual theme toggling.
+
+* **Storefront Theme:** Styled with Tailwind CSS and `shadcn/ui` CSS variables (`--background`, `--foreground`, `--primary`, etc.) in `src/app/globals.css` and managed via `next-themes`. Users can switch between **Light**, **Dark**, and **System** modes from the storefront header/footer theme toggle.
+* **Customizing Store Colors:** Update the `:root` (light) and `.dark` (dark) CSS tokens in `src/app/globals.css` to match your brand palette—all `shadcn/ui` components and storefront surfaces adapt automatically.
+* **Payload Admin Theme:** Payload's `/admin` dashboard includes a built-in Light/Dark/Automatic appearance switcher under the admin account preferences (or top-right profile menu), and any custom admin components (such as `OrderManagementControls`) inherit Payload's theme CSS variables (`--theme-bg`, `--theme-text`, `--theme-elevation-*`).
+
+![Storefront and Admin Light/Dark Mode Screenshot](./docs/screenshots/theme-light-dark.png)
 
 ---
 
@@ -180,9 +190,8 @@ NEXT_PUBLIC_FREE_DELIVERY_THRESHOLD=
 # Minimum delivery charge in cents
 NEXT_PUBLIC_MIN_DELIVERY_FEE=
 
-# Store origin coordinates used to calculate delivery distance
-NEXT_PUBLIC_STORE_LAT=-17.8252
-NEXT_PUBLIC_STORE_LNG=31.0335
+# Set maximum delivery radius in km
+NEXT_PUBLIC_MAX_DELIVERY_RADIUS=100
 ```
 
 ---
@@ -199,6 +208,19 @@ NEXT_PUBLIC_COLLECTION_LOCATIONS="Samora Machel Flagship@-17.8292,31.0522|Avonda
 _(Alternatively, if your parser reads JSON: `NEXT_PUBLIC_COLLECTION_LOCATIONS='[{"name":"Samora Machel Flagship","lat":-17.8292,"lng":31.0522}]'`)_
 
 ![Checkout Delivery and Pickup Selector Screenshot](./docs/screenshots/checkout-location-picker.png)
+
+### Getting Latitude & Longitude Coordinates
+
+To configure your store collection points (`NEXT_PUBLIC_COLLECTION_LOCATIONS`), obtain coordinates using any of the methods below:
+
+* **Google Maps (Desktop):** Right-click your store or pickup spot on the map and click the coordinates at the top of the menu to copy them (format is `latitude, longitude`).
+* **Google Maps (Android):** Press and hold an unmarked spot until a pin drops, then tap the search bar or place card to view and copy the coordinates.
+* **Apple Maps (iPhone / iPad):** Search for or drop a pin on your location, swipe up on the location card, and scroll down to find the latitude and longitude.
+* **In-App Map Picker / Browser Geolocation:** Click or drag the pin on the checkout map, or use the **"Use my location"** button (requires **HTTPS** or `localhost` and browser location permission).
+* **Sign Check:** Southern Hemisphere locations (such as Zimbabwe) use **negative** latitudes (e.g., `-17.8252`), and locations East of the Prime Meridian use **positive** longitudes (e.g., `31.0335`).
+
+> **Distance Calculation Note:** By default, delivery distances are calculated from coordinates using the **Haversine formula** (great-circle / straight-line distance in kilometers) with zero external routing API costs. You can offset this by using a rate that evens out the inaccuracy. If you need driving or road-network distance instead, you can override the computed distance using a routing or distance-matrix API (such as OSRM, Mapbox Directions, or Google Routes).
+
 
 ---
 
@@ -242,7 +264,7 @@ From `/admin/collections/orders`, you can track orders, inspect payment and fisc
 
 ![Payload Admin Order Management Screenshot](./docs/screenshots/admin-order-controls.png)
 
-> **Tip:** Always confirm that `paymentStatus` is marked as **Paid** before moving an order to **Completed** (especially for _Pay on Delivery_ and _Pay on Collection_ orders), as completing an order commits reserved variant stock.
+> **Tip:** Fulfillment also confirms the `paymentStatus` is marking as **Paid** before moving an order to **Completed**. For _Pay on Delivery_ and _Pay on Collection_ orders you may need to manually add payment detail if necessary.
 
 ---
 

@@ -7,6 +7,7 @@ import {
   executeDurableCheckoutWorkflow,
   type CheckoutWorkflowInput,
 } from '@/workflows/checkout-workflow'
+import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,16 +20,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as Partial<CheckoutWorkflowInput>
-    const {
-      customer,
-      items,
-      payment,
-      paymentOption,
-      orderId,
-      waitForFulfillment,
-      timeouts,
-      userId,
-    } = body || {}
+    const { customer, items, payment, paymentOption, waitForFulfillment, timeouts, userId } =
+      body || {}
     const idempotencyKey = `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
     if (userId && userId !== sessionUser.id) {
@@ -50,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const shortId = Math.floor(100000 + Math.random() * 900000)
-    const resolvedOrderId = orderId || `ORD-${shortId}`
+    const orderId = `ORD-${shortId}`
     const resolvedPaymentOption = paymentOption || 'pay_and_delivery'
     const optionMeta =
       PAYMENT_OPTIONS.find((opt) => opt.id === resolvedPaymentOption) || PAYMENT_OPTIONS[0]
@@ -69,12 +62,18 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      const calculationItems = items.map((item) => ({
+        unitPriceCents: Math.round(Number(item.price) || 0),
+        quantity: Math.max(1, Math.round(Number(item.quantity) || 1)),
+      }))
+      const delivery = calculateDeliveryFee({
+        items: calculationItems,
+        customerAddress: customer?.address || null,
+      })
       const { taxCents, shippingCents } = calculateOrderTotalsCents(
-        items.map((item) => ({
-          unitPriceCents: Math.round(Number(item.price) || 0),
-          quantity: Math.max(1, Math.round(Number(item.quantity) || 1)),
-        })),
+        calculationItems,
         optionMeta.fulfillmentMethod,
+        delivery.feeCents,
       )
 
       const paynowItems = [
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest) {
       ]
 
       const initResult = await initiatePaynowMobilePayment({
-        reference: resolvedOrderId,
+        reference: orderId,
         authEmail: customerEmail,
         phone: mobileNumber,
         method: mobileMethod,
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
       const workflowRun = await start(executeDurableCheckoutWorkflow, [
         {
           idempotencyKey,
-          orderId: resolvedOrderId,
+          orderId,
           userId: sessionUser.id,
           paymentOption: resolvedPaymentOption,
           waitForFulfillment: Boolean(waitForFulfillment),
@@ -137,7 +136,7 @@ export async function POST(request: NextRequest) {
           success: true,
           pendingPayment: true,
           workflowRunId: workflowRun.runId,
-          orderId: resolvedOrderId,
+          orderId,
           pollUrl: initResult.pollUrl,
           instructions:
             initResult.instructions ||
@@ -152,7 +151,7 @@ export async function POST(request: NextRequest) {
     const workflowRun = await start(executeDurableCheckoutWorkflow, [
       {
         idempotencyKey,
-        orderId: resolvedOrderId,
+        orderId,
         userId: sessionUser.id,
         paymentOption: resolvedPaymentOption,
         waitForFulfillment: Boolean(waitForFulfillment),
@@ -173,7 +172,7 @@ export async function POST(request: NextRequest) {
       success: true,
       pendingPayment: true,
       workflowRunId: workflowRun.runId,
-      orderId: resolvedOrderId,
+      orderId,
     })
   } catch (error: unknown) {
     const message =

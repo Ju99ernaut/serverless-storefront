@@ -19,6 +19,7 @@ import {
   type OrderPaymentHookPayload,
   type WorkflowTimeoutValue,
 } from './types'
+import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
 
 export {
   WORKFLOW_TIMEOUT_DEFAULTS,
@@ -169,7 +170,7 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   'use workflow'
 
   const timestamp = new Date().toISOString()
-  const shortId = Math.floor(100000 + Math.random() * 900000)
+  const shortId = input.orderId?.replace('ORD-', '') || Math.floor(100000 + Math.random() * 900000)
   const orderId = input.orderId || `ORD-${shortId}`
   const invoiceNumber = `INV-${shortId}`
   const receiptNumber = `RCP-${shortId}`
@@ -218,23 +219,32 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   }
 
   // Step 2: Wait for Payment (5m configurable window for pay_and_delivery & pay_then_collect)
+  const calculationItems = input.items.map((i) => ({
+    unitPriceCents: Math.round(Number(i.price) || 0),
+    quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
+  }))
+  const delivery = calculateDeliveryFee({
+    items: calculationItems,
+    customerAddress: input.customer.address || null,
+  })
   const { grandTotalCents: grandTotal } = calculateOrderTotalsCents(
     input.items.map((i) => ({
       unitPriceCents: Math.round(Number(i.price) || 0),
       quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
     })),
     optionMeta.fulfillmentMethod,
+    delivery.feeCents,
   )
 
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
   const isPaynowMobile = input.payment?.provider === 'paynow_mobile'
   const requiresPaymentFirst = optionMeta.requiresCardNow && isPaynowMobile
 
-  using paymentHook = orderPaymentHook.create({
-    token: getOrderPaymentHookToken(orderId),
-  })
-
   if (requiresPaymentFirst) {
+    using paymentHook = orderPaymentHook.create({
+      token: getOrderPaymentHookToken(orderId),
+    })
+
     const paymentRace = await Promise.race([
       paymentHook.then((payload) => ({ timedOut: false as const, payload })),
       sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),

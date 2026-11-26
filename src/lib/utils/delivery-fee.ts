@@ -1,34 +1,41 @@
-// lib/delivery-fee.ts
+import { parseCollectionLocations, parseLocation } from './parse-locations'
 
 export interface Coordinates {
   lat: number
   lng: number
 }
 
-export interface DeliveryRateConfig {
-  storeLocation: Coordinates
-  baseFee: number // e.g. 2.00
-  ratePerKm: number // e.g. 0.75
-  includedRadiusKm?: number // e.g. 2 (first 2 km covered by baseFee)
-  freeThreshold: number // e.g. 50 (subtotal >= 50 => free delivery)
-  maxFreeDistanceKm?: number // optional cap on free delivery distance
-  maxDeliveryRadiusKm?: number
-  roundTo?: number // e.g. 0.5 or 1 (0.01 for exact cents)
+export interface LocationValue extends Coordinates {
+  address: string
 }
 
 export interface DeliveryFeeResult {
   deliverable: boolean
   distanceKm: number
-  fee: number
+  feeCents: number
   isFreeDelivery: boolean
-  amountNeededForFreeDelivery: number
-  reason?: 'OUT_OF_RANGE' | 'MISSING_LOCATION'
+  amountNeededForFreeDeliveryCents: number
+  reason?: 'OUT OF RANGE' | 'MISSING LOCATION'
 }
 
-export function calculateHaversineKm(a: Coordinates, b: Coordinates): number {
-  const R = 6371 // Earth radius in km
-  const toRad = (deg: number) => (deg * Math.PI) / 180
+const R = 6371 // Earth radius in km
+const BASE_FEE_CENTS = process.env.NEXT_PUBLIC_MIN_DELIVERY_FEE
+  ? Number(process.env.NEXT_PUBLIC_MIN_DELIVERY_FEE)
+  : 0
+const RATE_PER_KM_CENTS = process.env.NEXT_PUBLIC_DELIVERY_RATE
+  ? Number(process.env.NEXT_PUBLIC_DELIVERY_RATE)
+  : 0
+const FREE_THRESHOLD_CENTS = process.env.NEXT_PUBLIC_FREE_DELIVERY_THRESHOLD
+  ? Number(process.env.NEXT_PUBLIC_FREE_DELIVERY_THRESHOLD)
+  : 0
+export const MAX_DELIVERY_RADIUS = process.env.NEXT_PUBLIC_MAX_DELIVERY_RADIUS
+  ? Number(process.env.NEXT_PUBLIC_MAX_DELIVERY_RADIUS)
+  : 0
+const STORE_LOCATIONS = parseCollectionLocations(process.env.NEXT_PUBLIC_COLLECTION_LOCATIONS || '')
 
+const toRad = (deg: number) => (deg * Math.PI) / 180
+
+export function calculateHaversineKm(a: Coordinates, b: Coordinates): number {
   const dLat = toRad(b.lat - a.lat)
   const dLng = toRad(b.lng - a.lng)
 
@@ -40,73 +47,83 @@ export function calculateHaversineKm(a: Coordinates, b: Coordinates): number {
   return 2 * R * Math.asin(Math.sqrt(h))
 }
 
-function roundFee(amount: number, step = 0.01): number {
-  if (amount <= 0) return 0
-  const rounded = Math.round(amount / step) * step
-  return Number(rounded.toFixed(2))
+export function findNearestLocation(origin: Coordinates) {
+  if (STORE_LOCATIONS.length === 0) {
+    return 0
+  }
+
+  let shortestKm = calculateHaversineKm(origin, STORE_LOCATIONS[0])
+
+  for (let i = 1; i < STORE_LOCATIONS.length; i++) {
+    const candidate = STORE_LOCATIONS[i]
+    const km = calculateHaversineKm(origin, candidate)
+
+    if (km < shortestKm) {
+      shortestKm = km
+    }
+  }
+
+  return shortestKm
 }
 
 export function calculateDeliveryFee(params: {
-  subtotal: number
-  customerLocation: Coordinates | null
-  config: DeliveryRateConfig
-  overrideDistanceKm?: number // pass road distance here if using a routing API
+  items: Array<{ unitPriceCents: number; quantity: number }>
+  customerAddress: string | null
 }): DeliveryFeeResult {
-  const { subtotal, customerLocation, config, overrideDistanceKm } = params
+  const { items, customerAddress } = params
+  const subTotalCents = items.reduce((sum, item) => {
+    const unitCents = Math.round(Number(item.unitPriceCents) || 0)
+    const qty = Math.max(1, Math.round(Number(item.quantity) || 1))
+    return sum + unitCents * qty
+  }, 0)
 
-  if (!customerLocation) {
+  if (!customerAddress) {
     return {
       deliverable: false,
       distanceKm: 0,
-      fee: 0,
+      feeCents: 0,
       isFreeDelivery: false,
-      amountNeededForFreeDelivery: Math.max(0, config.freeThreshold - subtotal),
-      reason: 'MISSING_LOCATION',
+      amountNeededForFreeDeliveryCents: Math.max(0, FREE_THRESHOLD_CENTS - subTotalCents),
+      reason: 'MISSING LOCATION',
     }
   }
 
-  const rawKm = overrideDistanceKm ?? calculateHaversineKm(config.storeLocation, customerLocation)
+  const customerLocation = parseLocation(customerAddress)
+  const rawKm = findNearestLocation(customerLocation)
   const distanceKm = Number(rawKm.toFixed(2))
 
-  if (config.maxDeliveryRadiusKm && distanceKm > config.maxDeliveryRadiusKm) {
+  if (MAX_DELIVERY_RADIUS && distanceKm > MAX_DELIVERY_RADIUS) {
     return {
       deliverable: false,
       distanceKm,
-      fee: 0,
+      feeCents: 0,
       isFreeDelivery: false,
-      amountNeededForFreeDelivery: Math.max(0, config.freeThreshold - subtotal),
-      reason: 'OUT_OF_RANGE',
+      amountNeededForFreeDeliveryCents: Math.max(0, FREE_THRESHOLD_CENTS - subTotalCents),
+      reason: 'OUT OF RANGE',
     }
   }
 
-  const meetsSubtotalThreshold = config.freeThreshold > 0 && subtotal >= config.freeThreshold
-  const meetsDistanceCap =
-    config.maxFreeDistanceKm === undefined || distanceKm <= config.maxFreeDistanceKm
+  const meetsSubtotalThreshold = FREE_THRESHOLD_CENTS > 0 && subTotalCents >= FREE_THRESHOLD_CENTS
 
-  if (meetsSubtotalThreshold && meetsDistanceCap) {
+  if (meetsSubtotalThreshold) {
     return {
       deliverable: true,
       distanceKm,
-      fee: 0,
+      feeCents: 0,
       isFreeDelivery: true,
-      amountNeededForFreeDelivery: 0,
+      amountNeededForFreeDeliveryCents: 0,
     }
   }
 
-  const billableKm = Math.max(0, distanceKm - (config.includedRadiusKm ?? 0))
-  const computedFee = roundFee(
-    config.baseFee + billableKm * config.ratePerKm,
-    config.roundTo ?? 0.01,
-  )
+  const billableKm = Math.max(0, distanceKm)
+  const computedFeeCents = Math.max(BASE_FEE_CENTS, billableKm * RATE_PER_KM_CENTS)
 
   return {
     deliverable: true,
     distanceKm,
-    fee: computedFee,
+    feeCents: computedFeeCents,
     isFreeDelivery: false,
-    amountNeededForFreeDelivery:
-      config.freeThreshold > 0
-        ? Math.max(0, Number((config.freeThreshold - subtotal).toFixed(2)))
-        : 0,
+    amountNeededForFreeDeliveryCents:
+      FREE_THRESHOLD_CENTS > 0 ? Math.max(0, FREE_THRESHOLD_CENTS - subTotalCents) : 0,
   }
 }

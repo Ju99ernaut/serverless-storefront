@@ -78,10 +78,6 @@ export function CartBagStep({
             <span className="text-muted-foreground">Taxes (8%)</span>
             <span>{formatCentsAsDollars(tax)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Delivery / Collection</span>
-            <span className="font-bold text-primary">FREE</span>
-          </div>
           <Separator className="my-2" />
           <div className="flex items-center justify-between pb-1 text-base font-bold">
             <span>Estimated Total</span>

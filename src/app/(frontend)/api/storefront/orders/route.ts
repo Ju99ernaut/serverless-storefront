@@ -6,12 +6,7 @@ import {
   isAuthorizedPayloadAdminRequest,
 } from '@/lib/auth'
 import { generateAndRecordOrderDocumentServer, getOrderByOrderIdServer } from '@/lib/payload-server'
-import {
-  getOrderFulfillmentHookToken,
-  getOrderPaymentHookToken,
-  orderFulfillmentHook,
-  orderPaymentHook,
-} from '@/workflows/checkout-workflow'
+import { getOrderFulfillmentHookToken, orderFulfillmentHook } from '@/workflows/checkout-workflow'
 import { executeOrderStatusUpdateWorkflow } from '@/workflows/order-status-workflow'
 import type { Order } from '@/payload-types'
 import { start } from 'workflow/api'
@@ -42,61 +37,10 @@ export async function PATCH(request: NextRequest) {
     const isAuthorizedOperator = isPayloadAdmin || isAuthorizedAdminOrStaff(sessionUser)
 
     const body = await request.json()
-    const {
-      action,
-      orderId,
-      nextStatus,
-      note,
-      deliveryFailed,
-      authorized,
-      cardNumber,
-      cardholderName,
-      mobileMethod,
-      mobileNumber,
-      error: paymentError,
-    } = body || {}
+    const { action, orderId, nextStatus, note, deliveryFailed } = body || {}
 
     if (!orderId || typeof orderId !== 'string') {
       return NextResponse.json({ error: 'orderId is required.' }, { status: 400 })
-    }
-
-    if (action === 'payment') {
-      if (!isAuthorizedOperator) {
-        return NextResponse.json(
-          {
-            error:
-              'Forbidden: only an authorized payment provider or admin can confirm order payments.',
-          },
-          { status: 403 },
-        )
-      }
-
-      const existingOrder = await getOrderByOrderIdServer(orderId)
-      if (
-        existingOrder &&
-        (existingOrder.paymentStatus === 'PAID' ||
-          existingOrder.orderStatus === 'COMPLETED' ||
-          existingOrder.orderStatus === 'CANCELLED')
-      ) {
-        return NextResponse.json(
-          { error: `Order ${orderId} is already finalized and cannot accept payment updates.` },
-          { status: 409 },
-        )
-      }
-
-      await orderPaymentHook.resume(getOrderPaymentHookToken(orderId), {
-        authorized: Boolean(authorized),
-        cardNumber,
-        cardholderName,
-        mobileMethod,
-        mobileNumber,
-        error: paymentError,
-      })
-      return NextResponse.json({
-        success: true,
-        resumed: 'payment',
-        orderId,
-      })
     }
 
     if (!sessionUser && !isPayloadAdmin) {

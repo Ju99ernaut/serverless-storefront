@@ -44,7 +44,7 @@ Configured in [src/payload.config.ts](src/payload.config.ts):
 - `carts` — Persisted user shopping bags keyed by `neonUserId`
 - `wishlists` — Persisted loved items keyed by `neonUserId`
 - `products` — Catalog items, garment metadata, and SKU-level variants (`stock`, `reservedStock`, `lowStockThreshold`, optional `priceOverride` in cents)
-- `categories` & `banners` — Navigation filters and storefront hero banners
+- `banners` — storefront hero banners
 - `media` — Uploaded assets stored via S3/Cloudflare R2 when configured
 - `reviews` — Product reviews with automatic aggregate rating sync
 - `orders` — Order records, totals (cents), fulfillment status timeline, and `documentHistory`

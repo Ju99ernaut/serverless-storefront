@@ -72,7 +72,6 @@ export interface Config {
     carts: Cart;
     wishlists: Wishlist;
     media: Media;
-    categories: Category;
     banners: Banner;
     products: Product;
     reviews: Review;
@@ -90,7 +89,6 @@ export interface Config {
     carts: CartsSelect<false> | CartsSelect<true>;
     wishlists: WishlistsSelect<false> | WishlistsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    categories: CategoriesSelect<false> | CategoriesSelect<true>;
     banners: BannersSelect<false> | BannersSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     reviews: ReviewsSelect<false> | ReviewsSelect<true>;
@@ -212,6 +210,9 @@ export interface Cart {
  */
 export interface Product {
   id: number;
+  /**
+   * Acts as link to product page. Avoid spaces and special characters
+   */
   slug: string;
   title: string;
   brand: string;
@@ -220,10 +221,13 @@ export interface Product {
    */
   price: number;
   /**
-   * Optional original/compare-at price in integer cents (e.g. 12000 = $120.00).
+   * Compare-at price in integer cents (e.g. 12000 = $120.00). Used when price changes especially when reduced. This value is shown crossed out next to price.
    */
   compareAtPrice?: number | null;
   category: 'jackets' | 'shirts' | 'dresses' | 'trousers' | 'shoes';
+  /**
+   * Try and match store category submenus to match filtering
+   */
   subcategory: string;
   tags?:
     | {
@@ -231,6 +235,9 @@ export interface Product {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Size of the product card in store. Use featured for products you really want to highlight
+   */
   size?: ('normal' | 'large') | null;
   description?: string | null;
   material: string;
@@ -240,6 +247,9 @@ export interface Product {
     | {
         url: number | Media;
         alt?: string | null;
+        /**
+         * Human readable color
+         */
         color?: string | null;
         id?: string | null;
       }[]
@@ -248,7 +258,13 @@ export interface Product {
     | {
         sku: string;
         size: string;
+        /**
+         * Human readable color
+         */
         color: string;
+        /**
+         * Hex code for the color e.g #ffffff for white
+         */
         colorHex: string;
         /**
          * Optional variant price override in integer cents (e.g. 9500 = $95.00).
@@ -306,23 +322,6 @@ export interface Wishlist {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories".
- */
-export interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  menuId: string;
-  parentMenuId?: string | null;
-  submenuTargetId?: string | null;
-  iconName?: string | null;
-  showInBottomBar?: boolean | null;
-  sortOrder?: number | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "banners".
  */
 export interface Banner {
@@ -333,7 +332,13 @@ export interface Banner {
   imageUrl: number | Media;
   ctaText: string;
   ctaFilter?: string | null;
+  /**
+   * Slug of the product in banner(Product slug field). Acts as link to product page
+   */
   ctaProductSlug?: string | null;
+  /**
+   * Most prominent color on the banner.
+   */
   accentColor?: string | null;
   active?: boolean | null;
   sortOrder?: number | null;
@@ -505,10 +510,6 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
-        relationTo: 'categories';
-        value: number | Category;
-      } | null)
-    | ({
         relationTo: 'banners';
         value: number | Banner;
       } | null)
@@ -671,22 +672,6 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories_select".
- */
-export interface CategoriesSelect<T extends boolean = true> {
-  name?: T;
-  slug?: T;
-  menuId?: T;
-  parentMenuId?: T;
-  submenuTargetId?: T;
-  iconName?: T;
-  showInBottomBar?: T;
-  sortOrder?: T;
-  updatedAt?: T;
-  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

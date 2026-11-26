@@ -14,6 +14,17 @@ import { ProductInfoPanel } from './product-info-panel'
 import { ProductReviewsSection } from './product-reviews-section'
 import { RelatedProductsSection } from './related-products-section'
 
+function getVariantAvailableStock(variant: ProductVariant): number {
+  const stock = Math.max(0, Number(variant.stock) || 0)
+  const reserved = Math.max(0, Number(variant.reservedStock) || 0)
+  return Math.max(0, stock - reserved)
+}
+
+function getVariantThreshold(variant: ProductVariant): number {
+  const threshold = Number(variant.lowStockThreshold)
+  return Number.isFinite(threshold) && threshold >= 0 ? threshold : 5
+}
+
 export function ProductDetails() {
   const params = useParams<{ slug: string }>()
   const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug || ''
@@ -84,22 +95,60 @@ export function ProductDetails() {
     return Array.from(set)
   }, [product])
 
-  const activeVariant: ProductVariant | undefined = useMemo(() => {
-    if (!product?.variants || product.variants.length === 0) return undefined
-    return (
-      product.variants.find((v) => v.color === selectedColor && v.size === selectedSize) ||
-      product.variants.find((v) => v.color === selectedColor) ||
-      product.variants.find((v) => v.size === selectedSize) ||
-      product.variants[0]
-    )
-  }, [product, selectedColor, selectedSize])
+  const variants = product?.variants ?? []
 
-  const availableStock = activeVariant
-    ? Math.max(0, activeVariant.stock - (activeVariant.reservedStock || 0))
-    : 0
-  const lowStockThreshold = activeVariant?.lowStockThreshold || 5
-  const isLowStock = availableStock > 0 && availableStock <= lowStockThreshold
-  const isOutOfStock = availableStock <= 0
+  const activeVariant: ProductVariant | undefined = useMemo(() => {
+    if (!selectedColor || !selectedSize) return undefined
+    return variants.find((v) => v.color === selectedColor && v.size === selectedSize)
+  }, [variants, selectedColor, selectedSize])
+
+  const { availableStock, isLowStock, isOutOfStock } = useMemo(() => {
+    if (selectedColor && selectedSize) {
+      if (!activeVariant) {
+        return {
+          availableStock: 0,
+          isLowStock: false,
+          isOutOfStock: true,
+        }
+      }
+
+      const avail = getVariantAvailableStock(activeVariant)
+      const threshold = getVariantThreshold(activeVariant)
+
+      return {
+        availableStock: avail,
+        isLowStock: avail > 0 && avail <= threshold,
+        isOutOfStock: avail <= 0,
+      }
+    }
+
+    const matchingVariants = variants.filter((v) => {
+      if (selectedColor) return v.color === selectedColor
+      if (selectedSize) return v.size === selectedSize
+      return true
+    })
+
+    if (matchingVariants.length === 0) {
+      return {
+        availableStock: 0,
+        isLowStock: false,
+        isOutOfStock: true,
+      }
+    }
+
+    const totalAvailable = matchingVariants.reduce((sum, v) => sum + getVariantAvailableStock(v), 0)
+
+    const anyLowStock = matchingVariants.some((v) => {
+      const avail = getVariantAvailableStock(v)
+      return avail > 0 && avail <= getVariantThreshold(v)
+    })
+
+    return {
+      availableStock: totalAvailable,
+      isLowStock: totalAvailable > 0 && anyLowStock,
+      isOutOfStock: totalAvailable <= 0,
+    }
+  }, [variants, activeVariant, selectedColor, selectedSize])
 
   useEffect(() => {
     if (availableStock > 0 && quantity > availableStock) {

@@ -30,7 +30,6 @@ import {
 } from '@/workflows/checkout-workflow'
 import { PRODUCTS, HOME_BANNERS, INITIAL_REVIEWS } from './products'
 import {
-  DELIVERY_FEE_CENTS,
   calculateOrderTotalsCents,
   centsToDollars,
   formatCentsAsDollars,
@@ -716,11 +715,13 @@ describe('Storefront End-to-End Payload SDK & Workflow Integration Suite', () =>
     expect(genBody.document.pdfUrl).toContain('api.composeit.local/ephemeral')
     expect(genBody.order.documentHistory).toHaveLength(3)
 
+    const deliveryFeeCents = 0
     const expectedTotals = calculateOrderTotalsCents(
       [{ unitPriceCents: boot.price, quantity: 1 }],
       'DELIVERY',
+      deliveryFeeCents,
     )
-    expect(expectedTotals.shippingCents).toBe(DELIVERY_FEE_CENTS)
+    expect(expectedTotals.shippingCents).toBe(deliveryFeeCents)
     expect(genBody.order.totals).toEqual({
       subTotal: expectedTotals.subTotalCents,
       tax: expectedTotals.taxCents,

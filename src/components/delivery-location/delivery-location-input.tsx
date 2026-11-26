@@ -1,20 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { LocateFixed, MapPin } from 'lucide-react'
+import { Loader2, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Coordinates } from '@/lib/utils/delivery-fee'
-
-export interface DeliveryLocationValue extends Coordinates {
-  address: string
-}
+import { Textarea } from '../ui/textarea'
+import { parseLocation } from '@/lib/utils/parse-locations'
 
 interface DeliveryLocationInputProps {
-  value: DeliveryLocationValue | null
-  onChange: (next: DeliveryLocationValue) => void
+  value: string | null
+  onChange: (next: string) => void
   renderMap?: (props: {
     coords: Coordinates
     onSelectCoords: (coords: Coordinates) => void
@@ -27,9 +25,10 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
   const [locating, setLocating] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
 
-  const currentLat = value?.lat ?? DEFAULT_CENTER.lat
-  const currentLng = value?.lng ?? DEFAULT_CENTER.lng
-  const currentAddress = value?.address ?? ''
+  const parsedValue = parseLocation(value || '')
+  const currentLat = parsedValue?.lat || DEFAULT_CENTER.lat
+  const currentLng = parsedValue?.lng || DEFAULT_CENTER.lng
+  const currentAddress = parsedValue?.address ?? ''
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -44,11 +43,7 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
       (pos) => {
         const lat = Number(pos.coords.latitude.toFixed(6))
         const lng = Number(pos.coords.longitude.toFixed(6))
-        onChange({
-          address: currentAddress || `${lat}, ${lng}`,
-          lat,
-          lng,
-        })
+        onChange(`${currentAddress}@${lat},${lng}`)
         setLocating(false)
       },
       (err) => {
@@ -63,46 +58,26 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
     const parsed = Number(raw)
     if (Number.isNaN(parsed)) return
 
-    onChange({
-      address: currentAddress,
-      lat: axis === 'lat' ? parsed : currentLat,
-      lng: axis === 'lng' ? parsed : currentLng,
-    })
+    onChange(
+      `${currentAddress}@${axis === 'lat' ? parsed : currentLat},${axis === 'lng' ? parsed : currentLng}`,
+    )
   }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-medium">
-          <MapPin className="h-4 w-4" />
-          Delivery Location
-        </CardTitle>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleUseCurrentLocation}
-          disabled={locating}
-        >
-          <LocateFixed className="mr-2 h-4 w-4" />
-          {locating ? 'Locating...' : 'Use my location'}
-        </Button>
-      </CardHeader>
-
       <CardContent className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="delivery-address">Street / Area Address</Label>
-          <Input
+          <Textarea
             id="delivery-address"
+            name="address"
             placeholder="e.g. 42 Samora Machel Ave, Harare"
+            autoComplete="shipping street-address"
+            required
+            rows={2}
+            maxLength={300}
             value={currentAddress}
-            onChange={(e) =>
-              onChange({
-                address: e.target.value,
-                lat: currentLat,
-                lng: currentLng,
-              })
-            }
+            onChange={(e) => onChange(`${e.target.value}@${currentLat},${currentLng}`)}
           />
         </div>
 
@@ -113,6 +88,7 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
               id="delivery-lat"
               type="number"
               step="any"
+              required
               value={currentLat}
               onChange={(e) => handleCoordChange('lat', e.target.value)}
             />
@@ -123,6 +99,7 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
               id="delivery-lng"
               type="number"
               step="any"
+              required
               value={currentLng}
               onChange={(e) => handleCoordChange('lng', e.target.value)}
             />
@@ -136,14 +113,28 @@ export function DeliveryLocationInput({ value, onChange, renderMap }: DeliveryLo
             {renderMap({
               coords: { lat: currentLat, lng: currentLng },
               onSelectCoords: (coords) =>
-                onChange({
-                  address: currentAddress,
-                  lat: Number(coords.lat.toFixed(6)),
-                  lng: Number(coords.lng.toFixed(6)),
-                }),
+                onChange(
+                  `${currentAddress}@${Number(coords.lat.toFixed(6))},${Number(coords.lng.toFixed(6))}`,
+                ),
             })}
           </div>
         )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleUseCurrentLocation}
+          disabled={locating}
+          className="w-full"
+        >
+          {locating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LocateFixed className="h-4 w-4" />
+          )}
+          {locating ? 'Locating...' : 'Use my location'}
+        </Button>
       </CardContent>
     </Card>
   )

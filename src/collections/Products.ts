@@ -20,6 +20,9 @@ export const Products: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
+      admin: {
+        description: 'Acts as link to product page. Avoid spaces and special characters',
+      },
     },
     {
       name: 'title',
@@ -47,7 +50,8 @@ export const Products: CollectionConfig = {
       type: 'number',
       min: 0,
       admin: {
-        description: 'Optional original/compare-at price in integer cents (e.g. 12000 = $120.00).',
+        description:
+          'Compare-at price in integer cents (e.g. 12000 = $120.00). Used when price changes especially when reduced. This value is shown crossed out next to price.',
       },
     },
     {
@@ -67,6 +71,9 @@ export const Products: CollectionConfig = {
       name: 'subcategory',
       type: 'text',
       required: true,
+      admin: {
+        description: 'Try and match store category submenus to match filtering',
+      },
     },
     {
       name: 'tags',
@@ -87,6 +94,10 @@ export const Products: CollectionConfig = {
         { label: 'Normal (1-column)', value: 'normal' },
         { label: 'Large Featured (2-column)', value: 'large' },
       ],
+      admin: {
+        description:
+          'Size of the product card in store. Use featured for products you really want to highlight',
+      },
     },
     {
       name: 'description',
@@ -124,6 +135,9 @@ export const Products: CollectionConfig = {
         {
           name: 'color',
           type: 'text',
+          admin: {
+            description: 'Human readable color',
+          },
         },
       ],
     },
@@ -145,11 +159,17 @@ export const Products: CollectionConfig = {
           name: 'color',
           type: 'text',
           required: true,
+          admin: {
+            description: 'Human readable color',
+          },
         },
         {
           name: 'colorHex',
           type: 'text',
           required: true,
+          admin: {
+            description: 'Hex code for the color e.g #ffffff for white',
+          },
         },
         {
           name: 'priceOverride',

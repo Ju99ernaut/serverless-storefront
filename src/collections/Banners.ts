@@ -49,11 +49,18 @@ export const Banners: CollectionConfig = {
     {
       name: 'ctaProductSlug',
       type: 'text',
+      admin: {
+        description:
+          'Slug of the product in banner(Product slug field). Acts as link to product page',
+      },
     },
     {
       name: 'accentColor',
       type: 'text',
       defaultValue: '#5C5EDC',
+      admin: {
+        description: 'Most prominent color on the banner.',
+      },
     },
     {
       name: 'active',

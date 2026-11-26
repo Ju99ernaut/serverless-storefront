@@ -1,6 +1,5 @@
 'use client'
 
-import { Smartphone } from 'lucide-react'
 import { Controller, type Control } from 'react-hook-form'
 import { Button } from '../ui/button'
 import {
@@ -37,8 +36,7 @@ export function CheckoutMobilePaymentFields({ control, baseId }: CheckoutMobileP
   return (
     <FieldSet className="gap-3 rounded-lg border border-border bg-card p-3.5">
       <FieldLegend className="mb-0 flex items-center gap-1.5 text-xs font-semibold">
-        <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>Express Payment</span>
+        Express Payment
       </FieldLegend>
 
       <FieldGroup className="gap-3.5">
@@ -85,7 +83,8 @@ export function CheckoutMobilePaymentFields({ control, baseId }: CheckoutMobileP
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={`${baseId}-mobile-number`}>Phone Number (required)</FieldLabel>
               <FieldDescription id={`${baseId}-mobile-number-hint`} className="text-xs">
-                A Paynow USSD payment prompt will be sent directly to this phone.
+                A Paynow USSD payment prompt will be sent directly to this phone. Amount may vary
+                due to taxes and charges.
               </FieldDescription>
               <Input
                 {...field}

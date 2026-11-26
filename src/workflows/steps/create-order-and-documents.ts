@@ -13,6 +13,7 @@ import {
   type PaymentOptionType,
 } from '../../lib/utils/data'
 import type { CheckoutWorkflowInput } from '../types'
+import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
 
 export async function createOrderAndDocumentsStep(input: {
   orderId: string
@@ -55,9 +56,18 @@ export async function createOrderAndDocumentsStep(input: {
     }
   })
 
+  const calculationItems = lineItems.map((item) => ({
+    unitPriceCents: item.unitPrice,
+    quantity: item.quantity,
+  }))
+  const delivery = calculateDeliveryFee({
+    items: calculationItems,
+    customerAddress: input.customer.address || null,
+  })
   const { subTotalCents, taxCents, shippingCents, grandTotalCents } = calculateOrderTotalsCents(
-    lineItems.map((item) => ({ unitPriceCents: item.unitPrice, quantity: item.quantity })),
+    calculationItems,
     input.paymentResult.fulfillmentMethod,
+    delivery.feeCents,
   )
   const orderTotals = {
     subTotal: subTotalCents,

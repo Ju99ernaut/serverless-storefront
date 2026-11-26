@@ -26,6 +26,7 @@ import {
 } from './checkout-schema'
 import { neonAuthClient } from '@/lib/auth-client'
 import type { Order } from '@/payload-types'
+import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -107,17 +108,21 @@ const CartSidebar = ({
   const selectedPaymentMeta =
     PAYMENT_OPTIONS.find((opt) => opt.id === paymentOption) || PAYMENT_OPTIONS[0]
 
+  const customerAddress = checkoutForm.watch('shippingAddress')
+  const calculationItems = items.map((item) => ({
+    unitPriceCents: item.unitPrice ?? item.price,
+    quantity: item.quantity,
+  }))
+  const delivery = calculateDeliveryFee({ items: calculationItems, customerAddress })
   const {
     subTotalCents: subTotal,
     taxCents: tax,
     shippingCents: shippingFee,
     grandTotalCents: grandTotal,
   } = calculateOrderTotalsCents(
-    items.map((item) => ({
-      unitPriceCents: item.unitPrice ?? item.price,
-      quantity: item.quantity,
-    })),
+    calculationItems,
     selectedPaymentMeta.fulfillmentMethod,
+    delivery.feeCents,
   )
   const isEmpty = items.length === 0
   const totalItemCount = items.reduce((sum, i) => sum + i.quantity, 0)
@@ -466,7 +471,7 @@ const CartSidebar = ({
             totalItemCount={totalItemCount}
             subTotal={subTotal}
             tax={tax}
-            shippingFee={shippingFee}
+            delivery={delivery}
             grandTotal={grandTotal}
             isPending={checkoutMutation.isPending}
             onBackToCart={() => setStep('cart')}

@@ -11,7 +11,6 @@ import { BillingDetails } from './collections/BillingDetails'
 import { Carts } from './collections/Carts'
 import { Wishlists } from './collections/Wishlists'
 import { Media } from './collections/Media'
-import { Categories } from './collections/Categories'
 import { Banners } from './collections/Banners'
 import { Products } from './collections/Products'
 import { Reviews } from './collections/Reviews'
@@ -44,7 +43,6 @@ export default buildConfig({
     Carts,
     Wishlists,
     Media,
-    Categories,
     Banners,
     Products,
     Reviews,

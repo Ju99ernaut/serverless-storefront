@@ -26,7 +26,6 @@ import {
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Separator } from '../ui/separator'
-import { Textarea } from '../ui/textarea'
 import { CheckoutCardFields } from './checkout-card-fields'
 import { CheckoutMobilePaymentFields } from './checkout-mobile-payment-fields'
 import {
@@ -34,6 +33,9 @@ import {
   type CheckoutFormValues,
   type PaymentOptionMeta,
 } from './checkout-schema'
+import { DeliveryLocationPicker } from '../delivery-location/delivery-location-picker'
+import type { DeliveryFeeResult } from '@/lib/utils/delivery-fee'
+import { Alert } from '../ui/alert'
 
 interface CartCheckoutStepProps {
   form: UseFormReturn<CheckoutFormValues>
@@ -42,11 +44,11 @@ interface CartCheckoutStepProps {
   totalItemCount: number
   subTotal: number
   tax: number
-  shippingFee: number
   grandTotal: number
   isPending: boolean
   onBackToCart: () => void
   onSubmit: (values: CheckoutFormValues) => void
+  delivery: DeliveryFeeResult
 }
 
 function getPaymentOptionIcon(optionId: PaymentOptionType) {
@@ -69,7 +71,7 @@ export function CartCheckoutStep({
   totalItemCount,
   subTotal,
   tax,
-  shippingFee,
+  delivery,
   grandTotal,
   isPending,
   onBackToCart,
@@ -242,17 +244,7 @@ export function CartCheckoutStep({
                       <FieldLabel htmlFor={`${baseId}-address`}>
                         Shipping &amp; Delivery Address (required)
                       </FieldLabel>
-                      <Textarea
-                        {...field}
-                        id={`${baseId}-address`}
-                        name="address"
-                        required
-                        rows={2}
-                        maxLength={300}
-                        autoComplete="shipping street-address"
-                        aria-invalid={fieldState.invalid}
-                        placeholder="742 Evergreen Terrace, Suite 200"
-                      />
+                      <DeliveryLocationPicker {...field} />
                       {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                     </Field>
                   )}
@@ -345,15 +337,32 @@ export function CartCheckoutStep({
               <span className="text-muted-foreground">Taxes ({TAX_RATE * 100}%)</span>
               <span>{formatCentsAsDollars(tax)}</span>
             </div>
+            {!!delivery.amountNeededForFreeDeliveryCents && (
+              <Alert>
+                <Truck className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span className="text-xs">
+                  Add {formatCentsAsDollars(delivery.amountNeededForFreeDeliveryCents)} more for
+                  free delivery.
+                </span>
+              </Alert>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">
                 {selectedPaymentMeta.fulfillmentMethod === 'DELIVERY'
                   ? 'Courier Delivery'
                   : 'In-Store Collection'}
               </span>
-              <span className={shippingFee === 0 ? 'font-bold text-primary' : undefined}>
-                {shippingFee === 0 ? 'FREE' : formatCentsAsDollars(shippingFee)}
-              </span>
+              {selectedPaymentMeta.fulfillmentMethod === 'DELIVERY' ? (
+                <span className={delivery.feeCents === 0 ? 'font-bold text-primary' : undefined}>
+                  {!delivery.deliverable
+                    ? delivery.reason
+                    : delivery.feeCents === 0
+                      ? 'FREE'
+                      : formatCentsAsDollars(delivery.feeCents)}
+                </span>
+              ) : (
+                <span className="font-bold text-primary">FREE</span>
+              )}
             </div>
             <Separator className="my-2" />
             <div className="flex items-center justify-between py-1 text-base font-bold">

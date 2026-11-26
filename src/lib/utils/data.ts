@@ -265,7 +265,6 @@ export function slugifyProductTitle(title: string): string {
 export const TAX_RATE = process.env.NEXT_PUBLIC_TAX_RATE
   ? Number(process.env.NEXT_PUBLIC_TAX_RATE)
   : 0
-export const DELIVERY_FEE_CENTS = 600
 
 export function centsToDollars(cents: number | null | undefined): number {
   const safeCents = Math.round(Number(cents) || 0)
@@ -279,6 +278,7 @@ export function formatCentsAsDollars(cents: number | null | undefined): string {
 export function calculateOrderTotalsCents(
   items: Array<{ unitPriceCents: number; quantity: number }>,
   fulfillmentMethod: Order['fulfillmentMethod'],
+  deliveryFeeCents?: number,
 ): {
   subTotalCents: number
   taxCents: number
@@ -291,7 +291,7 @@ export function calculateOrderTotalsCents(
     return sum + unitCents * qty
   }, 0)
   const taxCents = Math.round(subTotalCents * TAX_RATE)
-  const shippingCents = fulfillmentMethod === 'DELIVERY' ? DELIVERY_FEE_CENTS : 0
+  const shippingCents = fulfillmentMethod === 'DELIVERY' && deliveryFeeCents ? deliveryFeeCents : 0
   const grandTotalCents = subTotalCents + taxCents + shippingCents
   return {
     subTotalCents,

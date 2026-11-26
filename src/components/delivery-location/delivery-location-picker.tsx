@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { DeliveryLocationInput, type DeliveryLocationValue } from '.'
+import { DeliveryLocationInput } from './delivery-location-input'
 import type { Coordinates } from '@/lib/utils/delivery-fee'
 
 const LeafletPinMap = dynamic(() => import('./leaflet-pin-map').then((mod) => mod.LeafletPinMap), {
@@ -14,9 +14,9 @@ const LeafletPinMap = dynamic(() => import('./leaflet-pin-map').then((mod) => mo
 })
 
 interface DeliveryLocationPickerProps {
-  value: DeliveryLocationValue | null
+  value: string | null
   storeCoords?: Coordinates
-  onChange: (next: DeliveryLocationValue) => void
+  onChange: (next: string) => void
 }
 
 export function DeliveryLocationPicker({

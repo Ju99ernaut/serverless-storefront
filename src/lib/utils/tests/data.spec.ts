@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  DELIVERY_FEE_CENTS,
   TAX_RATE,
   PAYMENT_OPTIONS,
   BOTTOM_BAR_FILTERS,
@@ -54,11 +53,12 @@ describe('src/lib/utils/data unit tests', () => {
         { unitPriceCents: 5000, quantity: 2 }, // 10000 cents ($100)
         { unitPriceCents: 2500, quantity: 1 }, // 2500 cents ($25)
       ]
-      const totals = calculateOrderTotalsCents(items, 'DELIVERY')
+      const deliveryFeeCents = 600
+      const totals = calculateOrderTotalsCents(items, 'DELIVERY', deliveryFeeCents)
       expect(totals.subTotalCents).toBe(12500)
-      expect(totals.shippingCents).toBe(DELIVERY_FEE_CENTS) // 600
+      expect(totals.shippingCents).toBe(deliveryFeeCents)
       expect(totals.taxCents).toBe(Math.round(12500 * TAX_RATE))
-      expect(totals.grandTotalCents).toBe(12500 + totals.taxCents + DELIVERY_FEE_CENTS)
+      expect(totals.grandTotalCents).toBe(12500 + totals.taxCents + deliveryFeeCents)
     })
 
     it('calculates totals with COLLECTION fulfillment (shipping is 0)', () => {

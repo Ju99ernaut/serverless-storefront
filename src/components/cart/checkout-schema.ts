@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { PAYMENT_OPTIONS, type PaymentOptionType } from '../../lib/utils/data'
 import type { PaynowMobileMethod } from '@/lib/paynow'
+import { parseLocation } from '@/lib/utils/parse-locations'
+import { findNearestLocation, MAX_DELIVERY_RADIUS } from '@/lib/utils/delivery-fee'
 
 export type PaymentOptionMeta = (typeof PAYMENT_OPTIONS)[number]
 
@@ -82,6 +84,17 @@ export const COLLECTION_LOCATIONS = process.env.NEXT_PUBLIC_COLLECTION_LOCATIONS
       'San Francisco Jackson Square Showroom',
     ]
 
+export function isValidLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  )
+}
+
 export const checkoutSchema = z
   .object({
     paymentOption: z.enum([
@@ -121,6 +134,25 @@ export const checkoutSchema = z
         path: ['shippingAddress'],
         message: 'Please enter a delivery address.',
       })
+    } else if (meta.requiresShippingAddress) {
+      const parsedAddress = parseLocation(values.shippingAddress)
+      if (!isValidLatLng(parsedAddress.lat, parsedAddress.lng)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['shippingAddress'],
+          message: 'Please enter a valid delivery location.',
+        })
+      }
+      const rawKm = findNearestLocation(parsedAddress)
+      const distanceKm = Number(rawKm.toFixed(2))
+
+      if (MAX_DELIVERY_RADIUS && distanceKm > MAX_DELIVERY_RADIUS) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['shippingAddress'],
+          message: 'Delivery location is out of range.',
+        })
+      }
     }
 
     if (!meta.requiresShippingAddress && !values.collectionLocation.trim()) {
