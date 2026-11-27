@@ -117,7 +117,6 @@ const UNSPLASH_PRODUCT_IMAGES: Record<string, string[]> = {
   'milan-leather-chelsea-boot': [
     'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=1000&q=80',
     'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1620987278438-abd67f5f3f05?auto=format&fit=crop&w=1000&q=80',
   ],
   'cloudstride-knit-runner': [
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=80',
@@ -125,13 +124,11 @@ const UNSPLASH_PRODUCT_IMAGES: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&w=1000&q=80',
   ],
   'mayfair-penny-loafer': [
-    'https://images.unsplash.com/photo-1533867617858-e7d97e0afd8b?auto=format&fit=crop&w=1000&q=80',
     'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=1000&q=80',
     'https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&w=1000&q=80',
   ],
   'nordic-gore-tex-trail-boot': [
     'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1542840410-3092f99653e3?auto=format&fit=crop&w=1000&q=80',
     'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=1000&q=80',
   ],
   'boardwalk-vulcanized-canvas-low': [
