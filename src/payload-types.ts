@@ -279,6 +279,10 @@ export interface Product {
     | null;
   averageRating?: number | null;
   reviewCount?: number | null;
+  /**
+   * Keep record of product but hide it on the storefront grid.
+   */
+  isArchived?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -738,6 +742,7 @@ export interface ProductsSelect<T extends boolean = true> {
       };
   averageRating?: T;
   reviewCount?: T;
+  isArchived?: T;
   updatedAt?: T;
   createdAt?: T;
 }

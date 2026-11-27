@@ -221,5 +221,13 @@ export const Products: CollectionConfig = {
       defaultValue: 0,
       min: 0,
     },
+    {
+      name: 'isArchived',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Keep record of product but hide it on the storefront grid.',
+      },
+    },
   ],
 }

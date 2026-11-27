@@ -232,23 +232,28 @@ export function AccountOrdersTab() {
                   )}
                   <span>Generate Invoice</span>
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={generatingKey !== null}
-                  onClick={() =>
-                    generateDocMutation.mutate({ orderId: order.orderId, documentType: 'RECEIPT' })
-                  }
-                >
-                  {isGeneratingReceipt ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  <span>Generate Receipt</span>
-                </Button>
+                {order.paymentStatus === 'PAID' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={generatingKey !== null}
+                    onClick={() =>
+                      generateDocMutation.mutate({
+                        orderId: order.orderId,
+                        documentType: 'RECEIPT',
+                      })
+                    }
+                  >
+                    {isGeneratingReceipt ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    <span>Generate Receipt</span>
+                  </Button>
+                )}
               </div>
             </CardHeader>
 

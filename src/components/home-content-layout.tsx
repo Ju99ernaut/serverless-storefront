@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import BottomBar from './bottom-bar'
@@ -63,30 +63,41 @@ export function HomeContentLayout() {
     return list
   }, [products, sortBy])
 
-  const visibleProductsCount = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    return sortedProducts.filter((p) => {
-      const matchesCat =
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const isProductVisible = useCallback(
+    (product: Product) => {
+      if (product.isArchived) return false
+
+      const matchesCategory =
         !activeFilter ||
         activeFilter === 'all' ||
-        p.category === activeFilter ||
-        Boolean(p.tags?.some((t) => t.tag === activeFilter))
-      if (!matchesCat) return false
-      if (!q) return true
-      return [
-        p.title,
-        p.brand,
-        p.category,
-        p.subcategory,
-        p.description,
-        p.material,
-        ...(p.tags?.map((t) => t.tag) || []),
+        product.category === activeFilter ||
+        Boolean(product.tags?.some((t) => t.tag === activeFilter))
+
+      if (!matchesCategory) return false
+
+      if (!normalizedQuery) return true
+
+      const haystack = [
+        product.title,
+        product.brand,
+        product.category,
+        product.subcategory,
+        product.description,
+        product.material,
+        ...(product.tags?.map((t) => t.tag) || []),
       ]
         .join(' ')
         .toLowerCase()
-        .includes(q)
-    }).length
-  }, [sortedProducts, activeFilter, searchQuery])
+
+      return haystack.includes(normalizedQuery)
+    },
+    [activeFilter, normalizedQuery],
+  )
+
+  const visibleProductsCount = useMemo(() => {
+    return sortedProducts.filter(isProductVisible).length
+  }, [sortedProducts, isProductVisible])
 
   const compareIds = useMemo(() => compareItems.map((item) => item.id), [compareItems])
 
@@ -214,8 +225,7 @@ export function HomeContentLayout() {
 
         <Grid
           products={sortedProducts}
-          activeFilter={activeFilter}
-          searchQuery={searchQuery}
+          isProductVisible={isProductVisible}
           compareIds={compareIds}
           maxCompareReached={compareItems.length >= MAX_COMPARE_ITEMS}
           onToggleCompare={handleToggleCompare}

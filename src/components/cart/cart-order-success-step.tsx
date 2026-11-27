@@ -133,28 +133,32 @@ export function CartOrderSuccessStep({ orderResult, onClose }: CartOrderSuccessS
                   <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
                 </Button>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Receipt PDF</span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="link"
-                  className="h-auto p-0 text-xs font-semibold text-primary"
-                  disabled={generatingType !== null}
-                  onClick={() => generateDocMutation.mutate('RECEIPT')}
-                >
-                  {generatingType === 'RECEIPT' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  <span className="truncate max-w-[170px]">
-                    {orderResult.documents.receipt.filename}
-                  </span>
-                  <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                </Button>
-              </div>
+              {orderResult.order.paymentSummary.status === 'PAID' && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Receipt PDF</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="h-auto p-0 text-xs font-semibold text-primary"
+                      disabled={generatingType !== null}
+                      onClick={() => generateDocMutation.mutate('RECEIPT')}
+                    >
+                      {generatingType === 'RECEIPT' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      <span className="truncate max-w-[170px]">
+                        {orderResult.documents.receipt.filename}
+                      </span>
+                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

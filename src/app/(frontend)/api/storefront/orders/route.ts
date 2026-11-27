@@ -61,6 +61,12 @@ export async function PATCH(request: NextRequest) {
         )
       }
       const docType = body?.documentType === 'RECEIPT' ? 'RECEIPT' : 'INVOICE'
+      if (docType === 'RECEIPT' && existingOrder.paymentStatus !== 'PAID') {
+        return NextResponse.json(
+          { error: 'Forbidden: you have not paid this order.' },
+          { status: 403 },
+        )
+      }
       const result = await generateAndRecordOrderDocumentServer({
         orderId,
         documentType: docType,

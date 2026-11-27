@@ -104,6 +104,84 @@ export function ProductReviewsSection({
   return (
     <section aria-label="Customer Reviews" className="mt-14 pt-10 border-t border-border">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Existing Reviews List */}
+        <div className="lg:col-span-7 space-y-4">
+          {loading && reviews.length === 0 ? (
+            Array.from({ length: 2 }).map((_, idx) => (
+              <Card key={`review-skeleton-${idx}`}>
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3.5 w-20" />
+                  </div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-12 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          ) : reviews.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <Empty className="p-4">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <MessageSquare aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyTitle>No customer reviews yet</EmptyTitle>
+                    <EmptyDescription>Be the first to review {product.title}!</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </CardContent>
+            </Card>
+          ) : (
+            reviews.map((rev) => (
+              <Card key={rev.id}>
+                <CardContent className="p-5 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-foreground">{rev.authorName}</span>
+                      {rev.verifiedPurchase && (
+                        <Badge className="text-[10px]">
+                          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                          <span>Verified Purchase</span>
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(rev.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={cn(
+                            'h-3.5 w-3.5',
+                            s <= rev.rating
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-muted-foreground',
+                          )}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                    {(rev.variantColor || rev.variantSize) && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Purchased: {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-sm font-bold text-foreground">{rev.title}</h3>
+                  <p className="text-xs sm:text-sm leading-relaxed text-primary">{rev.comment}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
         {/* Review Form / Prompt */}
         <div className="lg:col-span-5 space-y-4">
           <Card>
@@ -255,85 +333,6 @@ export function ProductReviewsSection({
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Existing Reviews List */}
-        <div className="lg:col-span-7 space-y-4">
-          {loading && reviews.length === 0 ? (
-            Array.from({ length: 2 }).map((_, idx) => (
-              <Card key={`review-skeleton-${idx}`}>
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3.5 w-20" />
-                  </div>
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-12 w-full" />
-                </CardContent>
-              </Card>
-            ))
-          ) : reviews.length === 0 ? (
-            <Card>
-              <CardContent className="p-6">
-                <Empty className="p-4">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <MessageSquare aria-hidden="true" />
-                    </EmptyMedia>
-                    <EmptyTitle>No customer reviews yet</EmptyTitle>
-                    <EmptyDescription>Be the first to review {product.title}!</EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              </CardContent>
-            </Card>
-          ) : (
-            reviews.map((rev) => (
-              <Card key={rev.id}>
-                <CardContent className="p-5 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-foreground">{rev.authorName}</span>
-                      {rev.verifiedPurchase && (
-                        <Badge className="text-[10px]">
-                          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                          <span>Verified Purchase</span>
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(rev.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5 text-amber-400">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={cn(
-                            'h-3.5 w-3.5',
-                            s <= rev.rating
-                              ? 'fill-amber-400 text-amber-400'
-                              : 'text-muted-foreground',
-                          )}
-                          aria-hidden="true"
-                        />
-                      ))}
-                    </div>
-                    {(rev.variantColor || rev.variantSize) && (
-                      <span className="text-[11px] text-muted-foreground">
-                        Purchased: {[rev.variantColor, rev.variantSize].filter(Boolean).join(' • ')}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-sm font-bold text-foreground">{rev.title}</h3>
-                  <p className="text-xs sm:text-sm leading-relaxed text-primary">{rev.comment}</p>
-                </CardContent>
-              </Card>
-            ))
-          )}
         </div>
       </div>
     </section>

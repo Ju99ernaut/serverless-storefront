@@ -24,8 +24,7 @@ interface GridLayoutState {
 
 interface GridProps {
   products: Product[]
-  activeFilter: string
-  searchQuery?: string
+  isProductVisible: (product: Product) => boolean
   compareIds: Array<Product['id']>
   maxCompareReached: boolean
   onToggleCompare: (product: Product) => void
@@ -34,8 +33,7 @@ interface GridProps {
 
 const Grid = ({
   products,
-  activeFilter,
-  searchQuery = '',
+  isProductVisible,
   compareIds,
   maxCompareReached,
   onToggleCompare,
@@ -53,37 +51,6 @@ const Grid = ({
     height: 800,
     items: {},
   })
-
-  const normalizedQuery = searchQuery.trim().toLowerCase()
-
-  const isProductVisible = useCallback(
-    (product: Product) => {
-      const matchesCategory =
-        !activeFilter ||
-        activeFilter === 'all' ||
-        product.category === activeFilter ||
-        Boolean(product.tags?.some((t) => t.tag === activeFilter))
-
-      if (!matchesCategory) return false
-
-      if (!normalizedQuery) return true
-
-      const haystack = [
-        product.title,
-        product.brand,
-        product.category,
-        product.subcategory,
-        product.description,
-        product.material,
-        ...(product.tags?.map((t) => t.tag) || []),
-      ]
-        .join(' ')
-        .toLowerCase()
-
-      return haystack.includes(normalizedQuery)
-    },
-    [activeFilter, normalizedQuery],
-  )
 
   const computeShuffleLayout = useCallback(() => {
     const gridEl = gridRef.current
