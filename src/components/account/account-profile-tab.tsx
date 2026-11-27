@@ -242,7 +242,7 @@ export function AccountProfileTab() {
         >
           <FieldGroup>
             {/* Profile Picture Upload & URL */}
-            <div className="border border-border bg-secondary p-4 space-y-3">
+            <div className="border border-border bg-secondary p-4 space-y-3 rounded-lg">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
                 <Camera className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span>Profile Picture</span>
@@ -394,7 +394,7 @@ export function AccountProfileTab() {
             />
 
             {/* Password Update Section */}
-            <div className="border border-border bg-secondary p-4 space-y-3">
+            <div className="border border-border rounded-lg bg-secondary p-4 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
                 <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span>Change Password (Optional)</span>

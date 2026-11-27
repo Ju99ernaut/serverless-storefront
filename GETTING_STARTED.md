@@ -2,7 +2,7 @@
 
 This storefront is a fully serverless e-commerce template built with **Payload CMS**, **Neon Postgres**, **Neon Managed Better Auth**, and durable **Workflows**. It is tailored for stores—particularly small businesses with out-of-the-box admin management for products, banners, and orders, mobile money integration, and customizable fulfillment steps.
 
-![Storefront Overview Screenshot](./docs/screenshots/storefront-overview.png)
+![Storefront Overview Screenshot](https://shop.composeit.website/getting-started/home.png)
 
 ---
 
@@ -38,7 +38,7 @@ Both the **storefront** and the **Payload CMS Admin panel** support **Light** an
 * **Customizing Store Colors:** Update the `:root` (light) and `.dark` (dark) CSS tokens in `src/app/globals.css` to match your brand palette—all `shadcn/ui` components and storefront surfaces adapt automatically.
 * **Payload Admin Theme:** Payload's `/admin` dashboard includes a built-in Light/Dark/Automatic appearance switcher under the admin account preferences (or top-right profile menu), and any custom admin components (such as `OrderManagementControls`) inherit Payload's theme CSS variables (`--theme-bg`, `--theme-text`, `--theme-elevation-*`).
 
-![Storefront and Admin Light/Dark Mode Screenshot](./docs/screenshots/theme-light-dark.png)
+![Storefront Admin Screenshot](https://shop.composeit.website/getting-started/admin.png)
 
 ---
 
@@ -127,7 +127,7 @@ NEXT_PUBLIC_IMAGEKIT_URL=[https://ik.imagekit.io/your_imagekit_id](https://ik.im
 
 ### 3. Invoices, Receipts & Emails (ComposeIt + Resend)
 
-Invoices and receipts are mission-critical for order fulfillment. The store generates PDF and HTML documents via **ComposeIt** (`POST` with `{ templateId, formats: ["pdf"] | ["html"], data }` and `x-api-key` header) and dispatches emails with PDF attachments via **Resend** (`path: pdf.url`).
+Invoices and receipts are mission-critical for order fulfillment. The store generates PDF and HTML documents via **ComposeIt** (`POST` with `{ templateId, formats: ["pdf"] | ["html"], data }` and `x-api-key` header) and dispatches emails with PDF attachments via **Resend** (`path: pdf.url`). With ComposeIt you can fully customize email and PDF templates visually without writing any code
 
 > **Customizing Providers:** If you prefer another document or email provider, implement a custom adapter based on `src/lib/utils/document-email-service`.
 
@@ -146,11 +146,7 @@ RESEND_FROM="Storefront Orders <onboarding@resend.dev>"
 ADMIN_EMAIL=admin@example.com
 ```
 
-![Sample Invoice Template Screenshot](./docs/screenshots/composeit-receipt-preview.png)
-
-![Sample Receipt Template Screenshot](./docs/screenshots/storefront-overview.png)
-
-![Sample Email Template Screenshot](./docs/screenshots/storefront-overview.png)
+![Sample Invoice Template Screenshot](https://shop.composeit.website/getting-started/composeit.png)
 
 ---
 
@@ -166,8 +162,6 @@ The store integrates **Paynow Express Mobile Payments** (EcoCash & InnBucks), wi
 PAYNOW_INTEGRATION_ID=
 PAYNOW_INTEGRATION_KEY=
 ```
-
-![Checkout Payment Options Screenshot](./docs/screenshots/checkout-payment-options.png)
 
 ---
 
@@ -206,8 +200,6 @@ NEXT_PUBLIC_COLLECTION_LOCATIONS="Samora Machel Flagship@-17.8292,31.0522|Avonda
 ```
 
 _(Alternatively, if your parser reads JSON: `NEXT_PUBLIC_COLLECTION_LOCATIONS='[{"name":"Samora Machel Flagship","lat":-17.8292,"lng":31.0522}]'`)_
-
-![Checkout Delivery and Pickup Selector Screenshot](./docs/screenshots/checkout-location-picker.png)
 
 ### Getting Latitude & Longitude Coordinates
 
@@ -262,9 +254,14 @@ When configured:
 
 From `/admin/collections/orders`, you can track orders, inspect payment and fiscal receipt details, and move orders along the fulfillment pipeline (`CONFIRMED` -> `PROCESSING` -> `READY_FOR_COLLECTION` / `OUT_FOR_DELIVERY` -> `COMPLETED`), or let your workflows advance them automatically.
 
-![Payload Admin Order Management Screenshot](./docs/screenshots/admin-order-controls.png)
+![Payload Admin Order Management Screenshot](https://shop.composeit.website/getting-started/order-management.png)
 
 > **Tip:** Fulfillment also confirms the `paymentStatus` is marking as **Paid** before moving an order to **Completed**. For _Pay on Delivery_ and _Pay on Collection_ orders you may need to manually add payment detail if necessary.
+
+Users can also cancel their own orders in their profile section
+
+![User Order Cancellation](https://shop.composeit.website/getting-started/profile.png)
+
 
 ---
 

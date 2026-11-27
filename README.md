@@ -1,8 +1,8 @@
 # The Store (`serverless-store`)
 
-> **Status: Testing Phase** — This project is currently in its testing phase. Features, workflows, payment provider integrations, and data schemas are actively being tested and refined before production launch.
-
 A serverless apparel storefront built with Next.js App Router, Payload CMS, Neon Postgres, Neon Managed Better Auth, the Vercel Workflow SDK, Cloudflare R2 media storage or any S3 compatible media storage, ComposeIt on-demand PDF/HTML templates, and Resend transactional emails.
+
+![Storefront Overview Screenshot](https://shop.composeit.website/getting-started/home.png)
 
 ## Features
 
