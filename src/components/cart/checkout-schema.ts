@@ -9,7 +9,6 @@ export type PaymentOptionMeta = (typeof PAYMENT_OPTIONS)[number]
 export interface CheckoutPendingMobilePaymentResponse {
   success: true
   pendingPayment: true
-  workflowRunId?: string
   orderId: string
   pollUrl: string
   instructions: string
@@ -21,7 +20,6 @@ export interface CheckoutPendingMobilePaymentResponse {
 export interface CheckoutWorkflowResponse {
   success: true
   pendingPayment: true
-  workflowRunId?: string
   orderId: string
 }
 

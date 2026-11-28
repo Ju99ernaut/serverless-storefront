@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const workflowRun = await start(executeDurableCheckoutWorkflow, [
+      await start(executeDurableCheckoutWorkflow, [
         {
           idempotencyKey,
           orderId,
@@ -135,7 +135,6 @@ export async function POST(request: NextRequest) {
         {
           success: true,
           pendingPayment: true,
-          workflowRunId: workflowRun.runId,
           orderId,
           pollUrl: initResult.pollUrl,
           instructions:
@@ -150,7 +149,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const workflowRun = await start(executeDurableCheckoutWorkflow, [
+    await start(executeDurableCheckoutWorkflow, [
       {
         idempotencyKey,
         orderId,
@@ -173,7 +172,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       pendingPayment: true,
-      workflowRunId: workflowRun.runId,
       orderId,
     })
   } catch (error: unknown) {
