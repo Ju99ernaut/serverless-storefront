@@ -17,8 +17,13 @@ export async function processPaymentTransactionStep(input: {
   const cleanCard = (input.cardNumber || '').replace(/\D/g, '')
   const cleanMobile = (input.mobileNumber || '').replace(/\D/g, '')
 
-  const mobileLabel = input.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'
-  const last4 = isMobilePayment ? cleanMobile.slice(-4) || 'MOBILE' : cleanCard.slice(-4) || 'N/A'
+  const mobileLabel =
+    input.mobileMethod === 'ecocash'
+      ? 'EcoCash'
+      : input.mobileMethod === 'innbucks'
+        ? 'InnBucks'
+        : 'Paynow'
+  const last4 = isMobilePayment ? cleanMobile.slice(-4) || 'N/A' : cleanCard.slice(-4) || 'N/A'
 
   const methodLabel = isMobilePayment
     ? `${optionMeta.shortLabel} (${mobileLabel} •••• ${last4})`

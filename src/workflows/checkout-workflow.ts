@@ -20,6 +20,7 @@ import {
   type WorkflowTimeoutValue,
 } from './types'
 import { calculateDeliveryFee } from '@/lib/utils/delivery-fee'
+import { pollPaynowUntilTerminalStep } from './steps/poll-paynow-until-terminal'
 
 export {
   WORKFLOW_TIMEOUT_DEFAULTS,
@@ -237,19 +238,58 @@ export async function executeDurableCheckoutWorkflow(input: CheckoutWorkflowInpu
   )
 
   let paymentOutcome: Awaited<ReturnType<typeof processPaymentTransactionStep>>
-  const isPaynowMobile = input.payment?.provider === 'paynow_mobile'
-  const requiresPaymentFirst = optionMeta.requiresCardNow && isPaynowMobile
+  const isPaynow = input.payment?.provider?.includes('paynow')
+  const requiresPaymentFirst = optionMeta.requiresCardNow && isPaynow
 
   if (requiresPaymentFirst) {
     using paymentHook = orderPaymentHook.create({
       token: getOrderPaymentHookToken(orderId),
     })
 
-    const paymentRace = await Promise.race([
-      paymentHook.then((payload) => ({ timedOut: false as const, payload })),
-      sleepForTimeout(paymentWaitTimeout).then(() => ({ timedOut: true as const })),
-    ])
+    const abortController = new AbortController()
 
+    const hookAthlete = paymentHook.then((payload) => ({
+      source: 'hook' as const,
+      timedOut: false as const,
+      payload,
+    }))
+
+    const pollAthlete = (async () => {
+      while (!abortController.signal.aborted) {
+        const result = await pollPaynowUntilTerminalStep({
+          pollUrl: input.payment?.pollUrl || '',
+        })
+
+        if (abortController.signal.aborted) {
+          return new Promise<never>(() => {})
+        }
+
+        return {
+          source: 'poll' as const,
+          timedOut: false as const,
+          payload: result,
+        }
+      }
+
+      return new Promise<never>(() => {})
+    })()
+
+    const timedOutAthlete = sleepForTimeout(paymentWaitTimeout).then(() => ({
+      source: 'timeout' as const,
+      timedOut: true as const,
+    }))
+
+    const raceCandidates = [
+      hookAthlete,
+      input.payment?.pollUrl ? pollAthlete : timedOutAthlete,
+      timedOutAthlete,
+    ]
+    let paymentRace: Awaited<(typeof raceCandidates)[number]>
+    try {
+      paymentRace = await Promise.race(raceCandidates)
+    } finally {
+      abortController.abort()
+    }
     if (paymentRace.timedOut) {
       const reason = `Payment not received within ${String(paymentWaitTimeout)}; workflow stopped and reserved stock released.`
       await releaseReservedStockStep({ reservationKey, reason })

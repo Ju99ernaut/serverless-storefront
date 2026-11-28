@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
           pollUrl: pollResult.pollUrl || pollUrl,
           paynowReference: pollResult.paynowReference,
           error: pollResult.failed
-            ? pollResult.error || `Paynow mobile payment ${pollResult.status}.`
+            ? pollResult.error || `Paynow payment ${pollResult.status}.`
             : undefined,
         })
       } catch {

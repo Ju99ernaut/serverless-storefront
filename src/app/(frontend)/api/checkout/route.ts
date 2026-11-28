@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { start } from 'workflow/api'
 import { getServerNeonUser } from '@/lib/auth'
-import { initiatePaynowMobilePayment } from '@/lib/paynow'
+import { initiatePaynowPayment } from '@/lib/paynow'
 import { PAYMENT_OPTIONS, calculateOrderTotalsCents } from '@/lib/utils/products'
 import {
   executeDurableCheckoutWorkflow,
@@ -48,19 +48,13 @@ export async function POST(request: NextRequest) {
     const optionMeta =
       PAYMENT_OPTIONS.find((opt) => opt.id === resolvedPaymentOption) || PAYMENT_OPTIONS[0]
 
-    // Express Mobile Payments via Paynow (EcoCash / InnBucks):
+    // Express Mobile Payments via Paynow (EcoCash / InnBucks) or Redirect:
     // Initiate mobile push immediately so we can return instructions & pollUrl to the user
     // while the durable checkout workflow reserves stock and waits on the payment hook.
-    if (optionMeta.requiresCardNow && payment?.provider === 'paynow_mobile') {
+    if (optionMeta.requiresCardNow && payment?.provider?.includes('paynow')) {
       const mobileNumber = payment.mobileNumber?.trim() || customer?.phone?.trim() || ''
-      const mobileMethod = payment.mobileMethod || 'ecocash'
-
-      if (!mobileNumber) {
-        return NextResponse.json(
-          { error: 'A mobile money phone number is required for Paynow express checkout.' },
-          { status: 400 },
-        )
-      }
+      const mobileMethod =
+        payment.provider === 'paynow' ? 'paynow' : payment.mobileMethod || 'ecocash'
 
       const calculationItems = items.map((item) => ({
         unitPriceCents: Math.round(Number(item.price) || 0),
@@ -88,7 +82,7 @@ export async function POST(request: NextRequest) {
         ...(shippingCents > 0 ? [{ title: 'Courier Delivery', amountCents: shippingCents }] : []),
       ]
 
-      const initResult = await initiatePaynowMobilePayment({
+      const initResult = await initiatePaynowPayment({
         reference: orderId,
         authEmail: customerEmail,
         phone: mobileNumber,
@@ -122,7 +116,7 @@ export async function POST(request: NextRequest) {
             collectionLocation: customer?.collectionLocation || '',
           },
           payment: {
-            provider: 'paynow_mobile',
+            provider: payment.provider,
             mobileMethod,
             mobileNumber,
             pollUrl: initResult.pollUrl,
@@ -140,7 +134,9 @@ export async function POST(request: NextRequest) {
           instructions:
             initResult.instructions || mobileMethod === 'ecocash'
               ? `Check your EcoCash phone (${mobileNumber}) to authorize the payment prompt.`
-              : `Scan to pay with InnBucks app or pay using code.`,
+              : mobileMethod === 'innbucks'
+                ? `Scan to pay with InnBucks app or pay using code.`
+                : `Complete payment on paynow website. Then return to this page.`,
           mobileMethod,
           mobileNumber,
           initResult,

@@ -102,8 +102,8 @@ export const checkoutSchema = z
       'pay_on_delivery',
       'pay_on_collection',
     ]),
-    paymentProvider: z.enum(['paynow_mobile', 'card']),
-    mobileMethod: z.enum(['ecocash', 'innbucks']),
+    paymentProvider: z.enum(['paynow_mobile', 'paynow', 'card']),
+    mobileMethod: z.enum(['ecocash', 'innbucks', 'paynow']),
     mobileNumber: z.string(),
     customerName: z
       .string()

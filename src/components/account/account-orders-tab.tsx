@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Clock, FileText, Loader2, Package, Truck } from 'lucide-react'
+import { CheckCircle2, FileText, Loader2, Package } from 'lucide-react'
 import { CACHE_TIMES, storefrontQueryKeys } from '@/context'
 import {
   generateOrderDocumentViaSdk,
@@ -46,9 +46,6 @@ export function AccountOrdersTab() {
   const user = sessionData?.user
   const queryClient = useQueryClient()
   const [generatingKey, setGeneratingKey] = useState<string | null>(null)
-  const isAuthorizedOperator = Boolean(
-    user?.role && ['admin', 'staff', 'fulfillment'].includes(user.role.trim().toLowerCase()),
-  )
 
   const generateDocMutation = useMutation({
     mutationFn: ({
@@ -352,10 +349,15 @@ export function AccountOrdersTab() {
                       className="flex items-start justify-between gap-2 text-xs"
                     >
                       <div className="flex items-start gap-2">
-                        <CheckCircle2
-                          className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5"
-                          aria-hidden="true"
-                        />
+                        <div className="flex flex-col items-center h-full">
+                          <CheckCircle2
+                            className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          {idx !== (order.statusTimeline?.length || 0) - 1 && (
+                            <div className="h-[15px] w-[0px] border-r border-emerald-500"></div>
+                          )}
+                        </div>
                         <div>
                           <div className="font-semibold text-foreground">{entry.label}</div>
                           {entry.note && <div className="text-muted-foreground">{entry.note}</div>}
@@ -373,86 +375,21 @@ export function AccountOrdersTab() {
                   ))}
                 </div>
 
-                {!isTerminal && isAuthorizedOperator && (
+                {!isTerminal && order.orderStatus !== 'OUT_FOR_DELIVERY' && (
                   <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
-                    <span className="text-[11px] text-muted-foreground mr-1">
-                      Admin Fulfillment Controls:
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={updatingOrderId === order.orderId}
-                      onClick={() => onAdvanceStatus(order.orderId, 'PROCESSING')}
-                    >
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                      Preparing
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={updatingOrderId === order.orderId}
-                      onClick={() =>
-                        onAdvanceStatus(
-                          order.orderId,
-                          order.fulfillmentMethod === 'COLLECTION'
-                            ? 'READY_FOR_COLLECTION'
-                            : 'OUT_FOR_DELIVERY',
-                        )
-                      }
-                    >
-                      <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-                      {order.fulfillmentMethod === 'COLLECTION'
-                        ? 'Ready for Collection'
-                        : 'Out for Delivery'}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={updatingOrderId === order.orderId}
-                      onClick={() => onAdvanceStatus(order.orderId, 'COMPLETED')}
-                    >
-                      {order.fulfillmentMethod === 'COLLECTION'
-                        ? 'Mark Collected'
-                        : 'Mark Delivered'}
-                    </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       disabled={updatingOrderId === order.orderId}
                       onClick={() =>
-                        onAdvanceStatus(order.orderId, 'CANCELLED', {
-                          deliveryFailed: order.fulfillmentMethod === 'DELIVERY',
-                        })
+                        onAdvanceStatus(order.orderId, 'CANCELLED', { deliveryFailed: false })
                       }
                     >
-                      {order.fulfillmentMethod === 'DELIVERY'
-                        ? 'Delivery Failed / Cancel'
-                        : 'Cancel & Release Stock'}
+                      Cancel Order
                     </Button>
                   </div>
                 )}
-
-                {!isTerminal &&
-                  !isAuthorizedOperator &&
-                  order.orderStatus !== 'OUT_FOR_DELIVERY' && (
-                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={updatingOrderId === order.orderId}
-                        onClick={() =>
-                          onAdvanceStatus(order.orderId, 'CANCELLED', { deliveryFailed: false })
-                        }
-                      >
-                        Cancel Order
-                      </Button>
-                    </div>
-                  )}
               </div>
             </CardContent>
           </Card>

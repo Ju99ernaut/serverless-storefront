@@ -49,7 +49,7 @@ export interface CheckoutWorkflowInput {
     collectionLocation?: string
   }
   payment?: {
-    provider?: 'paynow_mobile' | 'card'
+    provider?: 'paynow_mobile' | 'card' | 'paynow'
     cardholderName?: string
     cardNumber?: string
     expiry?: string

@@ -1,5 +1,5 @@
 declare module 'paynow' {
-  export type PaynowMobileMethod = 'ecocash' | 'innbucks'
+  export type PaynowMobileMethod = 'ecocash' | 'innbucks' | 'paynow'
 
   export class Payment {
     reference: string

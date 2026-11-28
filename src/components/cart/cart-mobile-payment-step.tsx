@@ -18,7 +18,7 @@ import { DrawerHeader, DrawerTitle } from '../ui/drawer'
 import { Separator } from '../ui/separator'
 import type { CheckoutPendingMobilePaymentResponse } from './checkout-schema'
 import QRCode from 'react-qr-code'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function formatExpiresAt(
   value: string | number | Date | null | undefined,
@@ -66,7 +66,12 @@ export function CartMobilePaymentStep({
   onCheckStatus,
   onBackToCheckout,
 }: CartMobilePaymentStepProps) {
-  const walletLabel = pendingPayment.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'
+  const walletLabel =
+    pendingPayment.mobileMethod === 'ecocash'
+      ? 'EcoCash'
+      : pendingPayment.mobileMethod === 'innbucks'
+        ? 'InnBucks'
+        : 'Paynow'
   const innbucksInfo = pendingPayment.initResult.innbucks_info?.[0]
   const [copiedCode, setCopiedCode] = useState(false)
 
@@ -75,6 +80,12 @@ export function CartMobilePaymentStep({
     setCopiedCode(true)
     setTimeout(() => setCopiedCode(false), 2000)
   }
+
+  useEffect(() => {
+    if (pendingPayment.initResult.redirectUrl && walletLabel === 'Paynow') {
+      window.location.replace(pendingPayment.initResult.redirectUrl)
+    }
+  }, [pendingPayment.initResult.redirectUrl, walletLabel])
 
   return (
     <>
@@ -90,11 +101,9 @@ export function CartMobilePaymentStep({
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span>Back</span>
           </Button>
-          <Badge variant="secondary">Paynow Express Mobile</Badge>
+          <Badge variant="secondary">Paynow</Badge>
         </div>
-        <DrawerTitle className="pt-1 text-lg font-bold">
-          Authorize Payment on Your Phone
-        </DrawerTitle>
+        <DrawerTitle className="pt-1 text-lg font-bold">Authorize Payment</DrawerTitle>
       </DrawerHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 space-y-5">
@@ -173,11 +182,15 @@ export function CartMobilePaymentStep({
               <span className="text-muted-foreground">Wallet</span>
               <strong className="text-foreground">{walletLabel}</strong>
             </div>
-            <Separator />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Phone Number</span>
-              <strong className="text-foreground">{pendingPayment.mobileNumber}</strong>
-            </div>
+            {!!pendingPayment.mobileNumber && (
+              <>
+                <Separator />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">Phone Number</span>
+                  <strong className="text-foreground">{pendingPayment.mobileNumber}</strong>
+                </div>
+              </>
+            )}
             <Separator />
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Paynow Status</span>

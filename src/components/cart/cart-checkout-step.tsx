@@ -36,6 +36,7 @@ import {
 import { DeliveryLocationPicker } from '../delivery-location/delivery-location-picker'
 import type { DeliveryFeeResult } from '@/lib/utils/delivery-fee'
 import { Alert } from '../ui/alert'
+import { CheckoutRedirectPaymentFields } from './checkout-redirect-payment-fields'
 
 interface CartCheckoutStepProps {
   form: UseFormReturn<CheckoutFormValues>
@@ -304,14 +305,14 @@ export function CartCheckoutStep({
                       <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Mobile</span>
                     </Button>
+                    {/** Use 'card' for card fields if you want you want to implement express payments */}
                     <Button
                       type="button"
-                      variant={field.value === 'card' ? 'default' : 'outline'}
+                      variant={field.value === 'paynow' ? 'default' : 'outline'}
                       size="sm"
                       className="gap-1.5"
-                      onClick={() => field.onChange('card')}
-                      aria-pressed={field.value === 'card'}
-                      disabled
+                      onClick={() => field.onChange('paynow')}
+                      aria-pressed={field.value === 'paynow'}
                     >
                       <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Card</span>
@@ -322,6 +323,8 @@ export function CartCheckoutStep({
 
               {paymentProvider === 'paynow_mobile' ? (
                 <CheckoutMobilePaymentFields control={form.control} baseId={baseId} />
+              ) : paymentProvider === 'paynow' ? (
+                <CheckoutRedirectPaymentFields />
               ) : (
                 <CheckoutCardFields control={form.control} baseId={baseId} />
               )}

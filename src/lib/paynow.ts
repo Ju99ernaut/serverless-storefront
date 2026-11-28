@@ -15,6 +15,7 @@ export interface PaynowMobileInitResult {
   instructions?: string
   status?: string
   error?: string
+  redirectUrl?: string
   innbucks_info?: Array<{
     authorizationcode: string
     deep_link_url: string
@@ -41,7 +42,9 @@ export function isPaynowConfigured(): boolean {
   return Boolean(process.env.PAYNOW_INTEGRATION_ID && process.env.PAYNOW_INTEGRATION_KEY)
 }
 
-export function createPaynowClient(reference?: string): Paynow {
+let paynow: Paynow
+
+export function createPaynowClient(): Paynow {
   const integrationId = process.env.PAYNOW_INTEGRATION_ID
   const integrationKey = process.env.PAYNOW_INTEGRATION_KEY
 
@@ -51,12 +54,12 @@ export function createPaynowClient(reference?: string): Paynow {
     )
   }
 
+  if (paynow) return paynow
+
   const siteUrl = getSiteUrl()
-  const paynow = new Paynow(integrationId, integrationKey)
+  paynow = new Paynow(integrationId, integrationKey)
   paynow.resultUrl = `${siteUrl}/api/gateways/paynow/update`
-  paynow.returnUrl = reference
-    ? `${siteUrl}/account?tab=orders&gateway=paynow&reference=${encodeURIComponent(reference)}`
-    : `${siteUrl}/account?tab=orders&gateway=paynow`
+  paynow.returnUrl = `${siteUrl}/account?tab=orders&gateway=paynow`
 
   return paynow
 }
@@ -69,15 +72,15 @@ export function normalizeZimbabwePhone(phone: string): string {
   return digits
 }
 
-export async function initiatePaynowMobilePayment(params: {
+export async function initiatePaynowPayment(params: {
   reference: string
   authEmail: string
-  phone: string
+  phone?: string
   method: PaynowMobileMethod
   items: PaynowMobilePaymentItem[]
 }): Promise<PaynowMobileInitResult> {
   try {
-    const paynow = createPaynowClient(params.reference)
+    const paynow = createPaynowClient()
     const payment = paynow.createPayment(params.reference, params.authEmail.trim())
 
     for (const item of params.items) {
@@ -87,13 +90,15 @@ export async function initiatePaynowMobilePayment(params: {
       }
     }
 
-    const normalizedPhone = normalizeZimbabwePhone(params.phone)
-    const response = await paynow.sendMobile(payment, normalizedPhone, params.method)
+    const normalizedPhone = normalizeZimbabwePhone(params.phone || '')
+    const response = !params.phone
+      ? await paynow.send(payment)
+      : await paynow.sendMobile(payment, normalizedPhone, params.method)
 
     if (!response) {
       return {
         success: false,
-        error: 'Unable to reach Paynow mobile payment gateway. Please try again.',
+        error: 'Unable to reach Paynow payment gateway. Please try again.',
       }
     }
 
@@ -104,7 +109,7 @@ export async function initiatePaynowMobilePayment(params: {
     return {
       success: false,
       status: response.status,
-      error: response.error || 'Paynow mobile payment initiation failed.',
+      error: response.error || 'Paynow payment initiation failed.',
     }
   } catch (err) {
     return {

@@ -35,7 +35,7 @@ export function AccountCartTab() {
             </EmptyHeader>
             <EmptyContent>
               <Link className={buttonVariants({ size: 'sm' })} href="/">
-                Browse Clothing Grid
+                Browse Clothing
               </Link>
             </EmptyContent>
           </Empty>

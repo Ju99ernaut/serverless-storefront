@@ -190,12 +190,16 @@ const CartSidebar = ({
                 mobileMethod: values.mobileMethod,
                 mobileNumber: values.mobileNumber.trim(),
               }
-            : {
-                provider: 'card' as const,
-                cardholderName: values.ccName.trim(),
-                cardNumber: values.ccNumber.replace(/\s+/g, ''),
-                expiry: values.ccExp.trim(),
-              }
+            : values.paymentProvider === 'paynow'
+              ? {
+                  provider: 'paynow' as const,
+                }
+              : {
+                  provider: 'card' as const,
+                  cardholderName: values.ccName.trim(),
+                  cardNumber: values.ccNumber.replace(/\s+/g, ''),
+                  expiry: values.ccExp.trim(),
+                }
           : undefined,
         items: items.map((item) => ({
           id: String(
@@ -224,11 +228,19 @@ const CartSidebar = ({
         setPendingMobilePayment(data)
         setMobilePaymentStatus('sent')
         setStep('mobile_payment')
-        toast.add({
-          type: 'info',
-          title: 'Mobile payment prompt sent',
-          description: `Check your ${data.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'} phone (${data.mobileNumber}) to complete payment.`,
-        })
+        if (data.mobileNumber) {
+          toast.add({
+            type: 'info',
+            title: 'Mobile payment prompt sent',
+            description: `Check your ${data.mobileMethod === 'ecocash' ? 'EcoCash' : 'InnBucks'} phone (${data.mobileNumber}) to complete payment.`,
+          })
+        } else {
+          toast.add({
+            type: 'info',
+            title: 'Payment initiated',
+            description: `You will be redirected to Paynow to complete the payment.`,
+          })
+        }
         return
       }
 
@@ -346,7 +358,11 @@ const CartSidebar = ({
         const currentValues = checkoutForm.getValues()
         const orderDoc = data.order
         const walletLabel =
-          pendingMobilePayment?.mobileMethod === 'ecocash' ? 'EcoCash' : 'Innbucks'
+          pendingMobilePayment?.mobileMethod === 'ecocash'
+            ? 'EcoCash'
+            : pendingMobilePayment?.mobileMethod === 'innbucks'
+              ? 'Innbucks'
+              : 'Redirect'
 
         setOrderResult({
           success: true,
